@@ -1,76 +1,87 @@
 'use client';
 
-import { useState } from "react";
-import { siteConfig } from "@/data/config";
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { siteConfig } from '@/data/config';
+
+const links = [
+  { label: 'Home', href: '/' },
+  { label: 'Portfolio', href: '#gallery' },
+  { label: 'About', href: '#about' },
+  { label: 'Contact', href: '#contact' },
+  { label: 'Blog', href: '/blog' },
+];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-  const links = [
-    ["Gallery", "#gallery"],
-    ["About", "#about"],
-    ["Contact", "#contact"],
-  ];
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-neutral-100">
-      <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <a
-          href="#"
-          className="text-lg tracking-[0.25em] uppercase"
-          style={{ fontFamily: "var(--font-cormorant)" }}
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 bg-white transition-shadow duration-300 ${
+        scrolled ? 'shadow-sm' : ''
+      }`}
+    >
+      {/* Top row — artist name */}
+      <div className="border-b border-neutral-100 py-4 px-6 flex items-center justify-between md:justify-center relative">
+        <Link
+          href="/"
+          className="text-xl md:text-2xl tracking-[0.3em] uppercase"
+          style={{ fontFamily: 'var(--font-cormorant)', color: '#3d6478' }}
         >
           {siteConfig.artistName}
-        </a>
-
-        {/* Desktop links */}
-        <div className="hidden md:flex items-center gap-10">
-          {links.map(([label, href]) => (
-            <a
-              key={label}
-              href={href}
-              className="text-xs tracking-[0.2em] uppercase text-neutral-500 hover:text-neutral-900 transition-colors"
-            >
-              {label}
-            </a>
-          ))}
-        </div>
+        </Link>
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden flex flex-col gap-[5px] p-1"
+          className="md:hidden flex flex-col gap-[5px] absolute right-6"
           onClick={() => setOpen(!open)}
           aria-label="Toggle menu"
         >
-          <span
-            className="block w-6 h-px bg-neutral-900 transition-all duration-300"
-            style={{ transform: open ? "rotate(45deg) translate(4px, 4px)" : "none" }}
-          />
-          <span
-            className="block w-6 h-px bg-neutral-900 transition-all duration-300"
-            style={{ opacity: open ? 0 : 1 }}
-          />
-          <span
-            className="block w-6 h-px bg-neutral-900 transition-all duration-300"
-            style={{ transform: open ? "rotate(-45deg) translate(4px, -4px)" : "none" }}
-          />
+          <span className="block w-6 h-px bg-neutral-700 transition-all duration-300"
+            style={{ transform: open ? 'rotate(45deg) translate(4px, 4px)' : 'none' }} />
+          <span className="block w-6 h-px bg-neutral-700 transition-all duration-300"
+            style={{ opacity: open ? 0 : 1 }} />
+          <span className="block w-6 h-px bg-neutral-700 transition-all duration-300"
+            style={{ transform: open ? 'rotate(-45deg) translate(4px, -4px)' : 'none' }} />
         </button>
+      </div>
+
+      {/* Bottom row — nav links (desktop) */}
+      <nav className="hidden md:flex justify-center gap-10 py-3 px-6">
+        {links.map(({ label, href }) => (
+          <a
+            key={label}
+            href={href}
+            className="text-xs tracking-[0.25em] uppercase transition-colors hover:opacity-60"
+            style={{ color: '#3d6478' }}
+          >
+            {label}
+          </a>
+        ))}
       </nav>
 
-      {/* Mobile menu */}
+      {/* Mobile dropdown */}
       {open && (
-        <div className="md:hidden bg-white border-t border-neutral-100 px-6 py-8 flex flex-col gap-7">
-          {links.map(([label, href]) => (
+        <nav className="md:hidden bg-white border-t border-neutral-100 flex flex-col items-center gap-6 py-8">
+          {links.map(({ label, href }) => (
             <a
               key={label}
               href={href}
               onClick={() => setOpen(false)}
-              className="text-xs tracking-[0.2em] uppercase text-neutral-600"
+              className="text-xs tracking-[0.25em] uppercase"
+              style={{ color: '#3d6478' }}
             >
               {label}
             </a>
           ))}
-        </div>
+        </nav>
       )}
     </header>
   );

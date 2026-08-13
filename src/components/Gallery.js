@@ -28,72 +28,80 @@ function buildWhatsAppLink(artwork) {
 
 export default async function Gallery() {
   const artworks = await getArtworks();
+  const newest = artworks.filter(a => a.available);
+  const sold = artworks.filter(a => !a.available);
 
   return (
-    <section id="gallery" className="py-28 bg-white">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="mb-16">
-          <p className="text-xs tracking-[0.35em] uppercase text-neutral-400 mb-3">Portfolio</p>
-          <h2
-            className="text-5xl font-light text-neutral-900"
-            style={{ fontFamily: 'var(--font-cormorant)' }}
-          >
-            Works
-          </h2>
-        </div>
+    <div id="gallery">
 
-        {artworks.length === 0 ? (
-          <div className="py-24 text-center">
-            <p className="text-neutral-300 text-sm tracking-widest uppercase">
+      {/* ── Newest Paintings ── */}
+      <section className="py-24 bg-white">
+        <div className="max-w-6xl mx-auto px-6">
+          <h2
+            className="text-center text-sm tracking-[0.35em] uppercase mb-16"
+            style={{ color: '#3d6478' }}
+          >
+            Newest Paintings in the Shop:
+          </h2>
+
+          {artworks.length === 0 ? (
+            <p className="text-center text-neutral-300 text-sm tracking-widest uppercase py-16">
               Artworks coming soon
             </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16">
-            {artworks.map((artwork) => (
-              <article key={artwork.id} className="group">
-                <div className="relative aspect-[4/5] bg-neutral-100 overflow-hidden mb-5">
-                  <img
-                    src={artwork.image_url}
-                    alt={artwork.title}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                  {!artwork.available && (
-                    <div className="absolute top-4 left-4 bg-white text-neutral-600 text-xs tracking-[0.2em] uppercase px-3 py-1">
-                      Sold
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+              {artworks.map((artwork) => (
+                <article key={artwork.id} className="group flex flex-col">
+
+                  {/* Framed image */}
+                  <div className="relative bg-white p-3 shadow-md mb-5">
+                    <div className="aspect-[4/5] bg-neutral-100 overflow-hidden">
+                      <img
+                        src={artwork.image_url}
+                        alt={artwork.title}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-103"
+                      />
                     </div>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <h3
-                    className="text-xl font-medium text-neutral-900"
-                    style={{ fontFamily: 'var(--font-cormorant)' }}
-                  >
-                    {artwork.title}
-                  </h3>
-                  <p className="text-sm text-neutral-500">{artwork.medium}</p>
-                  <p className="text-xs text-neutral-400">{artwork.size}</p>
-                  <div className="flex items-center justify-between mt-4">
-                    <span className="text-sm text-neutral-700">{artwork.price}</span>
-                    {artwork.available ? (
+
+                    {/* SOLD badge */}
+                    {!artwork.available && (
+                      <div className="absolute -top-3 -right-3 w-14 h-14 rounded-full bg-neutral-900 flex items-center justify-center z-10">
+                        <span className="text-white text-[10px] tracking-widest uppercase font-medium">
+                          Sold
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex flex-col gap-1 px-1">
+                    <h3 className="text-sm text-neutral-700">
+                      {artwork.title}
+                      {artwork.size ? ` ${artwork.size}` : ''}
+                    </h3>
+                    {artwork.medium && (
+                      <p className="text-xs text-neutral-400">{artwork.medium}</p>
+                    )}
+                    <p className="text-sm text-neutral-600 mt-1">{artwork.price}</p>
+
+                    {artwork.available && (
                       <a
                         href={buildWhatsAppLink(artwork)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs tracking-[0.15em] uppercase border border-neutral-900 px-4 py-2 hover:bg-neutral-900 hover:text-white transition-colors"
+                        className="mt-3 self-start text-xs tracking-[0.2em] uppercase border-b pb-0.5 transition-colors hover:opacity-50"
+                        style={{ color: '#3d6478', borderColor: '#3d6478' }}
                       >
-                        Inquire
+                        Inquire to Purchase
                       </a>
-                    ) : (
-                      <span className="text-xs tracking-[0.15em] uppercase text-neutral-300">Sold</span>
                     )}
                   </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
