@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --font-heading: var(--font-cormorant);
+  --font-body: var(--font-dm-sans);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-dm-sans), sans-serif;
+}
