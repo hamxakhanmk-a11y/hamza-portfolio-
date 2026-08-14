@@ -8,14 +8,12 @@ export default function ArtworkGallery({ images, title }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Main image */}
-      <div className="overflow-hidden shadow-[0_6px_32px_rgba(0,0,0,0.13)]">
-        <div className="aspect-[4/5] bg-neutral-100">
-          <img
-            src={images[selected].image_url}
-            alt={title}
-            className="w-full h-full object-cover transition-opacity duration-300"
-          />
-        </div>
+      <div className="shadow-[0_6px_32px_rgba(0,0,0,0.13)]">
+        <img
+          src={images[selected].image_url}
+          alt={title}
+          className="w-full h-auto block transition-opacity duration-300"
+        />
       </div>
 
       {/* Thumbnails — only if more than one image */}

@@ -58,16 +58,14 @@ export default async function Gallery() {
                 className="group block"
               >
                 {/* Image */}
-                <div className="relative overflow-hidden shadow-[0_4px_18px_rgba(0,0,0,0.10)] group-hover:shadow-[0_8px_30px_rgba(0,0,0,0.16)] transition-shadow duration-500">
-                  <div className="aspect-[4/5] bg-neutral-100">
-                    <img
-                      src={artwork.image_url}
-                      alt={artwork.title}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
-                    />
-                  </div>
+                <div className="relative shadow-[0_4px_18px_rgba(0,0,0,0.10)] group-hover:shadow-[0_8px_30px_rgba(0,0,0,0.16)] transition-shadow duration-500">
+                  <img
+                    src={artwork.image_url}
+                    alt={artwork.title}
+                    className="w-full h-auto block transition-transform duration-700 group-hover:scale-[1.02]"
+                  />
                   {!artwork.available && (
-                    <div className="absolute top-0 left-0 bg-neutral-800/75 text-white text-[9px] tracking-[0.2em] uppercase px-2.5 py-1">
+                    <div className="absolute top-2 left-2 bg-neutral-800/80 text-white text-[9px] tracking-[0.2em] uppercase px-2.5 py-1">
                       Sold
                     </div>
                   )}
