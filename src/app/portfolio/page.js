@@ -53,11 +53,12 @@ export default async function PortfolioPage() {
                   className="group block"
                 >
                   {/* Image */}
-                  <div className="relative shadow-[0_6px_28px_rgba(0,0,0,0.11)] group-hover:shadow-[0_10px_40px_rgba(0,0,0,0.17)] transition-shadow duration-500">
+                  <div className="relative transition-transform duration-500 group-hover:scale-[1.02]">
                     <img
                       src={artwork.image_url}
                       alt={artwork.title}
-                      className="w-full h-auto block transition-transform duration-700 group-hover:scale-[1.02]"
+                      className="w-full h-auto block"
+                      style={{ mixBlendMode: 'multiply' }}
                     />
                     {/* Sold badge */}
                     {!artwork.available && (

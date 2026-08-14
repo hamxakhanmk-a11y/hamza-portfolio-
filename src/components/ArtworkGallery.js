@@ -8,11 +8,12 @@ export default function ArtworkGallery({ images, title }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Main image */}
-      <div className="shadow-[0_6px_32px_rgba(0,0,0,0.13)]">
+      <div>
         <img
           src={images[selected].image_url}
           alt={title}
           className="w-full h-auto block transition-opacity duration-300"
+          style={{ mixBlendMode: 'multiply' }}
         />
       </div>
 
