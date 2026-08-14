@@ -6,9 +6,9 @@ import { siteConfig } from '@/data/config';
 
 const links = [
   { label: 'Home', href: '/' },
-  { label: 'Portfolio', href: '#gallery' },
-  { label: 'About', href: '#about' },
-  { label: 'Contact', href: '#contact' },
+  { label: 'Portfolio', href: '/portfolio' },
+  { label: 'About', href: '/about' },
+  { label: 'Contact', href: '/contact' },
   { label: 'Blog', href: '/blog' },
 ];
 

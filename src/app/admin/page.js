@@ -85,6 +85,10 @@ export default function AdminPage() {
   const heroRef = useRef(null);
   const aboutRef = useRef(null);
 
+  // Multiple images per artwork
+  const [artworkImages, setArtworkImages] = useState([]);
+  const [addingImage, setAddingImage] = useState(false);
+
   useEffect(() => {
     const t = localStorage.getItem('admin_token');
     if (t) { setToken(t); loadAll(t); }
@@ -156,6 +160,7 @@ export default function AdminPage() {
     setArtMsg('');
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    fetchArtworkImages(art.id);
   }
 
   function cancelForm() {
@@ -165,6 +170,7 @@ export default function AdminPage() {
     setImage(null);
     setPreview(null);
     setArtMsg('');
+    setArtworkImages([]);
   }
 
   async function handleSave(e) {
@@ -222,6 +228,40 @@ export default function AdminPage() {
       body: JSON.stringify({ available: !current }),
     });
     fetchArtworks();
+  }
+
+  // ── Extra artwork images ───────────────────────────────────
+  async function fetchArtworkImages(artworkId) {
+    if (!artworkId) return;
+    const res = await fetch(`/api/artworks/${artworkId}/images`);
+    const data = await res.json();
+    setArtworkImages(Array.isArray(data) ? data : []);
+  }
+
+  async function addArtworkImage(file) {
+    if (!editingId) return;
+    setAddingImage(true);
+    try {
+      const url = await uploadImage(file, token);
+      const res = await fetch(`/api/artworks/${editingId}/images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ image_url: url }),
+      });
+      if (res.ok) fetchArtworkImages(editingId);
+      else setArtMsg('Failed to add photo. Try again.');
+    } catch (err) {
+      setArtMsg(`Error: ${err.message}`);
+    }
+    setAddingImage(false);
+  }
+
+  async function deleteArtworkImage(imageId) {
+    await fetch(`/api/artwork-images/${imageId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    fetchArtworkImages(editingId);
   }
 
   // ── Site photos ────────────────────────────────────────────
@@ -415,6 +455,50 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </form>
+
+                {/* Additional Photos — only when editing an existing artwork */}
+                {editingId && (
+                  <div className="mt-8 border-t border-neutral-200 pt-8">
+                    <h3 className="text-lg font-light mb-1" style={{ fontFamily: 'var(--font-cormorant)' }}>
+                      Additional Photos
+                    </h3>
+                    <p className="text-xs text-neutral-400 mb-6">
+                      Process shots, detail views, different angles — visitors can click through all images on the artwork page.
+                    </p>
+                    <div className="flex gap-3 flex-wrap items-start">
+                      {artworkImages.map(img => (
+                        <div key={img.id} className="relative group/img">
+                          <img src={img.image_url} alt="extra" className="w-24 h-24 object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => deleteArtworkImage(img.id)}
+                            className="absolute top-1 right-1 bg-neutral-900/80 text-white text-[10px] w-5 h-5 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      <label
+                        className={`w-24 h-24 border-2 border-dashed border-neutral-300 flex flex-col items-center justify-center cursor-pointer hover:border-neutral-500 transition-colors ${addingImage ? 'opacity-40 pointer-events-none' : ''}`}
+                      >
+                        <span className="text-2xl text-neutral-400 leading-none">+</span>
+                        <span className="text-[10px] text-neutral-400 mt-1.5 tracking-wider">
+                          {addingImage ? 'Uploading…' : 'Add Photo'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={e => {
+                            const f = e.target.files[0];
+                            if (f) addArtworkImage(f);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
               </section>
             ) : (
               <button onClick={openAddForm}
