@@ -26,26 +26,27 @@ async function compressImage(file) {
   });
 }
 
-// ── Upload via signed URL (no file size limit issues) ──────────
+// ── Upload with client-side compression ───────────────────────
 async function uploadImage(file, token, bucket = 'artworks') {
   const compressed = await compressImage(file);
 
-  const res = await fetch('/api/admin/upload-url', {
+  const fd = new FormData();
+  fd.append('file', compressed);
+  fd.append('bucket', bucket);
+
+  const res = await fetch('/api/admin/upload', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filename: file.name, bucket }),
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: fd,
   });
-  if (!res.ok) throw new Error('Could not get upload URL');
-  const { signedUrl, publicUrl } = await res.json();
 
-  const upload = await fetch(signedUrl, {
-    method: 'PUT',
-    body: compressed,
-    headers: { 'Content-Type': 'image/jpeg' },
-  });
-  if (!upload.ok) throw new Error('Upload to storage failed');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Upload failed');
+  }
 
-  return publicUrl;
+  const { url } = await res.json();
+  return url;
 }
 
 // ── Empty form state ───────────────────────────────────────────

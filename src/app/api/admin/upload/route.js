@@ -12,16 +12,17 @@ export async function POST(req) {
 
   const formData = await req.formData();
   const file = formData.get('file');
+  const bucket = formData.get('bucket') || 'artworks';
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
-  const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+  const fileName = `${Date.now()}.jpg`;
 
   const { error } = await supabaseAdmin.storage
-    .from('artworks')
-    .upload(fileName, buffer, { contentType: file.type, upsert: false });
+    .from(bucket)
+    .upload(fileName, buffer, { contentType: 'image/jpeg', upsert: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { data } = supabaseAdmin.storage.from('artworks').getPublicUrl(fileName);
+  const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(fileName);
   return NextResponse.json({ url: data.publicUrl });
 }
