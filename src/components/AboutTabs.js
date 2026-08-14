@@ -1,0 +1,46 @@
+'use client';
+
+import { useState } from 'react';
+
+export default function AboutTabs({ bio, statement }) {
+  const [tab, setTab] = useState('bio');
+
+  const tabs = [
+    { key: 'bio', label: 'Bio', text: bio },
+    { key: 'statement', label: 'Artist Statement', text: statement },
+  ];
+
+  const active = tabs.find(t => t.key === tab);
+
+  return (
+    <div className="flex flex-col gap-8">
+
+      {/* Tab buttons */}
+      <div className="flex gap-8 border-b border-neutral-200">
+        {tabs.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`text-xs tracking-[0.25em] uppercase pb-3 border-b-2 transition-all ${
+              tab === t.key
+                ? 'border-current'
+                : 'border-transparent opacity-40 hover:opacity-70'
+            }`}
+            style={{ color: '#3d6478' }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="text-neutral-600 leading-relaxed whitespace-pre-line">
+        {active.text || (
+          <span className="text-neutral-300 italic text-sm">
+            Add {active.label.toLowerCase()} in Admin → About.
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}

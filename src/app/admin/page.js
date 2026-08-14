@@ -89,13 +89,74 @@ export default function AdminPage() {
   const [artworkImages, setArtworkImages] = useState([]);
   const [addingImage, setAddingImage] = useState(false);
 
+  // About section state
+  const [siteText, setSiteText] = useState({ bio: '', artist_statement: '' });
+  const [aboutImages, setAboutImages] = useState([]);
+  const [addingAboutImage, setAddingAboutImage] = useState(false);
+  const [aboutMsg, setAboutMsg] = useState('');
+  const [savingText, setSavingText] = useState('');
+
   useEffect(() => {
     const t = localStorage.getItem('admin_token');
     if (t) { setToken(t); loadAll(t); }
   }, []);
 
   async function loadAll(t) {
-    await Promise.all([fetchArtworks(), fetchSiteImages()]);
+    await Promise.all([fetchArtworks(), fetchSiteImages(), fetchSiteText(), fetchAboutImages()]);
+  }
+
+  async function fetchSiteText() {
+    const res = await fetch('/api/site-text');
+    const data = await res.json();
+    setSiteText({ bio: data.bio || '', artist_statement: data.artist_statement || '' });
+  }
+
+  async function fetchAboutImages() {
+    const res = await fetch('/api/about-images');
+    const data = await res.json();
+    setAboutImages(Array.isArray(data) ? data : []);
+  }
+
+  async function saveSiteText(key) {
+    setSavingText(key);
+    setAboutMsg('');
+    const res = await fetch('/api/site-text', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ key, value: siteText[key] }),
+    });
+    if (res.ok) setAboutMsg(`✓ ${key === 'bio' ? 'Bio' : 'Artist Statement'} saved!`);
+    else setAboutMsg('Failed to save. Try again.');
+    setSavingText('');
+  }
+
+  async function addAboutImage(file) {
+    setAddingAboutImage(true);
+    setAboutMsg('Uploading photo…');
+    try {
+      const url = await uploadImage(file, token);
+      const res = await fetch('/api/about-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ image_url: url }),
+      });
+      if (res.ok) {
+        setAboutMsg('✓ Photo added!');
+        fetchAboutImages();
+      } else setAboutMsg('Failed to add photo.');
+    } catch (err) {
+      setAboutMsg(`Error: ${err.message}`);
+    }
+    setAddingAboutImage(false);
+  }
+
+  async function deleteAboutImage(id) {
+    if (!confirm('Delete this photo?')) return;
+    await fetch(`/api/about-images/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    fetchAboutImages();
   }
 
   async function fetchArtworks() {
@@ -338,7 +399,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="bg-white border-b border-neutral-200 px-6 flex gap-8">
-        {[['artworks', 'Artworks'], ['photos', 'Site Photos']].map(([key, label]) => (
+        {[['artworks', 'Artworks'], ['about', 'About'], ['photos', 'Site Photos']].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -554,6 +615,106 @@ export default function AdminPage() {
                   ))}
                 </div>
               )}
+            </section>
+          </div>
+        )}
+
+        {/* ═══════════════ ABOUT TAB ═══════════════ */}
+        {activeTab === 'about' && (
+          <div className="flex flex-col gap-10">
+            <div>
+              <h2 className="text-2xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>
+                About Section
+              </h2>
+              <p className="text-sm text-neutral-500 mt-1">
+                Edit your bio, artist statement, and the photos shown on your About page.
+              </p>
+            </div>
+
+            {aboutMsg && (
+              <p className={`text-xs ${aboutMsg.startsWith('✓') ? 'text-green-600' : 'text-neutral-500'}`}>
+                {aboutMsg}
+              </p>
+            )}
+
+            {/* Bio */}
+            <section className="bg-white border border-neutral-200 p-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Bio</h3>
+                <button
+                  onClick={() => saveSiteText('bio')}
+                  disabled={savingText === 'bio'}
+                  className="bg-neutral-900 text-white text-[11px] tracking-[0.2em] uppercase px-5 py-2 hover:bg-neutral-700 transition-colors disabled:opacity-40"
+                >
+                  {savingText === 'bio' ? 'Saving…' : 'Save Bio'}
+                </button>
+              </div>
+              <textarea
+                value={siteText.bio}
+                onChange={e => setSiteText({ ...siteText, bio: e.target.value })}
+                rows={6}
+                placeholder="Tell visitors about yourself — where you're from, when you started painting, what draws you to art…"
+                className="w-full border border-neutral-300 px-4 py-3 text-sm focus:outline-none focus:border-neutral-700 resize-y leading-relaxed"
+              />
+              <p className="text-[11px] text-neutral-400 mt-2">Press Enter for new paragraphs.</p>
+            </section>
+
+            {/* Artist Statement */}
+            <section className="bg-white border border-neutral-200 p-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Artist Statement</h3>
+                <button
+                  onClick={() => saveSiteText('artist_statement')}
+                  disabled={savingText === 'artist_statement'}
+                  className="bg-neutral-900 text-white text-[11px] tracking-[0.2em] uppercase px-5 py-2 hover:bg-neutral-700 transition-colors disabled:opacity-40"
+                >
+                  {savingText === 'artist_statement' ? 'Saving…' : 'Save Statement'}
+                </button>
+              </div>
+              <textarea
+                value={siteText.artist_statement}
+                onChange={e => setSiteText({ ...siteText, artist_statement: e.target.value })}
+                rows={6}
+                placeholder="Your artistic vision — what your work is about, the themes and ideas that drive it…"
+                className="w-full border border-neutral-300 px-4 py-3 text-sm focus:outline-none focus:border-neutral-700 resize-y leading-relaxed"
+              />
+            </section>
+
+            {/* About Photos */}
+            <section className="bg-white border border-neutral-200 p-8">
+              <h3 className="text-lg font-light mb-1" style={{ fontFamily: 'var(--font-cormorant)' }}>About Photos</h3>
+              <p className="text-xs text-neutral-400 mb-6">
+                Photos of you, your studio, or your process — shown on the About page.
+              </p>
+              <div className="flex gap-4 flex-wrap items-start">
+                {aboutImages.map(img => (
+                  <div key={img.id} className="relative group/img">
+                    <img src={img.image_url} alt="about" className="w-32 h-32 object-cover" />
+                    <button
+                      onClick={() => deleteAboutImage(img.id)}
+                      className="absolute top-1 right-1 bg-neutral-900/80 text-white text-[10px] w-6 h-6 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <label className={`w-32 h-32 border-2 border-dashed border-neutral-300 flex flex-col items-center justify-center cursor-pointer hover:border-neutral-500 transition-colors ${addingAboutImage ? 'opacity-40 pointer-events-none' : ''}`}>
+                  <span className="text-3xl text-neutral-400 leading-none">+</span>
+                  <span className="text-[10px] text-neutral-400 mt-2 tracking-wider">
+                    {addingAboutImage ? 'Uploading…' : 'Add Photo'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const f = e.target.files[0];
+                      if (f) addAboutImage(f);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
             </section>
           </div>
         )}
