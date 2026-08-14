@@ -399,7 +399,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="bg-white border-b border-neutral-200 px-6 flex gap-8">
-        {[['artworks', 'Artworks'], ['about', 'About'], ['photos', 'Site Photos']].map(([key, label]) => (
+        {[['artworks', 'Artworks'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -716,6 +716,73 @@ export default function AdminPage() {
                 </label>
               </div>
             </section>
+          </div>
+        )}
+
+        {/* ═══════════════ CONTACT TAB ═══════════════ */}
+        {activeTab === 'contact' && (
+          <div className="flex flex-col gap-8 max-w-2xl">
+            <div>
+              <h2 className="text-2xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>
+                Contact Details
+              </h2>
+              <p className="text-sm text-neutral-500 mt-1">
+                These show up on your Contact page and the "Inquire" buttons on artworks.
+              </p>
+            </div>
+
+            {aboutMsg && (
+              <p className={`text-xs ${aboutMsg.startsWith('✓') ? 'text-green-600' : 'text-neutral-500'}`}>
+                {aboutMsg}
+              </p>
+            )}
+
+            {[
+              { key: 'contact_whatsapp', label: 'WhatsApp Number', placeholder: '923001234567', hint: 'Country code + number, no spaces or + sign' },
+              { key: 'contact_email', label: 'Email', placeholder: 'you@example.com' },
+              { key: 'contact_instagram', label: 'Instagram Username', placeholder: 'yourusername', hint: 'Without the @' },
+            ].map(({ key, label, placeholder, hint }) => (
+              <div key={key} className="bg-white border border-neutral-200 p-6 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs tracking-wider uppercase text-neutral-500">{label}</label>
+                  <button
+                    onClick={() => saveSiteText(key)}
+                    disabled={savingText === key}
+                    className="bg-neutral-900 text-white text-[11px] tracking-[0.2em] uppercase px-5 py-2 hover:bg-neutral-700 transition-colors disabled:opacity-40"
+                  >
+                    {savingText === key ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={siteText[key] || ''}
+                  placeholder={placeholder}
+                  onChange={e => setSiteText({ ...siteText, [key]: e.target.value })}
+                  className="border border-neutral-300 px-4 py-2.5 text-sm focus:outline-none focus:border-neutral-700"
+                />
+                {hint && <p className="text-[11px] text-neutral-400">{hint}</p>}
+              </div>
+            ))}
+
+            <div className="bg-white border border-neutral-200 p-6 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs tracking-wider uppercase text-neutral-500">Contact Page Intro</label>
+                <button
+                  onClick={() => saveSiteText('contact_intro')}
+                  disabled={savingText === 'contact_intro'}
+                  className="bg-neutral-900 text-white text-[11px] tracking-[0.2em] uppercase px-5 py-2 hover:bg-neutral-700 transition-colors disabled:opacity-40"
+                >
+                  {savingText === 'contact_intro' ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+              <textarea
+                rows={3}
+                value={siteText.contact_intro || ''}
+                placeholder="Interested in a piece? Have a commission in mind? Reach out — I'd love to hear from you."
+                onChange={e => setSiteText({ ...siteText, contact_intro: e.target.value })}
+                className="border border-neutral-300 px-4 py-2.5 text-sm focus:outline-none focus:border-neutral-700 resize-y"
+              />
+            </div>
           </div>
         )}
 

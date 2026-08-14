@@ -38,9 +38,24 @@ async function getExtraImages(id) {
   } catch { return []; }
 }
 
+async function getWhatsapp() {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
+    const { data } = await supabase
+      .from('site_text')
+      .select('value')
+      .eq('key', 'contact_whatsapp')
+      .single();
+    return data?.value || siteConfig.whatsapp;
+  } catch { return siteConfig.whatsapp; }
+}
+
 export default async function ArtworkDetailPage(props) {
   const { id } = await props.params;
-  const [artwork, extraImages] = await Promise.all([getArtwork(id), getExtraImages(id)]);
+  const [artwork, extraImages, whatsapp] = await Promise.all([getArtwork(id), getExtraImages(id), getWhatsapp()]);
 
   if (!artwork) notFound();
 
@@ -126,7 +141,7 @@ export default async function ArtworkDetailPage(props) {
               {/* WhatsApp CTA */}
               {artwork.available ? (
                 <a
-                  href={`https://wa.me/${siteConfig.whatsapp}?text=${whatsappMsg}`}
+                  href={`https://wa.me/${whatsapp}?text=${whatsappMsg}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-2 self-start flex items-center gap-3 bg-neutral-900 text-white text-xs tracking-[0.2em] uppercase px-8 py-4 hover:bg-neutral-700 transition-colors"
