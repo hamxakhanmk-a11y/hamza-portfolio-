@@ -52,7 +52,11 @@ async function uploadImage(file, token, bucket = 'artworks') {
 // ── Empty form state ───────────────────────────────────────────
 const emptyForm = {
   title: '', description: '', medium: '', size: '', price: '',
-  section: 'shop', available: true,
+  section: 'portfolio', available: true,
+};
+
+const emptyShow = {
+  title: '', description: '', location: '', date: '', cover_image: '',
 };
 
 export default function AdminPage() {
@@ -96,13 +100,151 @@ export default function AdminPage() {
   const [aboutMsg, setAboutMsg] = useState('');
   const [savingText, setSavingText] = useState('');
 
+  // Shows state
+  const [shows, setShows] = useState([]);
+  const [showFormOpen, setShowFormOpen] = useState(false);
+  const [editingShowId, setEditingShowId] = useState(null);
+  const [showData, setShowData] = useState(emptyShow);
+  const [showCover, setShowCover] = useState(null);
+  const [showCoverPreview, setShowCoverPreview] = useState(null);
+  const [showImages, setShowImages] = useState([]);
+  const [showMsg, setShowMsg] = useState('');
+  const [savingShow, setSavingShow] = useState(false);
+  const [addingShowImage, setAddingShowImage] = useState(false);
+  const showCoverRef = useRef(null);
+
   useEffect(() => {
     const t = localStorage.getItem('admin_token');
     if (t) { setToken(t); loadAll(t); }
   }, []);
 
   async function loadAll(t) {
-    await Promise.all([fetchArtworks(), fetchSiteImages(), fetchSiteText(), fetchAboutImages()]);
+    await Promise.all([fetchArtworks(), fetchSiteImages(), fetchSiteText(), fetchAboutImages(), fetchShows()]);
+  }
+
+  // ── Shows functions ────────────────────────────────────────
+  async function fetchShows() {
+    const res = await fetch('/api/shows');
+    const data = await res.json();
+    setShows(Array.isArray(data) ? data : []);
+  }
+
+  async function fetchShowImages(showId) {
+    if (!showId) return;
+    const res = await fetch(`/api/shows/${showId}/images`);
+    const data = await res.json();
+    setShowImages(Array.isArray(data) ? data : []);
+  }
+
+  function openAddShow() {
+    setEditingShowId(null);
+    setShowData(emptyShow);
+    setShowCover(null);
+    setShowCoverPreview(null);
+    setShowImages([]);
+    setShowMsg('');
+    setShowFormOpen(true);
+  }
+
+  function openEditShow(show) {
+    setEditingShowId(show.id);
+    setShowData({
+      title: show.title || '',
+      description: show.description || '',
+      location: show.location || '',
+      date: show.date || '',
+      cover_image: show.cover_image || '',
+    });
+    setShowCover(null);
+    setShowCoverPreview(show.cover_image || null);
+    setShowMsg('');
+    setShowFormOpen(true);
+    fetchShowImages(show.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelShowForm() {
+    setShowFormOpen(false);
+    setEditingShowId(null);
+    setShowData(emptyShow);
+    setShowCover(null);
+    setShowCoverPreview(null);
+    setShowImages([]);
+    setShowMsg('');
+  }
+
+  async function saveShow(e) {
+    e.preventDefault();
+    if (!showData.title.trim()) { setShowMsg('Title is required.'); return; }
+    setSavingShow(true);
+    setShowMsg('Saving…');
+    try {
+      let cover_image = showData.cover_image;
+      if (showCover) {
+        setShowMsg('Uploading cover…');
+        cover_image = await uploadImage(showCover, token);
+      }
+      const method = editingShowId ? 'PATCH' : 'POST';
+      const url = editingShowId ? `/api/shows/${editingShowId}` : '/api/shows';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ ...showData, cover_image }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setShowMsg(editingShowId ? '✓ Show updated!' : '✓ Show added!');
+        fetchShows();
+        if (!editingShowId) {
+          // switch to edit mode so user can add photos
+          setEditingShowId(saved.id);
+          setShowData({ ...showData, cover_image });
+          setShowCover(null);
+          setShowCoverPreview(cover_image);
+        }
+      } else {
+        const err = await res.json();
+        setShowMsg(`Error: ${err.error || 'Try again.'}`);
+      }
+    } catch (err) {
+      setShowMsg(`Error: ${err.message}`);
+    }
+    setSavingShow(false);
+  }
+
+  async function deleteShow(id) {
+    if (!confirm('Delete this show and all its photos? This cannot be undone.')) return;
+    await fetch(`/api/shows/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    fetchShows();
+  }
+
+  async function addShowImage(file, caption = '') {
+    if (!editingShowId) return;
+    setAddingShowImage(true);
+    try {
+      const url = await uploadImage(file, token);
+      const res = await fetch(`/api/shows/${editingShowId}/images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ image_url: url, caption }),
+      });
+      if (res.ok) fetchShowImages(editingShowId);
+      else setShowMsg('Failed to add photo.');
+    } catch (err) {
+      setShowMsg(`Error: ${err.message}`);
+    }
+    setAddingShowImage(false);
+  }
+
+  async function deleteShowImage(id) {
+    await fetch(`/api/show-images/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    fetchShowImages(editingShowId);
   }
 
   async function fetchSiteText() {
@@ -399,7 +541,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="bg-white border-b border-neutral-200 px-6 flex gap-8">
-        {[['artworks', 'Artworks'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
+        {[['artworks', 'Artworks'], ['shows', 'Shows'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -488,7 +630,6 @@ export default function AdminPage() {
                       <label className="text-xs tracking-wider uppercase text-neutral-500">Section</label>
                       <select value={form.section} onChange={e => setForm({ ...form, section: e.target.value })}
                         className="border border-neutral-300 px-4 py-2.5 text-sm focus:outline-none focus:border-neutral-700 bg-white">
-                        <option value="shop">Shop (For Sale)</option>
                         <option value="portfolio">Portfolio</option>
                         <option value="commissions">Commissions</option>
                       </select>
@@ -606,6 +747,183 @@ export default function AdminPage() {
                             Edit
                           </button>
                           <button onClick={() => deleteArtwork(art.id)}
+                            className="text-[10px] text-red-400 hover:text-red-600 transition-colors ml-auto">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+
+        {/* ═══════════════ SHOWS TAB ═══════════════ */}
+        {activeTab === 'shows' && (
+          <div className="flex flex-col gap-10">
+
+            {/* Add/Edit form */}
+            {showFormOpen ? (
+              <section className="bg-white border border-neutral-200 p-8">
+                <h2 className="text-2xl font-light mb-6" style={{ fontFamily: 'var(--font-cormorant)' }}>
+                  {editingShowId ? 'Edit Show' : 'Add New Show'}
+                </h2>
+                <form onSubmit={saveShow} className="grid md:grid-cols-2 gap-8">
+
+                  {/* Cover image */}
+                  <div className="flex flex-col gap-3">
+                    <label className="text-xs tracking-wider uppercase text-neutral-500">Cover Photo</label>
+                    <div
+                      className="aspect-[4/3] bg-neutral-100 border-2 border-dashed border-neutral-300 flex items-center justify-center cursor-pointer hover:border-neutral-500 transition-colors overflow-hidden"
+                      onClick={() => showCoverRef.current?.click()}
+                    >
+                      {showCoverPreview
+                        ? <img src={showCoverPreview} alt="cover preview" className="w-full h-full object-cover" />
+                        : <p className="text-neutral-400 text-sm">Click to select cover photo</p>
+                      }
+                    </div>
+                    <input ref={showCoverRef} type="file" accept="image/*" className="hidden"
+                      onChange={e => {
+                        const f = e.target.files[0];
+                        if (!f) return;
+                        setShowCover(f);
+                        setShowCoverPreview(URL.createObjectURL(f));
+                      }}
+                    />
+                  </div>
+
+                  {/* Fields */}
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs tracking-wider uppercase text-neutral-500">Title *</label>
+                      <input type="text" value={showData.title}
+                        placeholder="e.g. Group Show at Karachi Arts Council"
+                        onChange={e => setShowData({ ...showData, title: e.target.value })}
+                        className="border border-neutral-300 px-4 py-2.5 text-sm focus:outline-none focus:border-neutral-700"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs tracking-wider uppercase text-neutral-500">Date</label>
+                      <input type="text" value={showData.date}
+                        placeholder="e.g. March 2024"
+                        onChange={e => setShowData({ ...showData, date: e.target.value })}
+                        className="border border-neutral-300 px-4 py-2.5 text-sm focus:outline-none focus:border-neutral-700"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs tracking-wider uppercase text-neutral-500">Location</label>
+                      <input type="text" value={showData.location}
+                        placeholder="e.g. Karachi, Pakistan"
+                        onChange={e => setShowData({ ...showData, location: e.target.value })}
+                        className="border border-neutral-300 px-4 py-2.5 text-sm focus:outline-none focus:border-neutral-700"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs tracking-wider uppercase text-neutral-500">Description</label>
+                      <textarea value={showData.description} rows={4}
+                        placeholder="What was the show about? Which pieces were featured? How did it go?"
+                        onChange={e => setShowData({ ...showData, description: e.target.value })}
+                        className="border border-neutral-300 px-4 py-2.5 text-sm focus:outline-none focus:border-neutral-700 resize-none"
+                      />
+                    </div>
+
+                    {showMsg && (
+                      <p className={`text-xs ${showMsg.startsWith('✓') ? 'text-green-600' : 'text-neutral-500'}`}>{showMsg}</p>
+                    )}
+
+                    <div className="flex gap-3 mt-1">
+                      <button type="button" onClick={cancelShowForm}
+                        className="flex-1 border border-neutral-300 text-xs tracking-[0.15em] uppercase py-3 hover:border-neutral-700 transition-colors">
+                        {editingShowId ? 'Done' : 'Cancel'}
+                      </button>
+                      <button type="submit" disabled={savingShow}
+                        className="flex-1 bg-neutral-900 text-white text-xs tracking-[0.15em] uppercase py-3 hover:bg-neutral-700 transition-colors disabled:opacity-40">
+                        {savingShow ? 'Saving…' : editingShowId ? 'Update Show' : 'Save Show'}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+
+                {/* Show gallery photos — only after show exists */}
+                {editingShowId && (
+                  <div className="mt-8 border-t border-neutral-200 pt-8">
+                    <h3 className="text-lg font-light mb-1" style={{ fontFamily: 'var(--font-cormorant)' }}>
+                      Show Photos
+                    </h3>
+                    <p className="text-xs text-neutral-400 mb-6">
+                      Add photos from the show — installation shots, your paintings on the wall, event pics.
+                    </p>
+                    <div className="flex gap-3 flex-wrap items-start">
+                      {showImages.map(img => (
+                        <div key={img.id} className="relative group/img">
+                          <img src={img.image_url} alt="show" className="w-28 h-28 object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => deleteShowImage(img.id)}
+                            className="absolute top-1 right-1 bg-neutral-900/80 text-white text-[10px] w-5 h-5 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      <label className={`w-28 h-28 border-2 border-dashed border-neutral-300 flex flex-col items-center justify-center cursor-pointer hover:border-neutral-500 transition-colors ${addingShowImage ? 'opacity-40 pointer-events-none' : ''}`}>
+                        <span className="text-2xl text-neutral-400 leading-none">+</span>
+                        <span className="text-[10px] text-neutral-400 mt-1.5 tracking-wider">
+                          {addingShowImage ? 'Uploading…' : 'Add Photo'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={e => {
+                            const f = e.target.files[0];
+                            if (f) addShowImage(f);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </section>
+            ) : (
+              <button onClick={openAddShow}
+                className="self-start bg-neutral-900 text-white text-xs tracking-[0.2em] uppercase px-8 py-3.5 hover:bg-neutral-700 transition-colors">
+                + Add New Show
+              </button>
+            )}
+
+            {/* Shows list */}
+            <section>
+              <h2 className="text-2xl font-light mb-6" style={{ fontFamily: 'var(--font-cormorant)' }}>
+                Your Shows ({shows.length})
+              </h2>
+              {shows.length === 0 ? (
+                <p className="text-neutral-400 text-sm">No shows yet. Add your first one above.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {shows.map(show => (
+                    <div key={show.id} className="bg-white border border-neutral-200 overflow-hidden flex flex-col">
+                      <div className="aspect-[4/3] bg-neutral-100 overflow-hidden">
+                        {show.cover_image ? (
+                          <img src={show.cover_image} alt={show.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-neutral-300 text-xs tracking-widest uppercase">No cover</div>
+                        )}
+                      </div>
+                      <div className="p-3 flex flex-col gap-1 flex-1">
+                        <p className="text-sm font-medium truncate">{show.title}</p>
+                        <p className="text-xs text-neutral-400">
+                          {[show.date, show.location].filter(Boolean).join(' · ') || '—'}
+                        </p>
+                        <div className="flex items-center gap-2 pt-2 mt-auto">
+                          <button onClick={() => openEditShow(show)}
+                            className="text-[10px] px-3 py-1 border border-neutral-300 text-neutral-600 hover:border-neutral-700 transition-colors">
+                            Edit
+                          </button>
+                          <button onClick={() => deleteShow(show.id)}
                             className="text-[10px] text-red-400 hover:text-red-600 transition-colors ml-auto">
                             Delete
                           </button>

@@ -7,9 +7,10 @@ import { siteConfig } from '@/data/config';
 const links = [
   { label: 'Home', href: '/' },
   { label: 'Portfolio', href: '/portfolio' },
+  { label: 'Commissions', href: '/commissions' },
+  { label: 'Shows', href: '/shows' },
   { label: 'About', href: '/about' },
   { label: 'Contact', href: '/contact' },
-  { label: 'Blog', href: '/blog' },
 ];
 
 export default function Navbar() {
