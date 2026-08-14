@@ -21,11 +21,11 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { title, medium, size, price, image_url, available } = await req.json();
+  const { title, medium, size, price, image_url, available, description, section } = await req.json();
 
   const { data, error } = await supabaseAdmin
     .from('artworks')
-    .insert([{ title, medium, size, price, image_url, available }])
+    .insert([{ title, medium, size, price, image_url, available, description, section: section || 'shop' }])
     .select()
     .single();
 
