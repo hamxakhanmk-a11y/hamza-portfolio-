@@ -52,6 +52,37 @@ function removeEdgeWhiteBackground(ctx, width, height) {
   ctx.putImageData(image, 0, 0);
 }
 
+function trimTransparentCanvas(canvas) {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const { width, height } = canvas;
+  const data = ctx.getImageData(0, 0, width, height).data;
+  let left = width;
+  let right = -1;
+  let top = height;
+  let bottom = -1;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (data[(y * width + x) * 4 + 3] > 6) {
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+    }
+  }
+
+  if (right < left || bottom < top || (left === 0 && top === 0 && right === width - 1 && bottom === height - 1)) {
+    return canvas;
+  }
+
+  const trimmed = document.createElement('canvas');
+  trimmed.width = right - left + 1;
+  trimmed.height = bottom - top + 1;
+  trimmed.getContext('2d').drawImage(canvas, left, top, trimmed.width, trimmed.height, 0, 0, trimmed.width, trimmed.height);
+  return trimmed;
+}
+
 export default function ImageCropper({ file, aspect = 1, allowAspect = false, removeWhite = false, onCancel, onApply }) {
   const imageRef = useRef(null);
   const dragRef = useRef(null);
@@ -163,7 +194,8 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
     if (usesOriginalSize) {
       ctx.drawImage(imageRef.current, 0, 0, outputWidth, outputHeight);
       if (removeBackground) removeEdgeWhiteBackground(ctx, outputWidth, outputHeight);
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const finalCanvas = trimTransparentCanvas(canvas);
+      const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, 'image/png'));
       onApply(new File([blob], `original-${Date.now()}.png`, { type: 'image/png' }));
       setWorking(false);
       return;
@@ -177,7 +209,8 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
     ctx.drawImage(imageRef.current, -renderedWidth * outputScale / 2, -renderedHeight * outputScale / 2, renderedWidth * outputScale, renderedHeight * outputScale);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (removeBackground) removeEdgeWhiteBackground(ctx, outputWidth, outputHeight);
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const finalCanvas = trimTransparentCanvas(canvas);
+    const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, 'image/png'));
     onApply(new File([blob], `edited-${Date.now()}.png`, { type: 'image/png' }));
     setWorking(false);
   }

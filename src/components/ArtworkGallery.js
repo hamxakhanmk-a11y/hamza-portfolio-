@@ -8,7 +8,7 @@ export default function ArtworkGallery({ images, title }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Main image */}
-      <div className="flex items-center justify-center overflow-hidden bg-neutral-50">
+      <div className="w-fit max-w-full mx-auto overflow-hidden">
         <img
           src={images[selected].image_url}
           alt={title}

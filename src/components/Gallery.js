@@ -55,14 +55,14 @@ export default async function Gallery() {
               <Link
                 key={artwork.id}
                 href={`/portfolio/${artwork.id}`}
-                className="group block"
+                className="group flex h-full flex-col"
               >
                 {/* Image */}
-                <div className="relative aspect-square flex items-center justify-center transition-transform duration-500 group-hover:-translate-y-1">
+                <div className="relative w-fit max-w-full mx-auto mt-auto transition-transform duration-500 group-hover:-translate-y-1">
                   <img
                     src={artwork.image_url}
                     alt={artwork.title}
-                    className="w-full h-full object-contain block"
+                    className="max-w-full w-auto h-auto max-h-[420px] block"
                     style={{
                       mixBlendMode: 'multiply',
                       filter: artwork.image_url?.toLowerCase().includes('.png')
