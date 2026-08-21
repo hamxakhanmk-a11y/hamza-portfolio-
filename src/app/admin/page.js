@@ -121,6 +121,36 @@ export default function AdminPage() {
     setCropTask({ file, ...options });
   }
 
+  async function adjustStoredImage({ url, aspect = 1, allowAspect = true, removeWhite = false, setMessage, save }) {
+    if (!url) return;
+    setMessage?.('Loading current photo…');
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Could not load the current photo.');
+      const blob = await response.blob();
+      const extension = blob.type === 'image/png' ? 'png' : 'jpg';
+      const file = new File([blob], `current-photo.${extension}`, { type: blob.type || 'image/jpeg' });
+      chooseImage(file, {
+        aspect,
+        allowAspect,
+        removeWhite,
+        onComplete: async edited => {
+          setMessage?.('Saving adjusted photo…');
+          try {
+            const imageUrl = await uploadImage(edited, token);
+            await save(imageUrl);
+            setMessage?.('✓ Adjusted photo saved!');
+          } catch (error) {
+            setMessage?.(`Error: ${error.message}`);
+          }
+        },
+      });
+      setMessage?.('');
+    } catch (error) {
+      setMessage?.(`Error: ${error.message}`);
+    }
+  }
+
   async function loadAll(t) {
     await Promise.all([fetchArtworks(), fetchSiteImages(), fetchSiteText(), fetchAboutImages(), fetchShows()]);
   }
@@ -641,10 +671,34 @@ export default function AdminPage() {
                       }}
                     />
                     {preview && (
-                      <button type="button" className="text-xs text-neutral-400 hover:text-neutral-600"
-                        onClick={() => { setImage(null); setPreview(editingId ? null : null); fileRef.current.value = ''; }}>
-                        {editingId ? 'Change photo' : 'Remove photo'}
-                      </button>
+                      <div className="flex justify-center gap-5">
+                        {editingId && !image && (
+                          <button type="button" className="text-xs text-neutral-600 underline underline-offset-4"
+                            onClick={() => adjustStoredImage({
+                              url: preview,
+                              aspect: 1,
+                              allowAspect: true,
+                              removeWhite: true,
+                              setMessage: setArtMsg,
+                              save: async imageUrl => {
+                                const response = await fetch(`/api/artworks/${editingId}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                  body: JSON.stringify({ image_url: imageUrl }),
+                                });
+                                if (!response.ok) throw new Error((await response.json()).error || 'Could not update artwork.');
+                                setPreview(imageUrl);
+                                await fetchArtworks();
+                              },
+                            })}>
+                            Adjust Current Photo
+                          </button>
+                        )}
+                        <button type="button" className="text-xs text-neutral-400 hover:text-neutral-600"
+                          onClick={() => fileRef.current?.click()}>
+                          Choose Different Photo
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -721,6 +775,27 @@ export default function AdminPage() {
                       {artworkImages.map(img => (
                         <div key={img.id} className="relative group/img">
                           <img src={img.image_url} alt="extra" className="w-24 h-24 object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => adjustStoredImage({
+                              url: img.image_url,
+                              aspect: 1,
+                              allowAspect: true,
+                              setMessage: setArtMsg,
+                              save: async imageUrl => {
+                                const response = await fetch(`/api/artwork-images/${img.id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                  body: JSON.stringify({ image_url: imageUrl }),
+                                });
+                                if (!response.ok) throw new Error((await response.json()).error || 'Could not update photo.');
+                                await fetchArtworkImages(editingId);
+                              },
+                            })}
+                            className="absolute bottom-1 left-1 bg-white/95 text-neutral-800 text-[9px] px-2 py-1 shadow"
+                          >
+                            Adjust
+                          </button>
                           <button
                             type="button"
                             onClick={() => deleteArtworkImage(img.id)}
@@ -849,6 +924,28 @@ export default function AdminPage() {
                         e.target.value = '';
                       }}
                     />
+                    {editingShowId && showCoverPreview && !showCover && (
+                      <button type="button" className="text-xs text-neutral-600 underline underline-offset-4"
+                        onClick={() => adjustStoredImage({
+                          url: showCoverPreview,
+                          aspect: 4 / 3,
+                          allowAspect: true,
+                          setMessage: setShowMsg,
+                          save: async imageUrl => {
+                            const response = await fetch(`/api/shows/${editingShowId}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                              body: JSON.stringify({ cover_image: imageUrl }),
+                            });
+                            if (!response.ok) throw new Error((await response.json()).error || 'Could not update cover.');
+                            setShowCoverPreview(imageUrl);
+                            setShowData(current => ({ ...current, cover_image: imageUrl }));
+                            await fetchShows();
+                          },
+                        })}>
+                        Adjust Current Cover
+                      </button>
+                    )}
                   </div>
 
                   {/* Fields */}
@@ -916,6 +1013,27 @@ export default function AdminPage() {
                       {showImages.map(img => (
                         <div key={img.id} className="relative group/img">
                           <img src={img.image_url} alt="show" className="w-28 h-28 object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => adjustStoredImage({
+                              url: img.image_url,
+                              aspect: 4 / 3,
+                              allowAspect: true,
+                              setMessage: setShowMsg,
+                              save: async imageUrl => {
+                                const response = await fetch(`/api/show-images/${img.id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                  body: JSON.stringify({ image_url: imageUrl }),
+                                });
+                                if (!response.ok) throw new Error((await response.json()).error || 'Could not update show photo.');
+                                await fetchShowImages(editingShowId);
+                              },
+                            })}
+                            className="absolute bottom-1 left-1 bg-white/95 text-neutral-800 text-[9px] px-2 py-1 shadow"
+                          >
+                            Adjust
+                          </button>
                           <button
                             type="button"
                             onClick={() => deleteShowImage(img.id)}
@@ -1066,6 +1184,27 @@ export default function AdminPage() {
                   <div key={img.id} className="relative group/img">
                     <img src={img.image_url} alt="about" className="w-32 h-32 object-cover" />
                     <button
+                      type="button"
+                      onClick={() => adjustStoredImage({
+                        url: img.image_url,
+                        aspect: 4 / 5,
+                        allowAspect: true,
+                        setMessage: setAboutMsg,
+                        save: async imageUrl => {
+                          const response = await fetch(`/api/about-images/${img.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify({ image_url: imageUrl }),
+                          });
+                          if (!response.ok) throw new Error((await response.json()).error || 'Could not update About photo.');
+                          await fetchAboutImages();
+                        },
+                      })}
+                      className="absolute bottom-1 left-1 bg-white/95 text-neutral-800 text-[9px] px-2 py-1 shadow"
+                    >
+                      Adjust
+                    </button>
+                    <button
                       onClick={() => deleteAboutImage(img.id)}
                       className="absolute top-1 right-1 bg-neutral-900/80 text-white text-[10px] w-6 h-6 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
                     >
@@ -1189,6 +1328,26 @@ export default function AdminPage() {
                         : <div className="w-full h-full flex items-center justify-center text-neutral-300 text-xs tracking-widest uppercase">No photo yet</div>
                       }
                     </div>
+                    {siteImages[key] && (
+                      <button type="button" className="self-start text-xs text-neutral-600 underline underline-offset-4"
+                        onClick={() => adjustStoredImage({
+                          url: siteImages[key],
+                          aspect: key === 'hero' ? 16 / 9 : 4 / 5,
+                          allowAspect: false,
+                          setMessage: setPhotoMsg,
+                          save: async imageUrl => {
+                            const response = await fetch('/api/site-images', {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                              body: JSON.stringify({ key, image_url: imageUrl }),
+                            });
+                            if (!response.ok) throw new Error((await response.json()).error || 'Could not update site photo.');
+                            setSiteImages(current => ({ ...current, [key]: imageUrl }));
+                          },
+                        })}>
+                        Adjust Current Photo
+                      </button>
+                    )}
                   </div>
 
                   {/* New */}

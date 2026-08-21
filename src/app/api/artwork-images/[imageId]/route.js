@@ -5,6 +5,20 @@ function isAuthorized(req) {
   return req.headers.get('authorization') === `Bearer ${process.env.ADMIN_SECRET}`;
 }
 
+export async function PATCH(req, props) {
+  if (!isAuthorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { imageId } = await props.params;
+  const { image_url } = await req.json();
+  const { data, error } = await supabaseAdmin
+    .from('artwork_images')
+    .update({ image_url })
+    .eq('id', imageId)
+    .select()
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
 export async function DELETE(req, props) {
   if (!isAuthorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { imageId } = await props.params;
