@@ -8,11 +8,11 @@ export default function ArtworkGallery({ images, title }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Main image */}
-      <div className="aspect-square flex items-center justify-center overflow-hidden bg-neutral-50">
+      <div className="flex items-center justify-center overflow-hidden bg-neutral-50">
         <img
           src={images[selected].image_url}
           alt={title}
-          className="w-full h-full object-contain block transition-opacity duration-300"
+          className="w-auto max-w-full h-auto max-h-[680px] object-contain block transition-opacity duration-300"
           style={{
             mixBlendMode: 'multiply',
             filter: images[selected].image_url?.toLowerCase().includes('.png')

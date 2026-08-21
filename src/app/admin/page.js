@@ -556,6 +556,7 @@ export default function AdminPage() {
         <ImageCropper
           file={cropTask.file}
           aspect={cropTask.aspect || 1}
+          allowAspect={cropTask.allowAspect || false}
           removeWhite={cropTask.removeWhite || false}
           onCancel={() => setCropTask(null)}
           onApply={editedFile => {
@@ -629,6 +630,7 @@ export default function AdminPage() {
                         if (!f) return;
                         chooseImage(f, {
                           aspect: 1,
+                          allowAspect: true,
                           removeWhite: true,
                           onComplete: edited => {
                             setImage(edited);
@@ -741,7 +743,7 @@ export default function AdminPage() {
                           className="hidden"
                           onChange={e => {
                             const f = e.target.files[0];
-                            if (f) chooseImage(f, { aspect: 1, onComplete: addArtworkImage });
+                            if (f) chooseImage(f, { aspect: 1, allowAspect: true, onComplete: addArtworkImage });
                             e.target.value = '';
                           }}
                         />

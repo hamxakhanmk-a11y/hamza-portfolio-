@@ -52,7 +52,7 @@ function removeEdgeWhiteBackground(ctx, width, height) {
   ctx.putImageData(image, 0, 0);
 }
 
-export default function ImageCropper({ file, aspect = 1, removeWhite = false, onCancel, onApply }) {
+export default function ImageCropper({ file, aspect = 1, allowAspect = false, removeWhite = false, onCancel, onApply }) {
   const imageRef = useRef(null);
   const dragRef = useRef(null);
   const [source] = useState(() => URL.createObjectURL(file));
@@ -63,10 +63,12 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
   const [flipX, setFlipX] = useState(false);
   const [mode, setMode] = useState('fit');
   const [removeBackground, setRemoveBackground] = useState(removeWhite);
+  const [cropAspect, setCropAspect] = useState(aspect);
+  const [aspectChoice, setAspectChoice] = useState(allowAspect ? 'original' : 'fixed');
   const [working, setWorking] = useState(false);
 
-  const viewWidth = VIEW_SIZE;
-  const viewHeight = VIEW_SIZE / aspect;
+  const viewWidth = cropAspect >= 1 ? VIEW_SIZE : VIEW_SIZE * cropAspect;
+  const viewHeight = cropAspect >= 1 ? VIEW_SIZE / cropAspect : VIEW_SIZE;
   const quarterTurn = Math.abs(rotation % 180) === 90;
   const frameWidth = quarterTurn ? natural.height : natural.width;
   const frameHeight = quarterTurn ? natural.width : natural.height;
@@ -132,14 +134,22 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
     setPosition({ x: 0, y: 0 });
   }
 
+  function chooseAspect(choice, nextAspect) {
+    setAspectChoice(choice);
+    setCropAspect(nextAspect);
+    setMode('fit');
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  }
+
   function nudge(x, y) {
     setPosition(current => clampPosition({ x: current.x + x, y: current.y + y }));
   }
 
   async function applyCrop() {
     setWorking(true);
-    const outputWidth = 1400;
-    const outputHeight = Math.round(outputWidth / aspect);
+    const outputWidth = cropAspect >= 1 ? 1400 : Math.round(1400 * cropAspect);
+    const outputHeight = cropAspect >= 1 ? Math.round(1400 / cropAspect) : 1400;
     const canvas = document.createElement('canvas');
     canvas.width = outputWidth;
     canvas.height = outputHeight;
@@ -196,7 +206,13 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
                 src={source}
                 alt="Crop preview"
                 draggable="false"
-                onLoad={event => setNatural({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+                onLoad={event => {
+                  const dimensions = { width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight };
+                  setNatural(dimensions);
+                  if (allowAspect && aspectChoice === 'original') {
+                    setCropAspect(dimensions.width / dimensions.height);
+                  }
+                }}
                 className="absolute max-w-none select-none pointer-events-none"
                 style={{
                   width: renderedWidth,
@@ -215,6 +231,18 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
         </div>
 
         <div className="px-5 sm:px-8 mt-5 space-y-4">
+          {allowAspect && (
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-neutral-500 mb-2">Frame shape</div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => chooseAspect('original', natural.width / natural.height)} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${aspectChoice === 'original' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Original</button>
+                <button type="button" onClick={() => chooseAspect('square', 1)} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${aspectChoice === 'square' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Square</button>
+                <button type="button" onClick={() => chooseAspect('portrait', 4 / 5)} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${aspectChoice === 'portrait' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Portrait</button>
+                <button type="button" onClick={() => chooseAspect('landscape', 4 / 3)} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${aspectChoice === 'landscape' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Landscape</button>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-center gap-2">
             <button type="button" onClick={() => changeMode('fit')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fit' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Full Painting</button>
             <button type="button" onClick={() => changeMode('fill')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fill' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Crop to Frame</button>
