@@ -8,11 +8,11 @@ export default function ArtworkGallery({ images, title }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Main image */}
-      <div>
+      <div className="aspect-square flex items-center justify-center overflow-hidden bg-neutral-50">
         <img
           src={images[selected].image_url}
           alt={title}
-          className="w-full h-auto block transition-opacity duration-300"
+          className="w-full h-full object-contain block transition-opacity duration-300"
           style={{
             mixBlendMode: 'multiply',
             filter: images[selected].image_url?.toLowerCase().includes('.png')
@@ -29,7 +29,7 @@ export default function ArtworkGallery({ images, title }) {
             <button
               key={i}
               onClick={() => setSelected(i)}
-              className={`w-16 h-16 overflow-hidden border-2 transition-all duration-200 ${
+              className={`w-16 h-16 overflow-hidden border-2 bg-neutral-50 transition-all duration-200 ${
                 selected === i
                   ? 'border-neutral-700'
                   : 'border-transparent opacity-55 hover:opacity-90'
@@ -38,7 +38,7 @@ export default function ArtworkGallery({ images, title }) {
               <img
                 src={img.image_url}
                 alt={`${title} view ${i + 1}`}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </button>
           ))}

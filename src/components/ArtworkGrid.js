@@ -17,11 +17,11 @@ export default function ArtworkGrid({ artworks, emptyMessage = 'Coming soon' }) 
           href={`/portfolio/${artwork.id}`}
           className="group block"
         >
-          <div className="relative transition-transform duration-500 group-hover:-translate-y-1">
+          <div className="relative aspect-square flex items-center justify-center transition-transform duration-500 group-hover:-translate-y-1">
             <img
               src={artwork.image_url}
               alt={artwork.title}
-              className="w-full h-auto block"
+              className="w-full h-full object-contain block"
               style={{
                 mixBlendMode: 'multiply',
                 filter: artwork.image_url?.toLowerCase().includes('.png')
@@ -36,10 +36,8 @@ export default function ArtworkGrid({ artworks, emptyMessage = 'Coming soon' }) 
             )}
           </div>
 
-          <div className="mt-5 px-1">
-            <h2 className="text-sm text-neutral-700 font-light leading-snug">{artwork.title}</h2>
-            {artwork.size && <p className="text-xs text-neutral-400 mt-0.5">{artwork.size}</p>}
-            {artwork.price && <p className="text-xs text-neutral-500 mt-1">{artwork.price}</p>}
+          <div className="mt-5 px-1 min-h-6">
+            <h2 className="text-sm text-neutral-700 font-light leading-snug line-clamp-1">{artwork.title}</h2>
           </div>
         </Link>
       ))}

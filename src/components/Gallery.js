@@ -58,11 +58,11 @@ export default async function Gallery() {
                 className="group block"
               >
                 {/* Image */}
-                <div className="relative transition-transform duration-500 group-hover:-translate-y-1">
+                <div className="relative aspect-square flex items-center justify-center transition-transform duration-500 group-hover:-translate-y-1">
                   <img
                     src={artwork.image_url}
                     alt={artwork.title}
-                    className="w-full h-auto block"
+                    className="w-full h-full object-contain block"
                     style={{
                       mixBlendMode: 'multiply',
                       filter: artwork.image_url?.toLowerCase().includes('.png')
@@ -78,11 +78,8 @@ export default async function Gallery() {
                 </div>
 
                 {/* Info */}
-                <div className="mt-3 px-0.5">
-                  <h3 className="text-sm text-neutral-700 font-light">{artwork.title}</h3>
-                  {artwork.price && (
-                    <p className="text-xs text-neutral-400 mt-0.5">{artwork.price}</p>
-                  )}
+                <div className="mt-3 px-0.5 min-h-6">
+                  <h3 className="text-sm text-neutral-700 font-light line-clamp-1">{artwork.title}</h3>
                 </div>
               </Link>
             ))}

@@ -59,13 +59,20 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
   const [natural, setNatural] = useState({ width: 1, height: 1 });
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [rotation, setRotation] = useState(0);
+  const [flipX, setFlipX] = useState(false);
+  const [mode, setMode] = useState(removeWhite ? 'fit' : 'fill');
+  const [removeBackground, setRemoveBackground] = useState(removeWhite);
   const [working, setWorking] = useState(false);
 
   const viewWidth = VIEW_SIZE;
   const viewHeight = VIEW_SIZE / aspect;
-  const baseScale = removeWhite
-    ? Math.min(viewWidth / natural.width, viewHeight / natural.height)
-    : Math.max(viewWidth / natural.width, viewHeight / natural.height);
+  const quarterTurn = Math.abs(rotation % 180) === 90;
+  const frameWidth = quarterTurn ? natural.height : natural.width;
+  const frameHeight = quarterTurn ? natural.width : natural.height;
+  const baseScale = mode === 'fit'
+    ? Math.min(viewWidth / frameWidth, viewHeight / frameHeight)
+    : Math.max(viewWidth / frameWidth, viewHeight / frameHeight);
   const renderedWidth = natural.width * baseScale * zoom;
   const renderedHeight = natural.height * baseScale * zoom;
 
@@ -73,8 +80,8 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
 
   function clampPosition(next, currentZoom = zoom) {
     const scale = baseScale * currentZoom;
-    const width = natural.width * scale;
-    const height = natural.height * scale;
+    const width = frameWidth * scale;
+    const height = frameHeight * scale;
     const maxX = Math.max(0, (width - viewWidth) / 2);
     const maxY = Math.max(0, (height - viewHeight) / 2);
     return {
@@ -102,6 +109,22 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
     setPosition(current => clampPosition(current, nextZoom));
   }
 
+  function changeMode(nextMode) {
+    setMode(nextMode);
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  }
+
+  function rotate(direction) {
+    setRotation(current => (current + direction + 360) % 360);
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  }
+
+  function nudge(x, y) {
+    setPosition(current => clampPosition({ x: current.x + x, y: current.y + y }));
+  }
+
   async function applyCrop() {
     setWorking(true);
     const outputWidth = 1400;
@@ -109,16 +132,15 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
     const canvas = document.createElement('canvas');
     canvas.width = outputWidth;
     canvas.height = outputHeight;
-    const ctx = canvas.getContext('2d', { willReadFrequently: removeWhite });
+    const ctx = canvas.getContext('2d', { willReadFrequently: removeBackground });
     const outputScale = outputWidth / viewWidth;
-    ctx.drawImage(
-      imageRef.current,
-      (viewWidth - renderedWidth) / 2 * outputScale + position.x * outputScale,
-      (viewHeight - renderedHeight) / 2 * outputScale + position.y * outputScale,
-      renderedWidth * outputScale,
-      renderedHeight * outputScale,
-    );
-    if (removeWhite) removeEdgeWhiteBackground(ctx, outputWidth, outputHeight);
+    ctx.clearRect(0, 0, outputWidth, outputHeight);
+    ctx.translate(outputWidth / 2 + position.x * outputScale, outputHeight / 2 + position.y * outputScale);
+    ctx.rotate(rotation * Math.PI / 180);
+    ctx.scale(flipX ? -1 : 1, 1);
+    ctx.drawImage(imageRef.current, -renderedWidth * outputScale / 2, -renderedHeight * outputScale / 2, renderedWidth * outputScale, renderedHeight * outputScale);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (removeBackground) removeEdgeWhiteBackground(ctx, outputWidth, outputHeight);
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     onApply(new File([blob], `edited-${Date.now()}.png`, { type: 'image/png' }));
     setWorking(false);
@@ -130,7 +152,7 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
         <div className="flex items-start justify-between mb-5">
           <div>
             <h2 className="text-2xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Adjust Photo</h2>
-            <p className="text-xs text-neutral-500 mt-1">Drag to reposition. Use the slider to zoom.</p>
+            <p className="text-xs text-neutral-500 mt-1">Drag in any direction, zoom, rotate, or flip before saving.</p>
           </div>
           <button type="button" onClick={onCancel} className="text-neutral-400 hover:text-black text-xl">×</button>
         </div>
@@ -155,8 +177,9 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
                 style={{
                   width: renderedWidth,
                   height: renderedHeight,
-                  left: `calc(50% - ${renderedWidth / 2}px + ${position.x}px)`,
-                  top: `calc(50% - ${renderedHeight / 2}px + ${position.y}px)`,
+                  left: '50%',
+                  top: '50%',
+                  transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) rotate(${rotation}deg) scaleX(${flipX ? -1 : 1})`,
                 }}
               />
             )}
@@ -167,10 +190,32 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
           </div>
         </div>
 
-        <div className="mt-5">
+        <div className="mt-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button type="button" onClick={() => changeMode('fit')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fit' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Fit</button>
+            <button type="button" onClick={() => changeMode('fill')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fill' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Fill</button>
+            <button type="button" onClick={() => rotate(-90)} className="px-4 py-2 text-[10px] uppercase tracking-widest border border-neutral-300">↶ Rotate</button>
+            <button type="button" onClick={() => rotate(90)} className="px-4 py-2 text-[10px] uppercase tracking-widest border border-neutral-300">Rotate ↷</button>
+            <button type="button" onClick={() => setFlipX(value => !value)} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${flipX ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Flip</button>
+          </div>
+
           <div className="flex justify-between text-[11px] uppercase tracking-wider text-neutral-500 mb-2"><span>Zoom</span><span>{zoom.toFixed(1)}×</span></div>
-          <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={changeZoom} className="w-full accent-neutral-900" />
-          {removeWhite && <p className="text-xs text-neutral-500 mt-3">White connected to the photo edges will become transparent. White details inside your painting stay visible.</p>}
+          <input type="range" min="1" max="4" step="0.02" value={zoom} onChange={changeZoom} className="w-full accent-neutral-900" />
+
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-[10px] uppercase tracking-widest text-neutral-400 mr-2">Fine position</span>
+            <button type="button" onClick={() => nudge(-10, 0)} className="w-9 h-9 border border-neutral-300">←</button>
+            <button type="button" onClick={() => nudge(0, -10)} className="w-9 h-9 border border-neutral-300">↑</button>
+            <button type="button" onClick={() => nudge(0, 10)} className="w-9 h-9 border border-neutral-300">↓</button>
+            <button type="button" onClick={() => nudge(10, 0)} className="w-9 h-9 border border-neutral-300">→</button>
+          </div>
+
+          {removeWhite && (
+            <label className="flex items-start gap-3 border border-neutral-200 p-3 cursor-pointer">
+              <input type="checkbox" checked={removeBackground} onChange={event => setRemoveBackground(event.target.checked)} className="mt-0.5 accent-neutral-900" />
+              <span className="text-xs text-neutral-500">Remove white background connected to the photo edges. White details inside the painting stay visible.</span>
+            </label>
+          )}
         </div>
 
         <div className="flex gap-3 mt-6">
