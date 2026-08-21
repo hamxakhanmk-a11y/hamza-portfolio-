@@ -61,7 +61,7 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState(0);
   const [flipX, setFlipX] = useState(false);
-  const [mode, setMode] = useState(removeWhite ? 'fit' : 'fill');
+  const [mode, setMode] = useState('fit');
   const [removeBackground, setRemoveBackground] = useState(removeWhite);
   const [working, setWorking] = useState(false);
 
@@ -82,8 +82,11 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
     const scale = baseScale * currentZoom;
     const width = frameWidth * scale;
     const height = frameHeight * scale;
-    const maxX = Math.max(0, (width - viewWidth) / 2);
-    const maxY = Math.max(0, (height - viewHeight) / 2);
+    // Always leave some positioning freedom. In "fit" mode this intentionally
+    // allows a little empty space so the complete artwork can be composed
+    // left/right/up/down without forcing a crop.
+    const maxX = Math.max(viewWidth * 0.28, Math.abs(width - viewWidth) / 2);
+    const maxY = Math.max(viewHeight * 0.28, Math.abs(height - viewHeight) / 2);
     return {
       x: Math.max(-maxX, Math.min(maxX, next.x)),
       y: Math.max(-maxY, Math.min(maxY, next.y)),
@@ -152,7 +155,7 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
         <div className="flex items-start justify-between mb-5">
           <div>
             <h2 className="text-2xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Adjust Photo</h2>
-            <p className="text-xs text-neutral-500 mt-1">Drag in any direction, zoom, rotate, or flip before saving.</p>
+            <p className="text-xs text-neutral-500 mt-1">Keep the full painting visible, then drag it into position. Cropping is optional.</p>
           </div>
           <button type="button" onClick={onCancel} className="text-neutral-400 hover:text-black text-xl">×</button>
         </div>
@@ -192,15 +195,19 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
 
         <div className="mt-5 space-y-4">
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <button type="button" onClick={() => changeMode('fit')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fit' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Fit</button>
-            <button type="button" onClick={() => changeMode('fill')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fill' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Fill</button>
+            <button type="button" onClick={() => changeMode('fit')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fit' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Full Painting</button>
+            <button type="button" onClick={() => changeMode('fill')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fill' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Crop to Frame</button>
             <button type="button" onClick={() => rotate(-90)} className="px-4 py-2 text-[10px] uppercase tracking-widest border border-neutral-300">↶ Rotate</button>
             <button type="button" onClick={() => rotate(90)} className="px-4 py-2 text-[10px] uppercase tracking-widest border border-neutral-300">Rotate ↷</button>
             <button type="button" onClick={() => setFlipX(value => !value)} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${flipX ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Flip</button>
           </div>
 
           <div className="flex justify-between text-[11px] uppercase tracking-wider text-neutral-500 mb-2"><span>Zoom</span><span>{zoom.toFixed(1)}×</span></div>
-          <input type="range" min="1" max="4" step="0.02" value={zoom} onChange={changeZoom} className="w-full accent-neutral-900" />
+          <input type="range" min="0.7" max="4" step="0.02" value={zoom} onChange={changeZoom} className="w-full accent-neutral-900" />
+
+          <p className="text-[11px] text-center text-neutral-400">
+            Full Painting keeps every edge visible. Crop to Frame is only for photos you intentionally want to trim.
+          </p>
 
           <div className="flex items-center justify-center gap-2">
             <span className="text-[10px] uppercase tracking-widest text-neutral-400 mr-2">Fine position</span>
