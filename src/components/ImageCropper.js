@@ -78,6 +78,14 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
 
   useEffect(() => () => URL.revokeObjectURL(source), [source]);
 
+  useEffect(() => {
+    const closeOnEscape = event => {
+      if (event.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [onCancel]);
+
   function clampPosition(next, currentZoom = zoom) {
     const scale = baseScale * currentZoom;
     const width = frameWidth * scale;
@@ -150,17 +158,30 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
   }
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/75 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-2xl p-5 sm:p-8 shadow-2xl">
-        <div className="flex items-start justify-between mb-5">
+    <div
+      className="fixed inset-0 z-[100] bg-black/75 overflow-y-auto overscroll-contain p-3 sm:p-6"
+      onMouseDown={event => {
+        if (event.target === event.currentTarget) onCancel();
+      }}
+    >
+      <div className="bg-white w-full max-w-2xl mx-auto min-h-min shadow-2xl">
+        <div className="sticky top-0 z-20 bg-white border-b border-neutral-100 px-5 sm:px-8 py-4 flex items-center justify-between">
+          <button type="button" onClick={onCancel} className="text-xs uppercase tracking-[0.18em] text-neutral-600 hover:text-black flex items-center gap-2">
+            <span aria-hidden="true">←</span> Back
+          </button>
+          <button type="button" onClick={onCancel} aria-label="Close editor" className="text-neutral-400 hover:text-black text-2xl leading-none">×</button>
+        </div>
+
+        <div className="px-5 sm:px-8 pt-5">
+          <div className="mb-5">
           <div>
             <h2 className="text-2xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Adjust Photo</h2>
             <p className="text-xs text-neutral-500 mt-1">Keep the full painting visible, then drag it into position. Cropping is optional.</p>
           </div>
-          <button type="button" onClick={onCancel} className="text-neutral-400 hover:text-black text-xl">×</button>
+          </div>
         </div>
 
-        <div className="overflow-auto bg-neutral-100 p-3">
+        <div className="mx-5 sm:mx-8 overflow-auto bg-neutral-100 p-3">
           <div
             className="relative overflow-hidden mx-auto bg-[linear-gradient(45deg,#eee_25%,transparent_25%),linear-gradient(-45deg,#eee_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#eee_75%),linear-gradient(-45deg,transparent_75%,#eee_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0px] cursor-grab active:cursor-grabbing touch-none"
             style={{ width: viewWidth, height: viewHeight, maxWidth: '100%' }}
@@ -193,7 +214,7 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
           </div>
         </div>
 
-        <div className="mt-5 space-y-4">
+        <div className="px-5 sm:px-8 mt-5 space-y-4">
           <div className="flex flex-wrap items-center justify-center gap-2">
             <button type="button" onClick={() => changeMode('fit')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fit' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Full Painting</button>
             <button type="button" onClick={() => changeMode('fill')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fill' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Crop to Frame</button>
@@ -225,7 +246,7 @@ export default function ImageCropper({ file, aspect = 1, removeWhite = false, on
           )}
         </div>
 
-        <div className="flex gap-3 mt-6">
+        <div className="sticky bottom-0 z-20 bg-white border-t border-neutral-100 px-5 sm:px-8 py-4 flex gap-3 mt-6 shadow-[0_-8px_22px_rgba(0,0,0,.06)]">
           <button type="button" onClick={onCancel} className="flex-1 border border-neutral-300 py-3 text-xs uppercase tracking-widest">Cancel</button>
           <button type="button" onClick={applyCrop} disabled={working} className="flex-1 bg-neutral-900 text-white py-3 text-xs uppercase tracking-widest disabled:opacity-40">{working ? 'Preparing…' : 'Use Photo'}</button>
         </div>
