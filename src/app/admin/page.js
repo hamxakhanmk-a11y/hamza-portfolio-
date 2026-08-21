@@ -553,7 +553,7 @@ export default function AdminPage() {
   // ── Login screen ───────────────────────────────────────────
   if (!token) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-6">
+      <div className="flex min-h-screen items-center justify-center bg-white px-4 sm:px-6">
         <div className="w-full max-w-sm">
           <h1 className="text-4xl font-light mb-1" style={{ fontFamily: 'var(--font-cormorant)', color: '#3d6478' }}>
             Admin
@@ -597,7 +597,7 @@ export default function AdminPage() {
       )}
 
       {/* Header */}
-      <header className="bg-white border-b border-neutral-200 px-6 py-4 flex justify-between items-center sticky top-0 z-20">
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-neutral-200 bg-white px-4 py-4 sm:px-6">
         <h1 className="text-xl font-light" style={{ fontFamily: 'var(--font-cormorant)', color: '#3d6478' }}>
           {siteConfig.artistName} — Admin
         </h1>
@@ -612,7 +612,7 @@ export default function AdminPage() {
       </header>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-neutral-200 px-6 flex gap-8">
+      <div className="flex gap-5 overflow-x-auto border-b border-neutral-200 bg-white px-4 sm:gap-8 sm:px-6">
         {[['artworks', 'Artworks'], ['shows', 'Shows'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
           <button
             key={key}
@@ -626,7 +626,7 @@ export default function AdminPage() {
         ))}
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-12">
+      <div className="mx-auto max-w-5xl px-3 py-6 sm:px-6 sm:py-12">
 
         {/* ═══════════════ ARTWORKS TAB ═══════════════ */}
         {activeTab === 'artworks' && (
@@ -634,11 +634,11 @@ export default function AdminPage() {
 
             {/* Add/Edit form */}
             {showForm ? (
-              <section className="bg-white border border-neutral-200 p-8">
+              <section className="border border-neutral-200 bg-white p-4 sm:p-8">
                 <h2 className="text-2xl font-light mb-6" style={{ fontFamily: 'var(--font-cormorant)' }}>
                   {editingId ? 'Edit Artwork' : 'Add New Artwork'}
                 </h2>
-                <form onSubmit={handleSave} className="grid md:grid-cols-2 gap-8">
+                <form onSubmit={handleSave} className="grid gap-6 md:grid-cols-2 md:gap-8">
 
                   {/* Image */}
                   <div className="flex flex-col gap-3">
@@ -891,11 +891,11 @@ export default function AdminPage() {
 
             {/* Add/Edit form */}
             {showFormOpen ? (
-              <section className="bg-white border border-neutral-200 p-8">
+              <section className="border border-neutral-200 bg-white p-4 sm:p-8">
                 <h2 className="text-2xl font-light mb-6" style={{ fontFamily: 'var(--font-cormorant)' }}>
                   {editingShowId ? 'Edit Show' : 'Add New Show'}
                 </h2>
-                <form onSubmit={saveShow} className="grid md:grid-cols-2 gap-8">
+                <form onSubmit={saveShow} className="grid gap-6 md:grid-cols-2 md:gap-8">
 
                   {/* Cover image */}
                   <div className="flex flex-col gap-3">
@@ -1131,7 +1131,7 @@ export default function AdminPage() {
             )}
 
             {/* Bio */}
-            <section className="bg-white border border-neutral-200 p-8">
+            <section className="border border-neutral-200 bg-white p-4 sm:p-8">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Bio</h3>
                 <button
@@ -1153,7 +1153,7 @@ export default function AdminPage() {
             </section>
 
             {/* Artist Statement */}
-            <section className="bg-white border border-neutral-200 p-8">
+            <section className="border border-neutral-200 bg-white p-4 sm:p-8">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Artist Statement</h3>
                 <button
@@ -1174,7 +1174,7 @@ export default function AdminPage() {
             </section>
 
             {/* About Photos */}
-            <section className="bg-white border border-neutral-200 p-8">
+            <section className="border border-neutral-200 bg-white p-4 sm:p-8">
               <h3 className="text-lg font-light mb-1" style={{ fontFamily: 'var(--font-cormorant)' }}>About Photos</h3>
               <p className="text-xs text-neutral-400 mb-6">
                 Photos of you, your studio, or your process — shown on the About page.
@@ -1314,11 +1314,11 @@ export default function AdminPage() {
               { key: 'hero', label: 'Hero Photo', desc: 'The large background image on your homepage', file: heroFile, setFile: setHeroFile, previewState: heroPreview, setPreview: setHeroPreview, ref: heroRef },
               { key: 'about', label: 'About Photo', desc: 'Your photo shown in the About section', file: aboutFile, setFile: setAboutFile, previewState: aboutPreview, setPreview: setAboutPreview, ref: aboutRef },
             ].map(({ key, label, desc, file, setFile, previewState, setPreview: setP, ref }) => (
-              <div key={key} className="bg-white border border-neutral-200 p-8">
+              <div key={key} className="border border-neutral-200 bg-white p-4 sm:p-8">
                 <h3 className="text-lg font-light mb-1" style={{ fontFamily: 'var(--font-cormorant)' }}>{label}</h3>
                 <p className="text-xs text-neutral-400 mb-6">{desc}</p>
 
-                <div className="grid md:grid-cols-2 gap-8 items-start">
+                <div className="grid items-start gap-6 md:grid-cols-2 md:gap-8">
                   {/* Current */}
                   <div className="flex flex-col gap-2">
                     <p className="text-xs tracking-wider uppercase text-neutral-400">Current</p>

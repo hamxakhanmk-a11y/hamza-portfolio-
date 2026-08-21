@@ -16,12 +16,12 @@ export default function AboutTabs({ bio, statement }) {
     <div className="flex flex-col gap-8">
 
       {/* Tab buttons */}
-      <div className="flex gap-8 border-b border-neutral-200">
+      <div className="flex gap-5 border-b border-neutral-200 sm:gap-8">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`text-xs tracking-[0.25em] uppercase pb-3 border-b-2 transition-all ${
+            className={`border-b-2 pb-3 text-[11px] uppercase tracking-[0.18em] transition-all sm:text-xs sm:tracking-[0.25em] ${
               tab === t.key
                 ? 'border-current'
                 : 'border-transparent opacity-40 hover:opacity-70'

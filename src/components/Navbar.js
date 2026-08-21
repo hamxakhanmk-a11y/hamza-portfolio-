@@ -30,10 +30,10 @@ export default function Navbar() {
       }`}
     >
       {/* Top row — artist name */}
-      <div className="border-b border-neutral-100 py-4 px-6 flex items-center justify-between md:justify-center relative">
+      <div className="relative flex min-h-16 items-center justify-between border-b border-neutral-100 px-4 py-3 sm:px-6 md:justify-center">
         <Link
           href="/"
-          className="text-xl md:text-2xl tracking-[0.3em] uppercase"
+          className="max-w-[calc(100%-4rem)] truncate text-lg uppercase tracking-[0.18em] sm:text-xl sm:tracking-[0.3em] md:text-2xl"
           style={{ fontFamily: 'var(--font-cormorant)', color: '#3d6478' }}
         >
           {siteConfig.artistName}
@@ -41,7 +41,7 @@ export default function Navbar() {
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden flex flex-col gap-[5px] absolute right-6"
+          className="absolute right-4 flex h-11 w-11 flex-col items-center justify-center gap-[5px] sm:right-6 md:hidden"
           onClick={() => setOpen(!open)}
           aria-label="Toggle menu"
         >
@@ -70,13 +70,13 @@ export default function Navbar() {
 
       {/* Mobile dropdown */}
       {open && (
-        <nav className="md:hidden bg-white border-t border-neutral-100 flex flex-col items-center gap-6 py-8">
+        <nav className="flex max-h-[calc(100svh-4rem)] flex-col items-center gap-1 overflow-y-auto border-t border-neutral-100 bg-white py-3 md:hidden">
           {links.map(({ label, href }) => (
             <a
               key={label}
               href={href}
               onClick={() => setOpen(false)}
-              className="text-xs tracking-[0.25em] uppercase"
+              className="w-full py-3 text-center text-xs uppercase tracking-[0.25em]"
               style={{ color: '#3d6478' }}
             >
               {label}

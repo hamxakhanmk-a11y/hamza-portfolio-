@@ -21,21 +21,27 @@ export default async function Contact() {
   const instagram = info.contact_instagram || siteConfig.instagram;
   const intro = info.contact_intro || "Interested in a piece? Have a commission in mind? Reach out — I'd love to hear from you.";
 
-  const whatsappLink = `https://wa.me/${whatsapp}?text=${encodeURIComponent("Hi! I'd love to inquire about your artwork.")}`;
-  const instagramLink = `https://instagram.com/${instagram}`;
+  const whatsappNumber = String(whatsapp || '').replace(/\D/g, '');
+  const instagramValue = String(instagram || '').trim();
+  const instagramHandle = instagramValue
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+    .replace(/^@/, '')
+    .replace(/\/?(?:\?.*)?$/, '');
+  const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Hi! I'd love to inquire about your artwork.")}`;
+  const instagramLink = /^https?:\/\//i.test(instagramValue) ? instagramValue : `https://www.instagram.com/${instagramHandle}/`;
 
   return (
     <footer
       id="contact"
-      className="py-28 text-white"
+      className="py-20 text-white sm:py-28"
       style={{ backgroundColor: '#a68b57' }}
     >
-      <div className="max-w-6xl mx-auto px-6 flex flex-col items-center text-center gap-10">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-10 px-4 text-center sm:px-6">
 
         <div className="flex flex-col gap-4">
           <p className="text-xs tracking-[0.35em] uppercase text-white/70">Commissions & Sales</p>
           <h2
-            className="text-5xl md:text-6xl font-light leading-tight"
+            className="text-4xl font-light leading-tight sm:text-5xl md:text-6xl"
             style={{ fontFamily: "var(--font-cormorant)" }}
           >
             Get in Touch
@@ -46,15 +52,15 @@ export default async function Contact() {
         </div>
 
         {/* Contact links — all inline, no big button */}
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-xs tracking-[0.2em] uppercase text-white/85">
+        <div className="grid w-full max-w-xs grid-cols-1 items-center justify-center gap-1 text-xs uppercase tracking-[0.2em] text-white/85 sm:flex sm:max-w-none sm:flex-wrap sm:gap-x-8 sm:gap-y-4">
           <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
             WhatsApp
           </a>
-          <span className="w-px h-4 bg-white/30" />
-          <a href={`mailto:${email}`} className="hover:text-white transition-colors">
+          <span className="hidden h-4 w-px bg-white/30 sm:block" />
+          <a href={`mailto:${email}?subject=${encodeURIComponent('Artwork inquiry')}`} className="py-3 transition-colors hover:text-white sm:py-0">
             Email
           </a>
-          <span className="w-px h-4 bg-white/30" />
+          <span className="hidden h-4 w-px bg-white/30 sm:block" />
           <a href={instagramLink} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
             Instagram
           </a>

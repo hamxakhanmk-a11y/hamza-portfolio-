@@ -27,15 +27,15 @@ export default async function PortfolioPage() {
     <>
       <Navbar />
       <main className="bg-white min-h-screen">
-        <div className="pt-36 pb-16 text-center">
+        <div className="pb-10 pt-28 text-center sm:pb-16 sm:pt-36">
           <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: '#3d6478' }}>Collection</p>
-          <h1 className="text-6xl font-light text-neutral-900" style={{ fontFamily: 'var(--font-cormorant)' }}>
+          <h1 className="text-4xl font-light text-neutral-900 sm:text-5xl md:text-6xl" style={{ fontFamily: 'var(--font-cormorant)' }}>
             Portfolio
           </h1>
           <div className="w-8 h-px bg-neutral-300 mx-auto mt-6" />
         </div>
 
-        <div className="max-w-6xl mx-auto px-6 pb-28">
+        <div className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 sm:pb-28">
           <ArtworkGrid artworks={artworks} emptyMessage="Portfolio pieces coming soon" />
         </div>
       </main>

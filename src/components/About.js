@@ -36,16 +36,16 @@ export default async function About() {
   const statement = text.artist_statement || '';
 
   return (
-    <section id="about" className="py-28 bg-neutral-50">
-      <div className="max-w-6xl mx-auto px-6">
+    <section id="about" className="bg-neutral-50 py-20 sm:py-28">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
 
         {/* Section header */}
-        <div className="text-center mb-16">
+        <div className="mb-10 text-center sm:mb-16">
           <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: '#3d6478' }}>
             The Artist
           </p>
           <h2
-            className="text-5xl font-light text-neutral-900"
+            className="text-4xl font-light text-neutral-900 sm:text-5xl"
             style={{ fontFamily: 'var(--font-cormorant)' }}
           >
             About
@@ -54,7 +54,7 @@ export default async function About() {
         </div>
 
         {/* Content grid */}
-        <div className="grid md:grid-cols-2 gap-14 items-start">
+        <div className="grid items-start gap-10 md:grid-cols-2 md:gap-14">
 
           {/* Images */}
           <div className="flex flex-col gap-6">
@@ -81,7 +81,7 @@ export default async function About() {
           </div>
 
           {/* Tabs — Bio / Artist Statement */}
-          <div className="md:sticky md:top-28">
+          <div className="lg:sticky lg:top-28">
             <AboutTabs bio={bio} statement={statement} />
 
             <a

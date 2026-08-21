@@ -15,7 +15,7 @@ export default async function Hero() {
   const heroImage = await getHeroImage();
 
   return (
-    <section className="relative w-full min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative flex min-h-[72svh] w-full items-center justify-center overflow-hidden sm:min-h-[85svh] lg:min-h-screen">
       {/* Background */}
       <div className="absolute inset-0 bg-neutral-300">
         {heroImage && (

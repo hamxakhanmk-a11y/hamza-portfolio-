@@ -10,7 +10,7 @@ export default function ArtworkGrid({ artworks, emptyMessage = 'Coming soon' }) 
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-16">
+    <div className="grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 sm:gap-y-16 lg:grid-cols-3 lg:gap-x-10">
       {artworks.map(artwork => (
         <Link
           key={artwork.id}

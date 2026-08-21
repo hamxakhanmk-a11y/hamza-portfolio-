@@ -41,11 +41,11 @@ export default async function ShowDetailPage(props) {
   return (
     <>
       <Navbar />
-      <main className="bg-white min-h-screen pt-28 pb-24">
-        <div className="max-w-5xl mx-auto px-6">
+      <main className="min-h-screen bg-white pb-20 pt-24 sm:pb-24 sm:pt-28">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
 
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-xs text-neutral-400 mb-14">
+          <nav className="mb-8 flex items-center gap-2 text-xs text-neutral-400 sm:mb-14">
             <Link href="/shows" className="hover:text-neutral-700 transition-colors tracking-wider uppercase">
               Shows
             </Link>
@@ -54,14 +54,14 @@ export default async function ShowDetailPage(props) {
           </nav>
 
           {/* Header */}
-          <div className="text-center mb-14 max-w-2xl mx-auto">
+          <div className="mx-auto mb-10 max-w-2xl text-center sm:mb-14">
             <h1
-              className="text-5xl font-light text-neutral-900 leading-tight"
+              className="text-3xl font-light leading-tight text-neutral-900 sm:text-4xl md:text-5xl"
               style={{ fontFamily: 'var(--font-cormorant)' }}
             >
               {show.title}
             </h1>
-            <div className="flex justify-center gap-3 mt-4 text-xs text-neutral-500 tracking-[0.2em] uppercase">
+            <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs uppercase tracking-[0.16em] text-neutral-500 sm:tracking-[0.2em]">
               {show.date && <span>{show.date}</span>}
               {show.date && show.location && <span>·</span>}
               {show.location && <span>{show.location}</span>}
@@ -78,14 +78,14 @@ export default async function ShowDetailPage(props) {
 
           {/* Cover image */}
           {show.cover_image && (
-            <div className="mb-12 flex justify-center bg-neutral-50">
+            <div className="mb-8 flex justify-center bg-neutral-50 sm:mb-12">
               <img src={show.cover_image} alt={show.title} className="w-auto max-w-full h-auto max-h-[760px] object-contain block" />
             </div>
           )}
 
           {/* Gallery */}
           {images.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
               {images.map(img => (
                 <figure key={img.id} className="flex flex-col gap-2">
                   <div className="flex justify-center bg-neutral-50">
