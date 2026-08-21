@@ -840,6 +840,7 @@ export default function AdminPage() {
                         if (!f) return;
                         chooseImage(f, {
                           aspect: 4 / 3,
+                          allowAspect: true,
                           onComplete: edited => {
                             setShowCover(edited);
                             setShowCoverPreview(URL.createObjectURL(edited));
@@ -935,7 +936,7 @@ export default function AdminPage() {
                           className="hidden"
                           onChange={e => {
                             const f = e.target.files[0];
-                            if (f) chooseImage(f, { aspect: 4 / 3, onComplete: addShowImage });
+                            if (f) chooseImage(f, { aspect: 4 / 3, allowAspect: true, onComplete: addShowImage });
                             e.target.value = '';
                           }}
                         />

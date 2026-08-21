@@ -66,6 +66,7 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
   const [cropAspect, setCropAspect] = useState(aspect);
   const [aspectChoice, setAspectChoice] = useState(allowAspect ? 'original' : 'fixed');
   const [working, setWorking] = useState(false);
+  const usesOriginalSize = allowAspect && aspectChoice === 'original';
 
   const viewWidth = cropAspect >= 1 ? VIEW_SIZE : VIEW_SIZE * cropAspect;
   const viewHeight = cropAspect >= 1 ? VIEW_SIZE / cropAspect : VIEW_SIZE;
@@ -148,12 +149,26 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
 
   async function applyCrop() {
     setWorking(true);
-    const outputWidth = cropAspect >= 1 ? 1400 : Math.round(1400 * cropAspect);
-    const outputHeight = cropAspect >= 1 ? Math.round(1400 / cropAspect) : 1400;
+    const originalScale = Math.min(1800 / natural.width, 1800 / natural.height, 1);
+    const outputWidth = usesOriginalSize
+      ? Math.round(natural.width * originalScale)
+      : cropAspect >= 1 ? 1400 : Math.round(1400 * cropAspect);
+    const outputHeight = usesOriginalSize
+      ? Math.round(natural.height * originalScale)
+      : cropAspect >= 1 ? Math.round(1400 / cropAspect) : 1400;
     const canvas = document.createElement('canvas');
     canvas.width = outputWidth;
     canvas.height = outputHeight;
     const ctx = canvas.getContext('2d', { willReadFrequently: removeBackground });
+    if (usesOriginalSize) {
+      ctx.drawImage(imageRef.current, 0, 0, outputWidth, outputHeight);
+      if (removeBackground) removeEdgeWhiteBackground(ctx, outputWidth, outputHeight);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      onApply(new File([blob], `original-${Date.now()}.png`, { type: 'image/png' }));
+      setWorking(false);
+      return;
+    }
+
     const outputScale = outputWidth / viewWidth;
     ctx.clearRect(0, 0, outputWidth, outputHeight);
     ctx.translate(outputWidth / 2 + position.x * outputScale, outputHeight / 2 + position.y * outputScale);
@@ -240,31 +255,38 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
                 <button type="button" onClick={() => chooseAspect('portrait', 4 / 5)} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${aspectChoice === 'portrait' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Portrait</button>
                 <button type="button" onClick={() => chooseAspect('landscape', 4 / 3)} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${aspectChoice === 'landscape' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Landscape</button>
               </div>
+              {usesOriginalSize && (
+                <p className="text-xs text-neutral-500 mt-3 border-l-2 border-neutral-300 pl-3">
+                  Original uploads the complete photo at its own proportions. No crop frame or transparent padding is added.
+                </p>
+              )}
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          {!usesOriginalSize && <div className="flex flex-wrap items-center justify-center gap-2">
             <button type="button" onClick={() => changeMode('fit')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fit' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Full Painting</button>
             <button type="button" onClick={() => changeMode('fill')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fill' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Crop to Frame</button>
             <button type="button" onClick={() => rotate(-90)} className="px-4 py-2 text-[10px] uppercase tracking-widest border border-neutral-300">↶ Rotate</button>
             <button type="button" onClick={() => rotate(90)} className="px-4 py-2 text-[10px] uppercase tracking-widest border border-neutral-300">Rotate ↷</button>
             <button type="button" onClick={() => setFlipX(value => !value)} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${flipX ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Flip</button>
-          </div>
+          </div>}
 
-          <div className="flex justify-between text-[11px] uppercase tracking-wider text-neutral-500 mb-2"><span>Zoom</span><span>{zoom.toFixed(1)}×</span></div>
-          <input type="range" min="0.7" max="4" step="0.02" value={zoom} onChange={changeZoom} className="w-full accent-neutral-900" />
+          {!usesOriginalSize && <>
+            <div className="flex justify-between text-[11px] uppercase tracking-wider text-neutral-500 mb-2"><span>Zoom</span><span>{zoom.toFixed(1)}×</span></div>
+            <input type="range" min="0.7" max="4" step="0.02" value={zoom} onChange={changeZoom} className="w-full accent-neutral-900" />
 
-          <p className="text-[11px] text-center text-neutral-400">
-            Full Painting keeps every edge visible. Crop to Frame is only for photos you intentionally want to trim.
-          </p>
+            <p className="text-[11px] text-center text-neutral-400">
+              Full Painting keeps every edge visible. Crop to Frame is only for photos you intentionally want to trim.
+            </p>
 
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-[10px] uppercase tracking-widest text-neutral-400 mr-2">Fine position</span>
-            <button type="button" onClick={() => nudge(-10, 0)} className="w-9 h-9 border border-neutral-300">←</button>
-            <button type="button" onClick={() => nudge(0, -10)} className="w-9 h-9 border border-neutral-300">↑</button>
-            <button type="button" onClick={() => nudge(0, 10)} className="w-9 h-9 border border-neutral-300">↓</button>
-            <button type="button" onClick={() => nudge(10, 0)} className="w-9 h-9 border border-neutral-300">→</button>
-          </div>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-[10px] uppercase tracking-widest text-neutral-400 mr-2">Fine position</span>
+              <button type="button" onClick={() => nudge(-10, 0)} className="w-9 h-9 border border-neutral-300">←</button>
+              <button type="button" onClick={() => nudge(0, -10)} className="w-9 h-9 border border-neutral-300">↑</button>
+              <button type="button" onClick={() => nudge(0, 10)} className="w-9 h-9 border border-neutral-300">↓</button>
+              <button type="button" onClick={() => nudge(10, 0)} className="w-9 h-9 border border-neutral-300">→</button>
+            </div>
+          </>}
 
           {removeWhite && (
             <label className="flex items-start gap-3 border border-neutral-200 p-3 cursor-pointer">

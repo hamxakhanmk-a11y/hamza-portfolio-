@@ -78,8 +78,8 @@ export default async function ShowDetailPage(props) {
 
           {/* Cover image */}
           {show.cover_image && (
-            <div className="mb-12 aspect-[4/3] overflow-hidden bg-neutral-50">
-              <img src={show.cover_image} alt={show.title} className="w-full h-full object-cover block" />
+            <div className="mb-12 flex justify-center bg-neutral-50">
+              <img src={show.cover_image} alt={show.title} className="w-auto max-w-full h-auto max-h-[760px] object-contain block" />
             </div>
           )}
 
@@ -88,8 +88,8 @@ export default async function ShowDetailPage(props) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {images.map(img => (
                 <figure key={img.id} className="flex flex-col gap-2">
-                  <div className="aspect-[4/3] overflow-hidden bg-neutral-50">
-                    <img src={img.image_url} alt={img.caption || show.title} className="w-full h-full object-cover block" />
+                  <div className="flex justify-center bg-neutral-50">
+                    <img src={img.image_url} alt={img.caption || show.title} className="w-auto max-w-full h-auto max-h-[620px] object-contain block" />
                   </div>
                   {img.caption && (
                     <figcaption className="text-xs text-neutral-500 italic tracking-wider">
