@@ -1,0 +1,183 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+
+const VIEW_SIZE = 460;
+
+function removeEdgeWhiteBackground(ctx, width, height) {
+  const image = ctx.getImageData(0, 0, width, height);
+  const { data } = image;
+  const visited = new Uint8Array(width * height);
+  const queue = new Int32Array(width * height);
+  let head = 0;
+  let tail = 0;
+
+  const isBackground = index => {
+    const i = index * 4;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    return data[i + 3] < 10 || (r > 232 && g > 232 && b > 232 && Math.max(r, g, b) - Math.min(r, g, b) < 22);
+  };
+
+  const add = index => {
+    if (!visited[index] && isBackground(index)) {
+      visited[index] = 1;
+      queue[tail++] = index;
+    }
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    add(x);
+    add((height - 1) * width + x);
+  }
+  for (let y = 0; y < height; y += 1) {
+    add(y * width);
+    add(y * width + width - 1);
+  }
+
+  while (head < tail) {
+    const index = queue[head++];
+    const x = index % width;
+    const y = Math.floor(index / width);
+    if (x > 0) add(index - 1);
+    if (x + 1 < width) add(index + 1);
+    if (y > 0) add(index - width);
+    if (y + 1 < height) add(index + width);
+  }
+
+  for (let index = 0; index < visited.length; index += 1) {
+    if (visited[index]) data[index * 4 + 3] = 0;
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+export default function ImageCropper({ file, aspect = 1, removeWhite = false, onCancel, onApply }) {
+  const imageRef = useRef(null);
+  const dragRef = useRef(null);
+  const [source] = useState(() => URL.createObjectURL(file));
+  const [natural, setNatural] = useState({ width: 1, height: 1 });
+  const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [working, setWorking] = useState(false);
+
+  const viewWidth = VIEW_SIZE;
+  const viewHeight = VIEW_SIZE / aspect;
+  const baseScale = removeWhite
+    ? Math.min(viewWidth / natural.width, viewHeight / natural.height)
+    : Math.max(viewWidth / natural.width, viewHeight / natural.height);
+  const renderedWidth = natural.width * baseScale * zoom;
+  const renderedHeight = natural.height * baseScale * zoom;
+
+  useEffect(() => () => URL.revokeObjectURL(source), [source]);
+
+  function clampPosition(next, currentZoom = zoom) {
+    const scale = baseScale * currentZoom;
+    const width = natural.width * scale;
+    const height = natural.height * scale;
+    const maxX = Math.max(0, (width - viewWidth) / 2);
+    const maxY = Math.max(0, (height - viewHeight) / 2);
+    return {
+      x: Math.max(-maxX, Math.min(maxX, next.x)),
+      y: Math.max(-maxY, Math.min(maxY, next.y)),
+    };
+  }
+
+  function pointerDown(event) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { x: event.clientX, y: event.clientY, start: position };
+  }
+
+  function pointerMove(event) {
+    if (!dragRef.current) return;
+    setPosition(clampPosition({
+      x: dragRef.current.start.x + event.clientX - dragRef.current.x,
+      y: dragRef.current.start.y + event.clientY - dragRef.current.y,
+    }));
+  }
+
+  function changeZoom(event) {
+    const nextZoom = Number(event.target.value);
+    setZoom(nextZoom);
+    setPosition(current => clampPosition(current, nextZoom));
+  }
+
+  async function applyCrop() {
+    setWorking(true);
+    const outputWidth = 1400;
+    const outputHeight = Math.round(outputWidth / aspect);
+    const canvas = document.createElement('canvas');
+    canvas.width = outputWidth;
+    canvas.height = outputHeight;
+    const ctx = canvas.getContext('2d', { willReadFrequently: removeWhite });
+    const outputScale = outputWidth / viewWidth;
+    ctx.drawImage(
+      imageRef.current,
+      (viewWidth - renderedWidth) / 2 * outputScale + position.x * outputScale,
+      (viewHeight - renderedHeight) / 2 * outputScale + position.y * outputScale,
+      renderedWidth * outputScale,
+      renderedHeight * outputScale,
+    );
+    if (removeWhite) removeEdgeWhiteBackground(ctx, outputWidth, outputHeight);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    onApply(new File([blob], `edited-${Date.now()}.png`, { type: 'image/png' }));
+    setWorking(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/75 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-2xl p-5 sm:p-8 shadow-2xl">
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="text-2xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Adjust Photo</h2>
+            <p className="text-xs text-neutral-500 mt-1">Drag to reposition. Use the slider to zoom.</p>
+          </div>
+          <button type="button" onClick={onCancel} className="text-neutral-400 hover:text-black text-xl">×</button>
+        </div>
+
+        <div className="overflow-auto bg-neutral-100 p-3">
+          <div
+            className="relative overflow-hidden mx-auto bg-[linear-gradient(45deg,#eee_25%,transparent_25%),linear-gradient(-45deg,#eee_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#eee_75%),linear-gradient(-45deg,transparent_75%,#eee_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0px] cursor-grab active:cursor-grabbing touch-none"
+            style={{ width: viewWidth, height: viewHeight, maxWidth: '100%' }}
+            onPointerDown={pointerDown}
+            onPointerMove={pointerMove}
+            onPointerUp={() => { dragRef.current = null; }}
+            onPointerCancel={() => { dragRef.current = null; }}
+          >
+            {source && (
+              <img
+                ref={imageRef}
+                src={source}
+                alt="Crop preview"
+                draggable="false"
+                onLoad={event => setNatural({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+                className="absolute max-w-none select-none pointer-events-none"
+                style={{
+                  width: renderedWidth,
+                  height: renderedHeight,
+                  left: `calc(50% - ${renderedWidth / 2}px + ${position.x}px)`,
+                  top: `calc(50% - ${renderedHeight / 2}px + ${position.y}px)`,
+                }}
+              />
+            )}
+            <div className="absolute inset-0 border-2 border-white/90 pointer-events-none shadow-[inset_0_0_0_1px_rgba(0,0,0,.25)]" />
+            <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-40">
+              {Array.from({ length: 9 }).map((_, index) => <div key={index} className="border border-white/50" />)}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <div className="flex justify-between text-[11px] uppercase tracking-wider text-neutral-500 mb-2"><span>Zoom</span><span>{zoom.toFixed(1)}×</span></div>
+          <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={changeZoom} className="w-full accent-neutral-900" />
+          {removeWhite && <p className="text-xs text-neutral-500 mt-3">White connected to the photo edges will become transparent. White details inside your painting stay visible.</p>}
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button type="button" onClick={onCancel} className="flex-1 border border-neutral-300 py-3 text-xs uppercase tracking-widest">Cancel</button>
+          <button type="button" onClick={applyCrop} disabled={working} className="flex-1 bg-neutral-900 text-white py-3 text-xs uppercase tracking-widest disabled:opacity-40">{working ? 'Preparing…' : 'Use Photo'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { siteConfig } from '@/data/config';
+import ImageCropper from '@/components/ImageCropper';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 // ── Image compression ──────────────────────────────────────────
-async function compressImage(file) {
+async function prepareImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -17,10 +18,11 @@ async function compressImage(file) {
       canvas.width = Math.round(img.width * ratio);
       canvas.height = Math.round(img.height * ratio);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const preserveTransparency = file.type === 'image/png';
       canvas.toBlob(blob => {
-        resolve(new File([blob], 'image.jpg', { type: 'image/jpeg' }));
+        resolve(new File([blob], preserveTransparency ? 'image.png' : 'image.jpg', { type: preserveTransparency ? 'image/png' : 'image/jpeg' }));
         URL.revokeObjectURL(url);
-      }, 'image/jpeg', 0.88);
+      }, preserveTransparency ? 'image/png' : 'image/jpeg', 0.9);
     };
     img.src = url;
   });
@@ -28,7 +30,7 @@ async function compressImage(file) {
 
 // ── Upload with client-side compression ───────────────────────
 async function uploadImage(file, token, bucket = 'artworks') {
-  const compressed = await compressImage(file);
+  const compressed = await prepareImage(file);
 
   const fd = new FormData();
   fd.append('file', compressed);
@@ -60,7 +62,7 @@ const emptyShow = {
 };
 
 export default function AdminPage() {
-  const [token, setToken] = useState(null);
+  const [token, setToken] = useState(() => typeof window === 'undefined' ? null : localStorage.getItem('admin_token'));
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
@@ -112,11 +114,12 @@ export default function AdminPage() {
   const [savingShow, setSavingShow] = useState(false);
   const [addingShowImage, setAddingShowImage] = useState(false);
   const showCoverRef = useRef(null);
+  const [cropTask, setCropTask] = useState(null);
 
-  useEffect(() => {
-    const t = localStorage.getItem('admin_token');
-    if (t) { setToken(t); loadAll(t); }
-  }, []);
+  function chooseImage(file, options) {
+    if (!file) return;
+    setCropTask({ file, ...options });
+  }
 
   async function loadAll(t) {
     await Promise.all([fetchArtworks(), fetchSiteImages(), fetchSiteText(), fetchAboutImages(), fetchShows()]);
@@ -250,7 +253,19 @@ export default function AdminPage() {
   async function fetchSiteText() {
     const res = await fetch('/api/site-text');
     const data = await res.json();
-    setSiteText({ bio: data.bio || '', artist_statement: data.artist_statement || '' });
+    if (!res.ok) {
+      setAboutMsg(`Error loading text: ${data.error || 'Please refresh.'}`);
+      return;
+    }
+    setSiteText({
+      bio: '',
+      artist_statement: '',
+      contact_whatsapp: '',
+      contact_email: '',
+      contact_instagram: '',
+      contact_intro: '',
+      ...data,
+    });
   }
 
   async function fetchAboutImages() {
@@ -267,8 +282,11 @@ export default function AdminPage() {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ key, value: siteText[key] }),
     });
-    if (res.ok) setAboutMsg(`✓ ${key === 'bio' ? 'Bio' : 'Artist Statement'} saved!`);
-    else setAboutMsg('Failed to save. Try again.');
+    if (res.ok) setAboutMsg(`✓ ${key === 'bio' ? 'Bio' : key === 'artist_statement' ? 'Artist Statement' : 'Contact detail'} saved!`);
+    else {
+      const error = await res.json().catch(() => ({}));
+      setAboutMsg(`Error: ${error.error || 'Failed to save.'}`);
+    }
     setSavingText('');
   }
 
@@ -285,7 +303,10 @@ export default function AdminPage() {
       if (res.ok) {
         setAboutMsg('✓ Photo added!');
         fetchAboutImages();
-      } else setAboutMsg('Failed to add photo.');
+      } else {
+        const error = await res.json().catch(() => ({}));
+        setAboutMsg(`Error: ${error.error || 'Failed to add photo.'}`);
+      }
     } catch (err) {
       setAboutMsg(`Error: ${err.message}`);
     }
@@ -312,6 +333,12 @@ export default function AdminPage() {
     const data = await res.json();
     setSiteImages(data || {});
   }
+
+  useEffect(() => {
+    if (token) void loadAll(token);
+    // The data loaders are stable page functions and only need to run when the session changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   // ── Login ──────────────────────────────────────────────────
   async function login(e) {
@@ -484,7 +511,8 @@ export default function AdminPage() {
         if (key === 'hero') { setHeroFile(null); setHeroPreview(null); }
         if (key === 'about') { setAboutFile(null); setAboutPreview(null); }
       } else {
-        setMsg('Failed to save. Try again.');
+        const error = await res.json().catch(() => ({}));
+        setMsg(`Error: ${error.error || 'Failed to save.'}`);
       }
     } catch (err) {
       setMsg(`Error: ${err.message}`);
@@ -523,6 +551,19 @@ export default function AdminPage() {
   // ── Dashboard ──────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-neutral-50">
+
+      {cropTask && (
+        <ImageCropper
+          file={cropTask.file}
+          aspect={cropTask.aspect || 1}
+          removeWhite={cropTask.removeWhite || false}
+          onCancel={() => setCropTask(null)}
+          onApply={editedFile => {
+            cropTask.onComplete(editedFile);
+            setCropTask(null);
+          }}
+        />
+      )}
 
       {/* Header */}
       <header className="bg-white border-b border-neutral-200 px-6 py-4 flex justify-between items-center sticky top-0 z-20">
@@ -586,8 +627,15 @@ export default function AdminPage() {
                       onChange={e => {
                         const f = e.target.files[0];
                         if (!f) return;
-                        setImage(f);
-                        setPreview(URL.createObjectURL(f));
+                        chooseImage(f, {
+                          aspect: 1,
+                          removeWhite: true,
+                          onComplete: edited => {
+                            setImage(edited);
+                            setPreview(URL.createObjectURL(edited));
+                          },
+                        });
+                        e.target.value = '';
                       }}
                     />
                     {preview && (
@@ -693,7 +741,7 @@ export default function AdminPage() {
                           className="hidden"
                           onChange={e => {
                             const f = e.target.files[0];
-                            if (f) addArtworkImage(f);
+                            if (f) chooseImage(f, { aspect: 1, onComplete: addArtworkImage });
                             e.target.value = '';
                           }}
                         />
@@ -788,8 +836,14 @@ export default function AdminPage() {
                       onChange={e => {
                         const f = e.target.files[0];
                         if (!f) return;
-                        setShowCover(f);
-                        setShowCoverPreview(URL.createObjectURL(f));
+                        chooseImage(f, {
+                          aspect: 4 / 3,
+                          onComplete: edited => {
+                            setShowCover(edited);
+                            setShowCoverPreview(URL.createObjectURL(edited));
+                          },
+                        });
+                        e.target.value = '';
                       }}
                     />
                   </div>
@@ -879,7 +933,7 @@ export default function AdminPage() {
                           className="hidden"
                           onChange={e => {
                             const f = e.target.files[0];
-                            if (f) addShowImage(f);
+                            if (f) chooseImage(f, { aspect: 4 / 3, onComplete: addShowImage });
                             e.target.value = '';
                           }}
                         />
@@ -1027,7 +1081,7 @@ export default function AdminPage() {
                     className="hidden"
                     onChange={e => {
                       const f = e.target.files[0];
-                      if (f) addAboutImage(f);
+                      if (f) chooseImage(f, { aspect: 4 / 5, onComplete: addAboutImage });
                       e.target.value = '';
                     }}
                   />
@@ -1045,7 +1099,7 @@ export default function AdminPage() {
                 Contact Details
               </h2>
               <p className="text-sm text-neutral-500 mt-1">
-                These show up on your Contact page and the "Inquire" buttons on artworks.
+                These show up on your Contact page and the &quot;Inquire&quot; buttons on artworks.
               </p>
             </div>
 
@@ -1150,8 +1204,14 @@ export default function AdminPage() {
                       onChange={e => {
                         const f = e.target.files[0];
                         if (!f) return;
-                        setFile(f);
-                        setP(URL.createObjectURL(f));
+                        chooseImage(f, {
+                          aspect: key === 'hero' ? 16 / 9 : 4 / 5,
+                          onComplete: edited => {
+                            setFile(edited);
+                            setP(URL.createObjectURL(edited));
+                          },
+                        });
+                        e.target.value = '';
                       }}
                     />
                     {file && (

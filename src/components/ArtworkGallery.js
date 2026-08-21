@@ -13,7 +13,12 @@ export default function ArtworkGallery({ images, title }) {
           src={images[selected].image_url}
           alt={title}
           className="w-full h-auto block transition-opacity duration-300"
-          style={{ mixBlendMode: 'multiply' }}
+          style={{
+            mixBlendMode: 'multiply',
+            filter: images[selected].image_url?.toLowerCase().includes('.png')
+              ? 'drop-shadow(0 18px 14px rgba(0,0,0,.15))'
+              : 'none',
+          }}
         />
       </div>
 

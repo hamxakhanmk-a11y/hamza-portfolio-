@@ -58,12 +58,17 @@ export default async function Gallery() {
                 className="group block"
               >
                 {/* Image */}
-                <div className="relative transition-transform duration-500 group-hover:scale-[1.02]">
+                <div className="relative transition-transform duration-500 group-hover:-translate-y-1">
                   <img
                     src={artwork.image_url}
                     alt={artwork.title}
                     className="w-full h-auto block"
-                    style={{ mixBlendMode: 'multiply' }}
+                    style={{
+                      mixBlendMode: 'multiply',
+                      filter: artwork.image_url?.toLowerCase().includes('.png')
+                        ? 'drop-shadow(0 16px 12px rgba(0,0,0,.15))'
+                        : 'none',
+                    }}
                   />
                   {!artwork.available && (
                     <div className="absolute top-2 left-2 bg-neutral-800/80 text-white text-[9px] tracking-[0.2em] uppercase px-2.5 py-1">

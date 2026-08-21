@@ -34,7 +34,7 @@ export default async function CommissionsPage() {
           </h1>
           <div className="w-8 h-px bg-neutral-300 mx-auto mt-6 mb-6" />
           <p className="text-neutral-500 text-sm leading-relaxed">
-            A selection of custom pieces created for private collectors. Reach out if you'd like to commission a work of your own.
+            A selection of custom pieces created for private collectors. Reach out if you&apos;d like to commission a work of your own.
           </p>
         </div>
 
