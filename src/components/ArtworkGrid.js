@@ -18,7 +18,7 @@ export default function ArtworkGrid({ artworks, emptyMessage = 'Coming soon' }) 
           href={`/portfolio/${artwork.id}`}
           className="group flex h-full flex-col"
         >
-          <div className="relative mt-auto flex aspect-square w-full items-center justify-center transition-transform duration-500 group-hover:-translate-y-1">
+          <div className="relative mt-auto flex aspect-square w-full items-end justify-center transition-transform duration-500 group-hover:-translate-y-1">
             <BalancedArtworkImage
               src={artwork.image_url}
               alt={artwork.title}
@@ -30,8 +30,8 @@ export default function ArtworkGrid({ artworks, emptyMessage = 'Coming soon' }) 
             )}
           </div>
 
-          <div className="mt-5 px-1 min-h-6">
-            <h2 className="text-sm text-neutral-700 font-light leading-snug line-clamp-1">{artwork.title}</h2>
+          <div className="mt-5 min-h-6 px-1 text-center">
+            <h2 className="line-clamp-1 text-sm font-light leading-snug text-neutral-700">{artwork.title}</h2>
           </div>
         </Link>
       ))}
