@@ -85,7 +85,12 @@ export default function AdminPage() {
   const [photoMsg, setPhotoMsg] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState('');
 
-  const [activeTab, setActiveTab] = useState('artworks');
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [layoutSection, setLayoutSection] = useState('portfolio');
+  const [layoutOrders, setLayoutOrders] = useState({ portfolio: [], commissions: [] });
+  const [draggedArtworkId, setDraggedArtworkId] = useState(null);
+  const [layoutMsg, setLayoutMsg] = useState('');
+  const [savingLayout, setSavingLayout] = useState(false);
 
   const fileRef = useRef(null);
   const heroRef = useRef(null);
@@ -355,7 +360,53 @@ export default function AdminPage() {
   async function fetchArtworks() {
     const res = await fetch('/api/artworks');
     const data = await res.json();
-    setArtworks(Array.isArray(data) ? data : []);
+    const nextArtworks = Array.isArray(data) ? data : [];
+    setArtworks(nextArtworks);
+    setLayoutOrders({
+      portfolio: nextArtworks.filter(art => art.section === 'portfolio' || art.section === 'shop'),
+      commissions: nextArtworks.filter(art => art.section === 'commissions'),
+    });
+  }
+
+  function moveLayoutArtwork(section, fromIndex, toIndex) {
+    if (fromIndex < 0 || toIndex < 0 || toIndex >= layoutOrders[section].length || fromIndex === toIndex) return;
+    setLayoutOrders(current => {
+      const next = [...current[section]];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return { ...current, [section]: next };
+    });
+    setLayoutMsg('Order changed — click Save Layout when finished.');
+  }
+
+  function dropLayoutArtwork(section, targetId) {
+    if (!draggedArtworkId || draggedArtworkId === targetId) return;
+    const list = layoutOrders[section];
+    moveLayoutArtwork(
+      section,
+      list.findIndex(art => art.id === draggedArtworkId),
+      list.findIndex(art => art.id === targetId)
+    );
+    setDraggedArtworkId(null);
+  }
+
+  async function saveLayout() {
+    setSavingLayout(true);
+    setLayoutMsg('Saving layout…');
+    const items = layoutOrders[layoutSection].map(art => ({ id: art.id }));
+    const response = await fetch('/api/artworks/reorder', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ items }),
+    });
+    if (response.ok) {
+      setLayoutMsg('✓ Layout saved and published!');
+      await fetchArtworks();
+    } else {
+      const error = await response.json().catch(() => ({}));
+      setLayoutMsg(`Error: ${error.error || 'Could not save layout.'}`);
+    }
+    setSavingLayout(false);
   }
 
   async function fetchSiteImages() {
@@ -613,7 +664,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex gap-5 overflow-x-auto border-b border-neutral-200 bg-white px-4 sm:gap-8 sm:px-6">
-        {[['artworks', 'Artworks'], ['shows', 'Shows'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
+        {[['dashboard', 'Dashboard'], ['artworks', 'Artworks'], ['layout', 'Layout'], ['shows', 'Shows'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -627,6 +678,115 @@ export default function AdminPage() {
       </div>
 
       <div className="mx-auto max-w-5xl px-3 py-6 sm:px-6 sm:py-12">
+
+        {/* ═══════════════ CMS DASHBOARD ═══════════════ */}
+        {activeTab === 'dashboard' && (
+          <div className="flex flex-col gap-8">
+            <div>
+              <p className="mb-2 text-xs uppercase tracking-[0.25em] text-neutral-400">Content Management System</p>
+              <h2 className="text-4xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Website Dashboard</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-500">
+                Add and edit your work, arrange the public gallery, manage shows, and update every important part of the website.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
+              {[
+                ['Artworks', artworks.length, 'artworks'],
+                ['Portfolio', artworks.filter(art => art.section === 'portfolio' || art.section === 'shop').length, 'layout'],
+                ['Commissions', artworks.filter(art => art.section === 'commissions').length, 'layout'],
+                ['Shows', shows.length, 'shows'],
+              ].map(([label, count, tab]) => (
+                <button key={label} onClick={() => { setActiveTab(tab); if (label === 'Portfolio') setLayoutSection('portfolio'); if (label === 'Commissions') setLayoutSection('commissions'); }}
+                  className="border border-neutral-200 bg-white p-4 text-left transition-colors hover:border-neutral-500 sm:p-6">
+                  <span className="block text-3xl font-light text-neutral-800" style={{ fontFamily: 'var(--font-cormorant)' }}>{count}</span>
+                  <span className="mt-1 block text-[10px] uppercase tracking-[0.18em] text-neutral-400">{label}</span>
+                </button>
+              ))}
+            </div>
+
+            <section className="border border-neutral-200 bg-white p-4 sm:p-8">
+              <h3 className="mb-5 text-xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Quick Actions</h3>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  ['+ Add Artwork', 'artworks'],
+                  ['Arrange Paintings', 'layout'],
+                  ['Manage Shows', 'shows'],
+                  ['Edit About', 'about'],
+                  ['Edit Contact Details', 'contact'],
+                  ['Change Site Photos', 'photos'],
+                ].map(([label, tab]) => (
+                  <button key={label} onClick={() => { setActiveTab(tab); if (tab === 'artworks') openAddForm(); }}
+                    className="border border-neutral-200 px-4 py-4 text-left text-xs uppercase tracking-[0.14em] text-neutral-600 transition-colors hover:border-neutral-700 hover:text-neutral-900">
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* ═══════════════ LAYOUT MANAGER ═══════════════ */}
+        {activeTab === 'layout' && (
+          <div className="flex flex-col gap-7">
+            <div>
+              <p className="mb-2 text-xs uppercase tracking-[0.25em] text-neutral-400">Visual Editor</p>
+              <h2 className="text-4xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Arrange Paintings</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-500">
+                Drag paintings into position. On a phone, use the arrow buttons. The first card appears first on the public page.
+              </p>
+            </div>
+
+            <div className="flex border-b border-neutral-200">
+              {['portfolio', 'commissions'].map(section => (
+                <button key={section} onClick={() => { setLayoutSection(section); setLayoutMsg(''); }}
+                  className={`border-b-2 px-5 py-3 text-xs uppercase tracking-[0.18em] ${layoutSection === section ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-neutral-400'}`}>
+                  {section} ({layoutOrders[section].length})
+                </button>
+              ))}
+            </div>
+
+            {layoutOrders[layoutSection].length === 0 ? (
+              <div className="border border-dashed border-neutral-300 bg-white py-16 text-center text-sm text-neutral-400">
+                No paintings in this section yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-5">
+                {layoutOrders[layoutSection].map((art, index) => (
+                  <div key={art.id} draggable
+                    onDragStart={() => setDraggedArtworkId(art.id)}
+                    onDragEnd={() => setDraggedArtworkId(null)}
+                    onDragOver={event => event.preventDefault()}
+                    onDrop={() => dropLayoutArtwork(layoutSection, art.id)}
+                    className={`group overflow-hidden border bg-white transition-all ${draggedArtworkId === art.id ? 'scale-95 border-neutral-700 opacity-50' : 'border-neutral-200 hover:border-neutral-500'}`}>
+                    <div className="relative aspect-square bg-neutral-50 p-3">
+                      <img src={art.image_url} alt={art.title} className="h-full w-full object-contain" />
+                      <span className="absolute left-2 top-2 flex h-7 min-w-7 items-center justify-center bg-neutral-900 px-2 text-xs text-white">{index + 1}</span>
+                      <span className="absolute right-2 top-2 hidden bg-white/90 px-2 py-1 text-[9px] uppercase tracking-wider text-neutral-500 sm:block">Drag</span>
+                    </div>
+                    <div className="p-3">
+                      <p className="truncate text-center text-xs text-neutral-700">{art.title}</p>
+                      <div className="mt-3 flex justify-center gap-2">
+                        <button disabled={index === 0} onClick={() => moveLayoutArtwork(layoutSection, index, index - 1)}
+                          className="h-9 w-10 border border-neutral-200 text-sm disabled:opacity-25" aria-label={`Move ${art.title} earlier`}>←</button>
+                        <button disabled={index === layoutOrders[layoutSection].length - 1} onClick={() => moveLayoutArtwork(layoutSection, index, index + 1)}
+                          className="h-9 w-10 border border-neutral-200 text-sm disabled:opacity-25" aria-label={`Move ${art.title} later`}>→</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="sticky bottom-3 flex flex-col items-center justify-between gap-3 border border-neutral-200 bg-white/95 p-4 shadow-lg backdrop-blur sm:flex-row">
+              <p className={`text-xs ${layoutMsg.startsWith('✓') ? 'text-green-700' : 'text-neutral-500'}`}>{layoutMsg || 'Changes are published only after you save.'}</p>
+              <button onClick={saveLayout} disabled={savingLayout || layoutOrders[layoutSection].length === 0}
+                className="w-full bg-neutral-900 px-7 py-3 text-xs uppercase tracking-[0.18em] text-white disabled:opacity-40 sm:w-auto">
+                {savingLayout ? 'Saving…' : 'Save Layout'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ═══════════════ ARTWORKS TAB ═══════════════ */}
         {activeTab === 'artworks' && (

@@ -23,9 +23,16 @@ export async function POST(req) {
 
   const { title, medium, size, price, image_url, available, description, section } = await req.json();
 
+  const targetSection = section || 'portfolio';
+  const sectionQuery = targetSection === 'portfolio'
+    ? supabaseAdmin.from('artworks').select('display_order').in('section', ['portfolio', 'shop']).order('display_order', { ascending: false }).limit(1)
+    : supabaseAdmin.from('artworks').select('display_order').eq('section', targetSection).order('display_order', { ascending: false }).limit(1);
+  const { data: lastArtwork } = await sectionQuery;
+  const nextOrder = Number(lastArtwork?.[0]?.display_order ?? -1) + 1;
+
   const { data, error } = await supabaseAdmin
     .from('artworks')
-    .insert([{ title, medium, size, price, image_url, available, description, section: section || 'shop' }])
+    .insert([{ title, medium, size, price, image_url, available, description, section: targetSection, display_order: nextOrder }])
     .select()
     .single();
 
