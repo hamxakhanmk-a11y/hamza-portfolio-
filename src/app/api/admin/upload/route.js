@@ -18,9 +18,15 @@ export async function POST(req) {
   }
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
-  const isPng = file.type === 'image/png';
-  const contentType = isPng ? 'image/png' : 'image/jpeg';
-  const fileName = `${Date.now()}-${crypto.randomUUID()}.${isPng ? 'png' : 'jpg'}`;
+  const supportedTypes = {
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/jpeg': 'jpg',
+  };
+  const contentType = supportedTypes[file.type] ? file.type : 'image/jpeg';
+  const extension = supportedTypes[contentType] || 'jpg';
+  const fileName = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
 
   const { error } = await supabaseAdmin.storage
     .from(bucket)

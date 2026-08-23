@@ -29,8 +29,8 @@ async function prepareImage(file) {
 }
 
 // ── Upload with client-side compression ───────────────────────
-async function uploadImage(file, token, bucket = 'artworks') {
-  const compressed = await prepareImage(file);
+async function uploadImage(file, token, bucket = 'artworks', preserveOriginal = false) {
+  const compressed = preserveOriginal ? file : await prepareImage(file);
 
   const fd = new FormData();
   fd.append('file', compressed);
@@ -77,9 +77,11 @@ export default function AdminPage() {
   const [artMsg, setArtMsg] = useState('');
 
   // Site photos state
-  const [siteImages, setSiteImages] = useState({ hero: '', about: '' });
+  const [siteImages, setSiteImages] = useState({ hero: '', hero_animated: '', about: '' });
   const [heroFile, setHeroFile] = useState(null);
   const [heroPreview, setHeroPreview] = useState(null);
+  const [animatedHeroFile, setAnimatedHeroFile] = useState(null);
+  const [animatedHeroPreview, setAnimatedHeroPreview] = useState(null);
   const [aboutFile, setAboutFile] = useState(null);
   const [aboutPreview, setAboutPreview] = useState(null);
   const [photoMsg, setPhotoMsg] = useState('');
@@ -94,6 +96,7 @@ export default function AdminPage() {
 
   const fileRef = useRef(null);
   const heroRef = useRef(null);
+  const animatedHeroRef = useRef(null);
   const aboutRef = useRef(null);
 
   // Multiple images per artwork
@@ -580,7 +583,7 @@ export default function AdminPage() {
     setUploadingPhoto(key);
     setMsg('Uploading…');
     try {
-      const url = await uploadImage(file, token, 'artworks');
+      const url = await uploadImage(file, token, 'artworks', key === 'hero_animated');
       const res = await fetch('/api/site-images', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -590,6 +593,7 @@ export default function AdminPage() {
         setMsg('✓ Photo updated! Refresh the site to see it.');
         setSiteImages(prev => ({ ...prev, [key]: url }));
         if (key === 'hero') { setHeroFile(null); setHeroPreview(null); }
+        if (key === 'hero_animated') { setAnimatedHeroFile(null); setAnimatedHeroPreview(null); }
         if (key === 'about') { setAboutFile(null); setAboutPreview(null); }
       } else {
         const error = await res.json().catch(() => ({}));
@@ -1471,9 +1475,10 @@ export default function AdminPage() {
             </p>
 
             {[
-              { key: 'hero', label: 'Hero Photo', desc: 'The large background image on your homepage', file: heroFile, setFile: setHeroFile, previewState: heroPreview, setPreview: setHeroPreview, ref: heroRef },
+              { key: 'hero', label: 'Normal Hero Photo', desc: 'Shown normally on the homepage before a visitor hovers', file: heroFile, setFile: setHeroFile, previewState: heroPreview, setPreview: setHeroPreview, ref: heroRef },
+              { key: 'hero_animated', label: 'Animated Hero Photo', desc: 'Blends over the normal photo on mouse hover. Upload an animated GIF, WebP, or APNG under 4 MB.', file: animatedHeroFile, setFile: setAnimatedHeroFile, previewState: animatedHeroPreview, setPreview: setAnimatedHeroPreview, ref: animatedHeroRef, animated: true },
               { key: 'about', label: 'About Photo', desc: 'Your photo shown in the About section', file: aboutFile, setFile: setAboutFile, previewState: aboutPreview, setPreview: setAboutPreview, ref: aboutRef },
-            ].map(({ key, label, desc, file, setFile, previewState, setPreview: setP, ref }) => (
+            ].map(({ key, label, desc, file, setFile, previewState, setPreview: setP, ref, animated }) => (
               <div key={key} className="border border-neutral-200 bg-white p-4 sm:p-8">
                 <h3 className="text-lg font-light mb-1" style={{ fontFamily: 'var(--font-cormorant)' }}>{label}</h3>
                 <p className="text-xs text-neutral-400 mb-6">{desc}</p>
@@ -1488,11 +1493,11 @@ export default function AdminPage() {
                         : <div className="w-full h-full flex items-center justify-center text-neutral-300 text-xs tracking-widest uppercase">No photo yet</div>
                       }
                     </div>
-                    {siteImages[key] && (
+                    {siteImages[key] && !animated && (
                       <button type="button" className="self-start text-xs text-neutral-600 underline underline-offset-4"
                         onClick={() => adjustStoredImage({
                           url: siteImages[key],
-                          aspect: key === 'hero' ? 16 / 9 : 4 / 5,
+                          aspect: key.startsWith('hero') ? 16 / 9 : 4 / 5,
                           allowAspect: false,
                           setMessage: setPhotoMsg,
                           save: async imageUrl => {
@@ -1522,12 +1527,23 @@ export default function AdminPage() {
                         : <p className="text-neutral-400 text-sm">Click to select photo</p>
                       }
                     </div>
-                    <input ref={ref} type="file" accept="image/*" className="hidden"
+                    <input ref={ref} type="file" accept={animated ? ".gif,.webp,.png,image/gif,image/webp,image/png" : "image/*"} className="hidden"
                       onChange={e => {
                         const f = e.target.files[0];
                         if (!f) return;
+                        if (animated) {
+                          if (f.size > 4 * 1024 * 1024) {
+                            setPhotoMsg('Animated image must be smaller than 4 MB. Export it as an optimized WebP or GIF.');
+                            e.target.value = '';
+                            return;
+                          }
+                          setFile(f);
+                          setP(URL.createObjectURL(f));
+                          e.target.value = '';
+                          return;
+                        }
                         chooseImage(f, {
-                          aspect: key === 'hero' ? 16 / 9 : 4 / 5,
+                          aspect: key.startsWith('hero') ? 16 / 9 : 4 / 5,
                           onComplete: edited => {
                             setFile(edited);
                             setP(URL.createObjectURL(edited));

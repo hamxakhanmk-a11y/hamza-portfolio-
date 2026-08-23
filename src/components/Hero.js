@@ -1,25 +1,36 @@
 import { createClient } from '@supabase/supabase-js';
 
-async function getHeroImage() {
+async function getHeroImages() {
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
-    const { data } = await supabase.from('site_images').select('image_url').eq('key', 'hero').single();
-    return data?.image_url || '';
-  } catch { return ''; }
+    const { data } = await supabase.from('site_images').select('key,image_url').in('key', ['hero', 'hero_animated']);
+    const images = {};
+    (data || []).forEach(item => { images[item.key] = item.image_url; });
+    return images;
+  } catch { return {}; }
 }
 
 export default async function Hero() {
-  const heroImage = await getHeroImage();
+  const images = await getHeroImages();
+  const heroImage = images.hero || images.hero_animated || '';
+  const animatedHero = images.hero_animated || '';
 
   return (
     <section className="relative flex min-h-[72svh] w-full items-center justify-center overflow-hidden sm:min-h-[85svh] lg:min-h-screen">
       {/* Background */}
-      <div className="absolute inset-0 bg-neutral-300">
+      <div className="group absolute inset-0 bg-neutral-300">
         {heroImage && (
-          <img src={heroImage} alt="Hero artwork" className="w-full h-full object-cover" />
+          <img src={heroImage} alt="Hero artwork" className="h-full w-full object-cover" />
+        )}
+        {animatedHero && (
+          <img
+            src={animatedHero}
+            alt="Animated hero artwork"
+            className="absolute inset-0 h-full w-full object-cover opacity-100 transition-opacity duration-700 ease-out md:opacity-0 md:group-hover:opacity-100"
+          />
         )}
       </div>
 
