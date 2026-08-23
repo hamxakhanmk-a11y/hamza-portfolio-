@@ -1504,7 +1504,7 @@ export default function AdminPage() {
                         : <div className="w-full h-full flex items-center justify-center text-neutral-300 text-xs tracking-widest uppercase">No photo yet</div>
                       }
                     </div>
-                    {siteImages[key] && !animated && (
+                    {siteImages[key] && (!animated || siteImages[key].toLowerCase().split('?')[0].endsWith('.png')) && (
                       <button type="button" className="self-start text-xs text-neutral-600 underline underline-offset-4"
                         onClick={() => adjustStoredImage({
                           url: siteImages[key],
@@ -1521,7 +1521,7 @@ export default function AdminPage() {
                             setSiteImages(current => ({ ...current, [key]: imageUrl }));
                           },
                         })}>
-                        Adjust Current Photo
+                        {animated ? 'Adjust Current Animated Photo' : 'Adjust Current Photo'}
                       </button>
                     )}
                   </div>
@@ -1542,7 +1542,7 @@ export default function AdminPage() {
                       onChange={e => {
                         const f = e.target.files[0];
                         if (!f) return;
-                        if (animated) {
+                        if (animated && (f.type === 'image/gif' || f.type === 'image/webp')) {
                           if (f.size > 4 * 1024 * 1024) {
                             setPhotoMsg('Animated image must be smaller than 4 MB. Export it as an optimized WebP or GIF.');
                             e.target.value = '';
@@ -1555,6 +1555,7 @@ export default function AdminPage() {
                         }
                         chooseImage(f, {
                           aspect: key.startsWith('hero') ? 16 / 9 : 4 / 5,
+                          allowAspect: false,
                           onComplete: edited => {
                             setFile(edited);
                             setP(URL.createObjectURL(edited));
