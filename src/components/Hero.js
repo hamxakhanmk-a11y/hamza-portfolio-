@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import HeroMotion from '@/components/HeroMotion';
 
 async function getHeroImage() {
   try {
@@ -15,5 +14,20 @@ async function getHeroImage() {
 export default async function Hero() {
   const heroImage = await getHeroImage();
 
-  return <HeroMotion imageUrl={heroImage} />;
+  return (
+    <section className="relative flex min-h-[72svh] w-full items-center justify-center overflow-hidden sm:min-h-[85svh] lg:min-h-screen">
+      {/* Background */}
+      <div className="absolute inset-0 bg-neutral-300">
+        {heroImage && (
+          <img src={heroImage} alt="Hero artwork" className="w-full h-full object-cover" />
+        )}
+      </div>
+
+      {!heroImage && (
+        <p className="absolute bottom-4 right-4 text-white/30 text-xs">
+          Upload a hero photo in Admin → Site Photos
+        </p>
+      )}
+    </section>
+  );
 }
