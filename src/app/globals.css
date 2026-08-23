@@ -9,6 +9,74 @@ html {
   scroll-behavior: smooth;
 }
 
+.animated-hero {
+  --hero-x: 0%;
+  --hero-y: 0%;
+  --light-x: 50%;
+  --light-y: 45%;
+}
+
+.hero-artwork {
+  transform: translate3d(var(--hero-x), var(--hero-y), 0) scale(1.055);
+  transition: transform 900ms cubic-bezier(.2,.75,.25,1);
+  animation: hero-drift 18s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.hero-breathe {
+  animation: hero-breathe 10s ease-in-out infinite alternate;
+}
+
+.hero-light {
+  background: radial-gradient(circle at var(--light-x) var(--light-y), rgba(255,238,190,.20), transparent 34%);
+  mix-blend-mode: screen;
+  transition: background 700ms ease;
+}
+
+.hero-vignette {
+  background: linear-gradient(180deg, rgba(8,12,15,.08), transparent 35%, rgba(8,12,15,.14));
+}
+
+.hero-particle {
+  position: absolute;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: rgba(255,225,160,.12);
+  filter: blur(45px);
+  mix-blend-mode: screen;
+}
+
+.hero-particle-one { left: 8%; top: 20%; animation: hero-float-one 14s ease-in-out infinite alternate; }
+.hero-particle-two { right: 10%; top: 12%; animation: hero-float-two 18s ease-in-out infinite alternate; }
+.hero-particle-three { left: 44%; bottom: 5%; animation: hero-float-one 20s ease-in-out -7s infinite alternate; }
+
+@keyframes hero-drift {
+  from { transform: translate3d(calc(var(--hero-x) - .6%), calc(var(--hero-y) - .35%), 0) scale(1.055); }
+  to { transform: translate3d(calc(var(--hero-x) + .6%), calc(var(--hero-y) + .35%), 0) scale(1.075); }
+}
+
+@keyframes hero-breathe {
+  from { transform: scale(1.02); opacity: .12; }
+  to { transform: scale(1.075); opacity: .30; }
+}
+
+@keyframes hero-float-one {
+  from { transform: translate3d(-15%, 10%, 0) scale(.8); opacity: .25; }
+  to { transform: translate3d(40%, -35%, 0) scale(1.25); opacity: .7; }
+}
+
+@keyframes hero-float-two {
+  from { transform: translate3d(15%, -5%, 0) scale(1.1); opacity: .2; }
+  to { transform: translate3d(-45%, 40%, 0) scale(.75); opacity: .65; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-artwork, .hero-breathe, .hero-particle { animation: none; }
+  .hero-artwork { transform: scale(1.03); }
+}
+
 body {
   font-family: var(--font-dm-sans), sans-serif;
 }
