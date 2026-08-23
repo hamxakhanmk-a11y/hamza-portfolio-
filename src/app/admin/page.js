@@ -605,6 +605,17 @@ export default function AdminPage() {
     setUploadingPhoto('');
   }
 
+  async function saveAnimatedHeroSettings() {
+    setPhotoMsg('Saving animated-photo alignment…');
+    const keys = ['hero_animated_x', 'hero_animated_y', 'hero_animated_zoom', 'hero_reveal_size'];
+    const responses = await Promise.all(keys.map(key => fetch('/api/site-text', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ key, value: String(siteText[key] || '') }),
+    })));
+    setPhotoMsg(responses.every(response => response.ok) ? '✓ Hover alignment saved!' : 'Error: Could not save alignment.');
+  }
+
   // ── Login screen ───────────────────────────────────────────
   if (!token) {
     return (
@@ -1563,6 +1574,38 @@ export default function AdminPage() {
                     )}
                   </div>
                 </div>
+
+                {animated && (
+                  <div className="mt-7 border-t border-neutral-200 pt-6">
+                    <h4 className="text-sm font-medium text-neutral-700">Hover Reveal Alignment</h4>
+                    <p className="mt-1 text-xs leading-relaxed text-neutral-400">
+                      Use these controls to align the animated version with the normal painting. The animation is revealed only beneath the visitor&apos;s cursor.
+                    </p>
+                    <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                      {[
+                        { key: 'hero_animated_x', label: 'Horizontal position', min: 0, max: 100, step: 1, fallback: 50, suffix: '%' },
+                        { key: 'hero_animated_y', label: 'Vertical position', min: 0, max: 100, step: 1, fallback: 50, suffix: '%' },
+                        { key: 'hero_animated_zoom', label: 'Animated photo zoom', min: 0.8, max: 2, step: 0.01, fallback: 1, suffix: '×' },
+                        { key: 'hero_reveal_size', label: 'Hover circle size', min: 70, max: 320, step: 5, fallback: 150, suffix: 'px' },
+                      ].map(control => (
+                        <label key={control.key} className="flex flex-col gap-2">
+                          <span className="flex justify-between text-[10px] uppercase tracking-wider text-neutral-500">
+                            {control.label}
+                            <span>{siteText[control.key] || control.fallback}{control.suffix}</span>
+                          </span>
+                          <input type="range" min={control.min} max={control.max} step={control.step}
+                            value={siteText[control.key] || control.fallback}
+                            onChange={event => setSiteText(current => ({ ...current, [control.key]: event.target.value }))}
+                            className="w-full accent-neutral-900" />
+                        </label>
+                      ))}
+                    </div>
+                    <button type="button" onClick={saveAnimatedHeroSettings}
+                      className="mt-6 bg-neutral-900 px-6 py-3 text-xs uppercase tracking-[0.17em] text-white transition-colors hover:bg-neutral-700">
+                      Save Hover Alignment
+                    </button>
+                  </div>
+                )}
 
                 {photoMsg && (
                   <p className={`mt-4 text-xs ${photoMsg.startsWith('✓') ? 'text-green-600' : 'text-neutral-500'}`}>
