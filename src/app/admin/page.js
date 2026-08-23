@@ -1586,7 +1586,7 @@ export default function AdminPage() {
                       {[
                         { key: 'hero_animated_x', label: 'Horizontal position', min: 0, max: 100, step: 1, fallback: 50, suffix: '%' },
                         { key: 'hero_animated_y', label: 'Vertical position', min: 0, max: 100, step: 1, fallback: 50, suffix: '%' },
-                        { key: 'hero_animated_zoom', label: 'Animated photo zoom', min: 0.8, max: 2, step: 0.01, fallback: 1, suffix: '×' },
+                        { key: 'hero_animated_zoom', label: 'Animated photo zoom', min: 0.6, max: 1.2, step: 0.01, fallback: 1, suffix: '×' },
                         { key: 'hero_reveal_size', label: 'Hover circle size', min: 70, max: 320, step: 5, fallback: 150, suffix: 'px' },
                       ].map(control => (
                         <label key={control.key} className="flex flex-col gap-2">
@@ -1601,10 +1601,17 @@ export default function AdminPage() {
                         </label>
                       ))}
                     </div>
-                    <button type="button" onClick={saveAnimatedHeroSettings}
-                      className="mt-6 bg-neutral-900 px-6 py-3 text-xs uppercase tracking-[0.17em] text-white transition-colors hover:bg-neutral-700">
-                      Save Hover Alignment
-                    </button>
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <button type="button" onClick={saveAnimatedHeroSettings}
+                        className="bg-neutral-900 px-6 py-3 text-xs uppercase tracking-[0.17em] text-white transition-colors hover:bg-neutral-700">
+                        Save Hover Alignment
+                      </button>
+                      <button type="button"
+                        onClick={() => setSiteText(current => ({ ...current, hero_animated_x: '50', hero_animated_y: '50', hero_animated_zoom: '1', hero_reveal_size: '130' }))}
+                        className="border border-neutral-300 px-5 py-3 text-xs uppercase tracking-[0.14em] text-neutral-600 hover:border-neutral-700">
+                        Reset Alignment
+                      </button>
+                    </div>
                   </div>
                 )}
 
