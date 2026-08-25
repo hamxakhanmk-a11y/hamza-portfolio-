@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { createClient } from '@supabase/supabase-js';
 import Navbar from '@/components/Navbar';
 import ArtworkGrid from '@/components/ArtworkGrid';
+import CommissionInquiry from '@/components/CommissionInquiry';
 
 async function getCommissions() {
   try {
@@ -38,7 +39,9 @@ export default async function CommissionsPage() {
           </p>
         </div>
 
-        <div className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 sm:pb-28">
+        <CommissionInquiry />
+
+        <div className="mx-auto max-w-6xl px-4 pb-20 pt-20 sm:px-6 sm:pb-28 sm:pt-28">
           <ArtworkGrid artworks={artworks} emptyMessage="Commissioned pieces coming soon" />
         </div>
       </main>

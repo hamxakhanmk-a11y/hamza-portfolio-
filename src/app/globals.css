@@ -30,6 +30,9 @@ body {
 
 ::selection { background: rgba(237, 113, 137, .28); color: #063a5b; }
 
+.commission-inquiry { padding: 1rem 0 6rem; background: #fff; }
+.commission-inquiry-home { padding: 5rem 0; background: linear-gradient(180deg, #fff, #f4fbfc); }
+
 /* Immersive opening sequence */
 .intro-shell {
   position: fixed;
