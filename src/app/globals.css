@@ -210,6 +210,21 @@ body {
   will-change: transform;
 }
 
+.editorial-art-frame {
+  display: flex;
+  width: 100%;
+  height: min(68svh, 680px);
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: transparent;
+}
+
+.editorial-art-frame > img {
+  max-width: 90%;
+  max-height: 90%;
+}
+
 @keyframes artwork-inside-breathe {
   from { transform: scale(1); }
   to { transform: scale(1.065); }
@@ -231,6 +246,8 @@ body {
   .intro-chapters { width: 100%; gap: .35rem; }
   .intro-chapters button { min-height: 3rem; border-radius: .55rem; font-size: .58rem; letter-spacing: .02em; }
   .intro-ruler { width: 100%; }
+  .editorial-art-frame { height: min(60svh, 520px); }
+  .editorial-art-frame > img { max-width: 92%; max-height: 92%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

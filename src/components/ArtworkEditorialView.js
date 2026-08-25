@@ -9,8 +9,8 @@ export default function ArtworkEditorialView({ artwork, images, whatsappNumber }
   );
 
   return (
-    <main className="min-h-screen bg-[#e8e9e8] px-3 pb-12 pt-24 sm:px-6 sm:pb-20 sm:pt-28">
-      <article className="mx-auto max-w-[1320px] bg-[#fffefb] shadow-[0_28px_80px_rgba(0,0,0,.13)]">
+    <main className="min-h-screen bg-white pb-12 pt-24 sm:pb-20 sm:pt-28">
+      <article className="mx-auto max-w-[1320px] bg-white">
         <header className="grid gap-8 border-b border-neutral-200 px-5 py-8 sm:px-10 sm:py-12 md:grid-cols-[150px_1fr_260px] md:items-end lg:px-16">
           <div>
             <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-400">Project</p>
@@ -42,8 +42,8 @@ export default function ArtworkEditorialView({ artwork, images, whatsappNumber }
           </div>
 
           {cover && (
-            <figure className="mx-auto flex min-h-[440px] max-w-5xl items-center justify-center overflow-hidden bg-[#f1f2f1] sm:min-h-[620px]">
-              <img src={cover.image_url} alt={artwork.title} className="artwork-inside-motion max-h-[820px] w-auto max-w-full object-contain" />
+            <figure className="editorial-art-frame mx-auto max-w-5xl">
+              <img src={cover.image_url} alt={artwork.title} className="artwork-inside-motion h-auto w-auto object-contain" />
             </figure>
           )}
 
@@ -76,8 +76,8 @@ export default function ArtworkEditorialView({ artwork, images, whatsappNumber }
                         {image.caption && <figcaption className="mt-1 text-xs italic text-neutral-500">{image.caption}</figcaption>}
                       </div>
                     </div>
-                    <div className="flex min-h-[330px] items-center justify-center overflow-hidden bg-[#f1f2f1] sm:min-h-[520px]">
-                      <img src={image.image_url} alt={image.caption || `${artwork.title} view ${index + 2}`} className="artwork-inside-motion max-h-[720px] w-auto max-w-full object-contain" />
+                    <div className="editorial-art-frame">
+                      <img src={image.image_url} alt={image.caption || `${artwork.title} view ${index + 2}`} className="artwork-inside-motion h-auto w-auto object-contain" />
                     </div>
                   </figure>
                 );
