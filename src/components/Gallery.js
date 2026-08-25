@@ -62,7 +62,7 @@ export default async function Gallery() {
                   <img
                     src={artwork.image_url}
                     alt={artwork.title}
-                    className="max-w-full w-auto h-auto max-h-[420px] block"
+                    className="living-image max-w-full w-auto h-auto max-h-[420px] block"
                     style={{
                       mixBlendMode: 'multiply',
                       filter: artwork.image_url?.toLowerCase().includes('.png')

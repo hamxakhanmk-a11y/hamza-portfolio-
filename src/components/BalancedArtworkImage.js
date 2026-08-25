@@ -30,7 +30,7 @@ export default function BalancedArtworkImage({ src, alt }) {
       src={src}
       alt={alt}
       onLoad={balanceImage}
-      className="block object-contain transition-[width,height] duration-300"
+      className="living-image block object-contain transition-[width,height] duration-300"
       style={{
         ...size,
         mixBlendMode: 'multiply',

@@ -12,7 +12,7 @@ export default function ArtworkGallery({ images, title }) {
         <img
           src={images[selected].image_url}
           alt={title}
-          className="w-auto max-w-full h-auto max-h-[680px] object-contain block transition-opacity duration-300"
+          className="living-image w-auto max-w-full h-auto max-h-[680px] object-contain block transition-opacity duration-300"
           style={{
             mixBlendMode: 'multiply',
             filter: images[selected].image_url?.toLowerCase().includes('.png')
@@ -38,7 +38,7 @@ export default function ArtworkGallery({ images, title }) {
               <img
                 src={img.image_url}
                 alt={`${title} view ${i + 1}`}
-                className="w-full h-full object-contain"
+                className="living-image w-full h-full object-contain"
               />
             </button>
           ))}

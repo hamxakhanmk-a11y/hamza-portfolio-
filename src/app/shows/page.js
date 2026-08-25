@@ -51,7 +51,7 @@ export default async function ShowsPage() {
                       <img
                         src={show.cover_image}
                         alt={show.title}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                        className="living-image w-full h-full object-cover"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-neutral-300 text-xs tracking-widest uppercase">

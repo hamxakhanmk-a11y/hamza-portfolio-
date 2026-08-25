@@ -141,7 +141,7 @@ body {
 .intro-embedded .intro-collection-words span:nth-child(2),
 .intro-embedded .intro-collection-words span:nth-child(3) { color: #fff; }
 
-.intro-scene { width: 100%; height: 100%; animation: intro-scene-in .75s cubic-bezier(.2,.8,.2,1) both; }
+.intro-scene { position: absolute; inset: 0; width: 100%; height: 100%; visibility: hidden; }
 .intro-type-scene, .intro-collection-scene { height: 100%; display: grid; place-content: center; text-align: center; padding: 2rem; }
 .intro-eyebrow { margin-bottom: 1.2rem; font-size: clamp(.63rem, .85vw, .82rem); letter-spacing: .38em; text-transform: uppercase; color: #ed7189; }
 .intro-letter-line { display: flex; justify-content: center; font-family: var(--font-cormorant), serif; font-size: clamp(3rem, 8vw, 8rem); line-height: .85; }
@@ -182,6 +182,17 @@ body {
 @keyframes intro-word { from { opacity: 0; transform: translateY(35px); } to { opacity: 1; transform: none; } }
 @keyframes intro-scan { 0% { left: -25%; } 100% { left: 105%; } }
 
+.living-image {
+  animation: living-image-breathe 8s ease-in-out infinite alternate;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+@keyframes living-image-breathe {
+  from { transform: scale(1); }
+  to { transform: scale(1.035); }
+}
+
 @media (max-width: 700px) {
   .intro-shell { grid-template-rows: auto minmax(0, 1fr) auto auto; padding: 1rem .8rem; }
   .intro-brand { max-width: 65%; text-align: center; font-size: 1rem; }
@@ -203,4 +214,5 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .intro-shell::before, .intro-letter-line span, .intro-art-scene img, .intro-art-scene video, .intro-collection-words span, .intro-chapters button i { animation: none; }
   .intro-letter-line span { opacity: 1; transform: none; }
+  .living-image { animation: none; }
 }

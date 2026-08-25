@@ -73,7 +73,7 @@ export default async function About() {
                   <img
                     src={img.image_url}
                     alt={`${siteConfig.artistName} ${i + 1}`}
-                    className="w-full h-auto block shadow-[0_6px_28px_rgba(0,0,0,0.10)]"
+                    className="living-image w-full h-auto block shadow-[0_6px_28px_rgba(0,0,0,0.10)]"
                   />
                 </div>
               ))
