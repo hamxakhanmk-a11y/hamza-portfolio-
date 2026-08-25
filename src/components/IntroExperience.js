@@ -1,56 +1,30 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { siteConfig } from '@/data/config';
 
 const chapters = ['Intro', 'Artwork', 'Collections', 'Enter'];
 
-export default function IntroExperience({ heroImage }) {
-  const [visible, setVisible] = useState(true);
+export default function IntroExperience({ heroImage, animatedImage, settings }) {
   const [chapter, setChapter] = useState(0);
-  const [closing, setClosing] = useState(false);
 
   useEffect(() => {
-    const forceReplay = new URLSearchParams(window.location.search).get('intro') === '1';
-    if (sessionStorage.getItem('site_intro_seen') && !forceReplay) {
-      // The server renders the intro so first-time visitors never see a flash of the page.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setVisible(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!visible) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = previousOverflow; };
-  }, [visible]);
-
-  useEffect(() => {
-    if (!visible || closing) return;
     const timer = setTimeout(() => {
       if (chapter < chapters.length - 1) setChapter(value => value + 1);
-      else {
-        setClosing(true);
-        sessionStorage.setItem('site_intro_seen', 'true');
-        setTimeout(() => setVisible(false), 750);
-      }
+      else setChapter(0);
     }, chapter === 0 ? 2400 : 2700);
     return () => clearTimeout(timer);
-  }, [chapter, visible, closing]);
+  }, [chapter]);
 
-  function finishIntro() {
-    setClosing(true);
-    sessionStorage.setItem('site_intro_seen', 'true');
-    setTimeout(() => setVisible(false), 750);
-  }
-
-  if (!visible) return null;
+  const animatedIsVideo = /\.(mp4|webm)(?:\?|$)/i.test(animatedImage || '');
+  const mediaStyle = {
+    objectPosition: `${settings?.x ?? 50}% ${settings?.y ?? 50}%`,
+    transform: `scale(${settings?.zoom ?? 1})`,
+  };
 
   return (
-    <div className={`intro-shell ${closing ? 'intro-closing' : ''}`} role="dialog" aria-label="Website introduction">
-      <button type="button" onClick={finishIntro} className="intro-skip">Skip intro</button>
-
+    <section className="intro-shell intro-embedded" aria-label="Featured artwork introduction">
       <div className="intro-brand">{siteConfig.artistName}</div>
 
       <div className="intro-canvas">
@@ -68,7 +42,13 @@ export default function IntroExperience({ heroImage }) {
 
           {chapter === 1 && (
             <div className="intro-art-scene">
-              {heroImage && <img src={heroImage} alt="Featured painting" />}
+              {animatedImage && animatedIsVideo ? (
+                <video src={animatedImage} muted loop autoPlay playsInline preload="metadata" style={mediaStyle} />
+              ) : animatedImage ? (
+                <img src={animatedImage} alt="Animated featured painting" style={mediaStyle} />
+              ) : heroImage ? (
+                <img src={heroImage} alt="Featured painting" />
+              ) : null}
               <div className="intro-art-copy">
                 <p>Painted with intention</p>
                 <h2>Where imagination flows</h2>
@@ -86,11 +66,11 @@ export default function IntroExperience({ heroImage }) {
           )}
 
           {chapter === 3 && (
-            <button onClick={finishIntro} className="intro-enter-scene">
+            <Link href="/portfolio" className="intro-enter-scene">
               <span>Enter the</span>
               <strong>Collection</strong>
               <i>→</i>
-            </button>
+            </Link>
           )}
         </div>
       </div>
@@ -107,6 +87,6 @@ export default function IntroExperience({ heroImage }) {
       <div className="intro-ruler" aria-hidden="true">
         {Array.from({ length: 42 }).map((_, index) => <span key={index} />)}
       </div>
-    </div>
+    </section>
   );
 }

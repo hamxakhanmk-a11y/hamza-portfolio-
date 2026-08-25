@@ -50,6 +50,14 @@ body {
   pointer-events: none;
 }
 
+.intro-shell.intro-embedded {
+  position: relative;
+  inset: auto;
+  z-index: 0;
+  width: 100%;
+  min-height: calc(100svh - 5rem);
+}
+
 .intro-closing { opacity: 0; transform: scale(1.025); pointer-events: none; }
 
 .intro-brand {
@@ -99,7 +107,7 @@ body {
 
 .intro-art-scene { position: relative; width: 100%; height: 100%; background: #082f49; }
 .intro-art-scene::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(3,29,49,.12), rgba(3,29,49,.02) 45%, rgba(3,29,49,.78)); }
-.intro-art-scene img { width: 100%; height: 100%; object-fit: cover; animation: intro-art-pan 4s ease-out both; }
+.intro-art-scene img, .intro-art-scene video { width: 100%; height: 100%; object-fit: cover; animation: intro-art-pan 4s ease-out both; }
 .intro-art-copy { position: absolute; z-index: 2; right: clamp(1.5rem, 6vw, 5rem); top: 50%; width: min(38%, 430px); color: white; transform: translateY(-50%); }
 .intro-art-copy p { margin-bottom: .7rem; color: #f5b2bd; font-size: .72rem; letter-spacing: .25em; text-transform: uppercase; }
 .intro-art-copy h2 { font-family: var(--font-cormorant), serif; font-size: clamp(2.2rem, 5vw, 5rem); line-height: .94; font-weight: 400; }
@@ -137,7 +145,7 @@ body {
   .intro-brand { max-width: 65%; text-align: center; font-size: 1rem; }
   .intro-skip { right: .9rem; top: 1rem; font-size: .58rem; }
   .intro-canvas { width: 100%; height: min(64vh, 560px); min-height: 390px; border-radius: 1.5rem; }
-  .intro-art-scene img { object-position: center; }
+  .intro-art-scene img, .intro-art-scene video { object-position: center; }
   .intro-art-scene::after { background: linear-gradient(0deg, rgba(3,29,49,.9), transparent 68%); }
   .intro-art-copy { top: auto; right: 1.35rem; bottom: 1.5rem; left: 1.35rem; width: auto; transform: none; text-align: center; }
   .intro-art-copy h2 { font-size: clamp(2.3rem, 12vw, 4rem); }
@@ -150,6 +158,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .intro-shell::before, .intro-letter-line span, .intro-art-scene img, .intro-collection-words span, .intro-chapters button i { animation: none; }
+  .intro-shell::before, .intro-letter-line span, .intro-art-scene img, .intro-art-scene video, .intro-collection-words span, .intro-chapters button i { animation: none; }
   .intro-letter-line span { opacity: 1; transform: none; }
 }

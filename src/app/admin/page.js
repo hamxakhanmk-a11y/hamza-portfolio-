@@ -634,13 +634,13 @@ export default function AdminPage() {
 
   async function saveAnimatedHeroSettings() {
     setPhotoMsg('Saving animated-photo alignment…');
-    const keys = ['hero_animated_x', 'hero_animated_y', 'hero_animated_zoom', 'hero_reveal_size'];
+    const keys = ['hero_animated_x', 'hero_animated_y', 'hero_animated_zoom'];
     const responses = await Promise.all(keys.map(key => fetch('/api/site-text', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ key, value: String(siteText[key] || '') }),
     })));
-    setPhotoMsg(responses.every(response => response.ok) ? '✓ Hover alignment saved!' : 'Error: Could not save alignment.');
+    setPhotoMsg(responses.every(response => response.ok) ? '✓ Banner animation alignment saved!' : 'Error: Could not save alignment.');
   }
 
   // ── Login screen ───────────────────────────────────────────
@@ -1513,8 +1513,8 @@ export default function AdminPage() {
             </p>
 
             {[
-              { key: 'hero', label: 'Normal Hero Photo', desc: 'Shown normally on the homepage before a visitor hovers', file: heroFile, setFile: setHeroFile, previewState: heroPreview, setPreview: setHeroPreview, ref: heroRef },
-              { key: 'hero_animated', label: 'Animated Hero Media', desc: 'Revealed beneath the cursor. Upload MP4, WebM, animated GIF/WebP, or a second PNG image.', file: animatedHeroFile, setFile: setAnimatedHeroFile, previewState: animatedHeroPreview, setPreview: setAnimatedHeroPreview, ref: animatedHeroRef, animated: true },
+              { key: 'hero', label: 'Normal Hero Photo', desc: 'Used as the featured painting inside the homepage banner.', file: heroFile, setFile: setHeroFile, previewState: heroPreview, setPreview: setHeroPreview, ref: heroRef },
+              { key: 'hero_animated', label: 'Animated Hero Media', desc: 'Played directly during the Artwork stage of the homepage banner. Upload MP4, WebM, animated GIF/WebP, or PNG.', file: animatedHeroFile, setFile: setAnimatedHeroFile, previewState: animatedHeroPreview, setPreview: setAnimatedHeroPreview, ref: animatedHeroRef, animated: true },
               { key: 'about', label: 'About Photo', desc: 'Your photo shown in the About section', file: aboutFile, setFile: setAboutFile, previewState: aboutPreview, setPreview: setAboutPreview, ref: aboutRef },
             ].map(({ key, label, desc, file, setFile, previewState, setPreview: setP, ref, animated }) => (
               <div key={key} className="border border-neutral-200 bg-white p-4 sm:p-8">
@@ -1609,16 +1609,15 @@ export default function AdminPage() {
 
                 {animated && (
                   <div className="mt-7 border-t border-neutral-200 pt-6">
-                    <h4 className="text-sm font-medium text-neutral-700">Hover Reveal Alignment</h4>
+                    <h4 className="text-sm font-medium text-neutral-700">Banner Animation Alignment</h4>
                     <p className="mt-1 text-xs leading-relaxed text-neutral-400">
-                      Use these controls to align the animated version with the normal painting. The animation is revealed only beneath the visitor&apos;s cursor.
+                      Position and scale the animation as it appears during the Artwork stage of the homepage banner.
                     </p>
                     <div className="mt-5 grid gap-5 sm:grid-cols-2">
                       {[
                         { key: 'hero_animated_x', label: 'Horizontal position', min: 0, max: 100, step: 1, fallback: 50, suffix: '%' },
                         { key: 'hero_animated_y', label: 'Vertical position', min: 0, max: 100, step: 1, fallback: 50, suffix: '%' },
                         { key: 'hero_animated_zoom', label: 'Animated photo zoom', min: 0.6, max: 1.2, step: 0.01, fallback: 1, suffix: '×' },
-                        { key: 'hero_reveal_size', label: 'Hover circle size', min: 70, max: 320, step: 5, fallback: 150, suffix: 'px' },
                       ].map(control => (
                         <label key={control.key} className="flex flex-col gap-2">
                           <span className="flex justify-between text-[10px] uppercase tracking-wider text-neutral-500">
@@ -1635,10 +1634,10 @@ export default function AdminPage() {
                     <div className="mt-6 flex flex-wrap gap-3">
                       <button type="button" onClick={saveAnimatedHeroSettings}
                         className="bg-neutral-900 px-6 py-3 text-xs uppercase tracking-[0.17em] text-white transition-colors hover:bg-neutral-700">
-                        Save Hover Alignment
+                        Save Banner Alignment
                       </button>
                       <button type="button"
-                        onClick={() => setSiteText(current => ({ ...current, hero_animated_x: '50', hero_animated_y: '50', hero_animated_zoom: '1', hero_reveal_size: '130' }))}
+                        onClick={() => setSiteText(current => ({ ...current, hero_animated_x: '50', hero_animated_y: '50', hero_animated_zoom: '1' }))}
                         className="border border-neutral-300 px-5 py-3 text-xs uppercase tracking-[0.14em] text-neutral-600 hover:border-neutral-700">
                         Reset Alignment
                       </button>
