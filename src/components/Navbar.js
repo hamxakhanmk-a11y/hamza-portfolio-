@@ -25,7 +25,7 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 bg-white transition-shadow duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 bg-[#fffaf2]/95 backdrop-blur-md transition-shadow duration-300 ${
         scrolled ? 'shadow-sm' : ''
       }`}
     >
@@ -34,7 +34,7 @@ export default function Navbar() {
         <Link
           href="/"
           className="max-w-[calc(100%-4rem)] truncate text-lg uppercase tracking-[0.18em] sm:text-xl sm:tracking-[0.3em] md:text-2xl"
-          style={{ fontFamily: 'var(--font-cormorant)', color: '#3d6478' }}
+          style={{ fontFamily: 'var(--font-cormorant)', color: 'var(--color-ocean)' }}
         >
           {siteConfig.artistName}
         </Link>
@@ -61,7 +61,7 @@ export default function Navbar() {
             key={label}
             href={href}
             className="text-xs tracking-[0.25em] uppercase transition-colors hover:opacity-60"
-            style={{ color: '#3d6478' }}
+            style={{ color: 'var(--color-ocean)' }}
           >
             {label}
           </a>
@@ -70,14 +70,14 @@ export default function Navbar() {
 
       {/* Mobile dropdown */}
       {open && (
-        <nav className="flex max-h-[calc(100svh-4rem)] flex-col items-center gap-1 overflow-y-auto border-t border-neutral-100 bg-white py-3 md:hidden">
+        <nav className="flex max-h-[calc(100svh-4rem)] flex-col items-center gap-1 overflow-y-auto border-t border-[#27a8c7]/15 bg-[#fffaf2] py-3 md:hidden">
           {links.map(({ label, href }) => (
             <a
               key={label}
               href={href}
               onClick={() => setOpen(false)}
               className="w-full py-3 text-center text-xs uppercase tracking-[0.25em]"
-              style={{ color: '#3d6478' }}
+              style={{ color: 'var(--color-ocean)' }}
             >
               {label}
             </a>

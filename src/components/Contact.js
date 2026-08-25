@@ -34,7 +34,7 @@ export default async function Contact() {
     <footer
       id="contact"
       className="py-20 text-white sm:py-28"
-      style={{ backgroundColor: '#a68b57' }}
+      style={{ background: 'linear-gradient(145deg, var(--color-deep-ocean), var(--color-ocean))' }}
     >
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-10 px-4 text-center sm:px-6">
 

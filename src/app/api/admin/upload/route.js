@@ -23,6 +23,8 @@ export async function POST(req) {
     'image/gif': 'gif',
     'image/webp': 'webp',
     'image/jpeg': 'jpg',
+    'video/mp4': 'mp4',
+    'video/webm': 'webm',
   };
   const contentType = supportedTypes[file.type] ? file.type : 'image/jpeg';
   const extension = supportedTypes[contentType] || 'jpg';

@@ -51,6 +51,31 @@ async function uploadImage(file, token, bucket = 'artworks', preserveOriginal = 
   return url;
 }
 
+async function uploadAnimatedMedia(file, token, bucket = 'artworks') {
+  const signedResponse = await fetch('/api/admin/upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ filename: file.name, bucket }),
+  });
+  if (!signedResponse.ok) {
+    const error = await signedResponse.json().catch(() => ({}));
+    throw new Error(error.error || 'Could not prepare media upload.');
+  }
+  const { signedUrl, publicUrl } = await signedResponse.json();
+  const uploadResponse = await fetch(signedUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+  if (!uploadResponse.ok) throw new Error('Animated media upload failed.');
+  return publicUrl;
+}
+
+function isVideoSource(source) {
+  const value = typeof source === 'string' ? source : source?.type || '';
+  return /video\/(mp4|webm)|\.(mp4|webm)(?:\?|$)/i.test(value);
+}
+
 // ── Empty form state ───────────────────────────────────────────
 const emptyForm = {
   title: '', description: '', medium: '', size: '', price: '',
@@ -583,7 +608,9 @@ export default function AdminPage() {
     setUploadingPhoto(key);
     setMsg('Uploading…');
     try {
-      const url = await uploadImage(file, token, 'artworks', key === 'hero_animated');
+      const url = key === 'hero_animated'
+        ? await uploadAnimatedMedia(file, token)
+        : await uploadImage(file, token, 'artworks');
       const res = await fetch('/api/site-images', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -1487,7 +1514,7 @@ export default function AdminPage() {
 
             {[
               { key: 'hero', label: 'Normal Hero Photo', desc: 'Shown normally on the homepage before a visitor hovers', file: heroFile, setFile: setHeroFile, previewState: heroPreview, setPreview: setHeroPreview, ref: heroRef },
-              { key: 'hero_animated', label: 'Animated Hero Photo', desc: 'Blends over the normal photo on mouse hover. Upload an animated GIF, WebP, or APNG under 4 MB.', file: animatedHeroFile, setFile: setAnimatedHeroFile, previewState: animatedHeroPreview, setPreview: setAnimatedHeroPreview, ref: animatedHeroRef, animated: true },
+              { key: 'hero_animated', label: 'Animated Hero Media', desc: 'Revealed beneath the cursor. Upload MP4, WebM, animated GIF/WebP, or a second PNG image.', file: animatedHeroFile, setFile: setAnimatedHeroFile, previewState: animatedHeroPreview, setPreview: setAnimatedHeroPreview, ref: animatedHeroRef, animated: true },
               { key: 'about', label: 'About Photo', desc: 'Your photo shown in the About section', file: aboutFile, setFile: setAboutFile, previewState: aboutPreview, setPreview: setAboutPreview, ref: aboutRef },
             ].map(({ key, label, desc, file, setFile, previewState, setPreview: setP, ref, animated }) => (
               <div key={key} className="border border-neutral-200 bg-white p-4 sm:p-8">
@@ -1500,7 +1527,9 @@ export default function AdminPage() {
                     <p className="text-xs tracking-wider uppercase text-neutral-400">Current</p>
                     <div className="aspect-[4/3] bg-neutral-100 overflow-hidden">
                       {siteImages[key]
-                        ? <img src={siteImages[key]} alt={label} className="w-full h-full object-cover" />
+                        ? isVideoSource(siteImages[key])
+                          ? <video src={siteImages[key]} muted loop autoPlay playsInline className="h-full w-full object-cover" />
+                          : <img src={siteImages[key]} alt={label} className="w-full h-full object-cover" />
                         : <div className="w-full h-full flex items-center justify-center text-neutral-300 text-xs tracking-widest uppercase">No photo yet</div>
                       }
                     </div>
@@ -1534,17 +1563,19 @@ export default function AdminPage() {
                       onClick={() => ref.current?.click()}
                     >
                       {previewState
-                        ? <img src={previewState} alt="preview" className="w-full h-full object-cover" />
+                        ? isVideoSource(file)
+                          ? <video src={previewState} muted loop autoPlay playsInline className="h-full w-full object-cover" />
+                          : <img src={previewState} alt="preview" className="w-full h-full object-cover" />
                         : <p className="text-neutral-400 text-sm">Click to select photo</p>
                       }
                     </div>
-                    <input ref={ref} type="file" accept={animated ? ".gif,.webp,.png,image/gif,image/webp,image/png" : "image/*"} className="hidden"
+                    <input ref={ref} type="file" accept={animated ? ".mp4,.webm,.gif,.webp,.png,video/mp4,video/webm,image/gif,image/webp,image/png" : "image/*"} className="hidden"
                       onChange={e => {
                         const f = e.target.files[0];
                         if (!f) return;
-                        if (animated && (f.type === 'image/gif' || f.type === 'image/webp')) {
-                          if (f.size > 4 * 1024 * 1024) {
-                            setPhotoMsg('Animated image must be smaller than 4 MB. Export it as an optimized WebP or GIF.');
+                        if (animated && (isVideoSource(f) || f.type === 'image/gif' || f.type === 'image/webp')) {
+                          if (f.size > 40 * 1024 * 1024) {
+                            setPhotoMsg('Animated media must be smaller than 40 MB. Export a compressed MP4 or WebM.');
                             e.target.value = '';
                             return;
                           }

@@ -41,7 +41,7 @@ export default async function About() {
 
         {/* Section header */}
         <div className="mb-10 text-center sm:mb-16">
-          <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: '#3d6478' }}>
+          <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: 'var(--color-coral)' }}>
             The Artist
           </p>
           <h2
@@ -87,7 +87,7 @@ export default async function About() {
             <a
               href="/contact"
               className="mt-10 inline-block text-xs tracking-[0.2em] uppercase border-b pb-0.5 transition-colors hover:opacity-50"
-              style={{ color: '#3d6478', borderColor: '#3d6478' }}
+              style={{ color: 'var(--color-ocean)', borderColor: 'var(--color-water)' }}
             >
               Get in Touch
             </a>

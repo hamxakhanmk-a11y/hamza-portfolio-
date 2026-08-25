@@ -27,7 +27,7 @@ export default async function ShowsPage() {
       <Navbar />
       <main className="bg-white min-h-screen">
         <div className="mx-auto max-w-2xl px-4 pb-10 pt-28 text-center sm:px-6 sm:pb-16 sm:pt-36">
-          <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: '#3d6478' }}>Exhibitions</p>
+          <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: 'var(--color-coral)' }}>Exhibitions</p>
           <h1 className="text-4xl font-light text-neutral-900 sm:text-5xl md:text-6xl" style={{ fontFamily: 'var(--font-cormorant)' }}>
             Shows
           </h1>

@@ -26,7 +26,7 @@ export default function AboutTabs({ bio, statement }) {
                 ? 'border-current'
                 : 'border-transparent opacity-40 hover:opacity-70'
             }`}
-            style={{ color: '#3d6478' }}
+            style={{ color: 'var(--color-ocean)' }}
           >
             {t.label}
           </button>

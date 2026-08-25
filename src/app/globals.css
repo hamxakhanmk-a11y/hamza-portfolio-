@@ -3,6 +3,11 @@
 @theme {
   --font-heading: var(--font-cormorant);
   --font-body: var(--font-dm-sans);
+  --color-ocean: #075f8f;
+  --color-water: #27a8c7;
+  --color-coral: #ed7189;
+  --color-cream: #fffaf2;
+  --color-deep-ocean: #063a5b;
 }
 
 html {
@@ -11,4 +16,8 @@ html {
 
 body {
   font-family: var(--font-dm-sans), sans-serif;
+  background: var(--color-cream);
+  color: #183746;
 }
+
+::selection { background: rgba(237, 113, 137, .28); color: #063a5b; }

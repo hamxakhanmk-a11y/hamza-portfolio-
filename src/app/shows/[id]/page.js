@@ -105,7 +105,7 @@ export default async function ShowDetailPage(props) {
             <Link
               href="/shows"
               className="text-xs tracking-[0.2em] uppercase border-b pb-0.5 transition-colors hover:opacity-50"
-              style={{ color: '#3d6478', borderColor: '#3d6478' }}
+              style={{ color: 'var(--color-ocean)', borderColor: 'var(--color-water)' }}
             >
               ← Back to Shows
             </Link>

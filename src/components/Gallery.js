@@ -26,7 +26,7 @@ export default async function Gallery() {
         {/* Section header */}
         <div className="flex items-end justify-between mb-16">
           <div>
-            <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: '#3d6478' }}>
+            <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: 'var(--color-coral)' }}>
               Latest Work
             </p>
             <h2
@@ -39,7 +39,7 @@ export default async function Gallery() {
           <Link
             href="/portfolio"
             className="hidden sm:block text-xs tracking-[0.2em] uppercase border-b pb-0.5 transition-colors hover:opacity-50"
-            style={{ color: '#3d6478', borderColor: '#3d6478' }}
+            style={{ color: 'var(--color-ocean)', borderColor: 'var(--color-water)' }}
           >
             View All Works
           </Link>
@@ -91,7 +91,7 @@ export default async function Gallery() {
           <Link
             href="/portfolio"
             className="text-xs tracking-[0.2em] uppercase border-b pb-0.5"
-            style={{ color: '#3d6478', borderColor: '#3d6478' }}
+            style={{ color: 'var(--color-ocean)', borderColor: 'var(--color-water)' }}
           >
             View All Works
           </Link>

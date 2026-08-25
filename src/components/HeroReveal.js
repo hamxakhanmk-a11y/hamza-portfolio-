@@ -18,6 +18,8 @@ export default function HeroReveal({ normalImage, animatedImage, settings }) {
     if (revealRef.current) revealRef.current.style.opacity = '0';
   }
 
+  const animatedIsVideo = /\.(mp4|webm)(?:\?|$)/i.test(animatedImage || '');
+
   return (
     <div
       className="absolute inset-0 bg-neutral-300"
@@ -39,15 +41,21 @@ export default function HeroReveal({ normalImage, animatedImage, settings }) {
             WebkitMaskImage: 'radial-gradient(circle var(--reveal-size) at var(--reveal-x) var(--reveal-y), black 0%, black 55%, transparent 100%)',
           }}
         >
-          <img
-            src={animatedImage}
-            alt="Animated detail of the hero artwork"
-            className="h-full w-full object-cover"
-            style={{
-              objectPosition: `${settings.x}% ${settings.y}%`,
-              transform: `scale(${settings.zoom})`,
-            }}
-          />
+          {animatedIsVideo ? (
+            <video
+              src={animatedImage}
+              muted loop autoPlay playsInline preload="auto"
+              className="h-full w-full object-cover"
+              style={{ objectPosition: `${settings.x}% ${settings.y}%`, transform: `scale(${settings.zoom})` }}
+            />
+          ) : (
+            <img
+              src={animatedImage}
+              alt="Animated detail of the hero artwork"
+              className="h-full w-full object-cover"
+              style={{ objectPosition: `${settings.x}% ${settings.y}%`, transform: `scale(${settings.zoom})` }}
+            />
+          )}
         </div>
       )}
     </div>
