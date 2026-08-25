@@ -10,9 +10,10 @@ export default function ArtworkGallery({ images, title }) {
       {/* Main image */}
       <div className="w-fit max-w-full mx-auto overflow-hidden">
         <img
+          key={images[selected].image_url}
           src={images[selected].image_url}
           alt={title}
-          className="living-image w-auto max-w-full h-auto max-h-[680px] object-contain block transition-opacity duration-300"
+          className="artwork-inside-motion w-auto max-w-full h-auto max-h-[680px] object-contain block transition-opacity duration-300"
           style={{
             mixBlendMode: 'multiply',
             filter: images[selected].image_url?.toLowerCase().includes('.png')
@@ -38,7 +39,7 @@ export default function ArtworkGallery({ images, title }) {
               <img
                 src={img.image_url}
                 alt={`${title} view ${i + 1}`}
-                className="living-image w-full h-full object-contain"
+                className="artwork-inside-motion w-full h-full object-contain"
               />
             </button>
           ))}

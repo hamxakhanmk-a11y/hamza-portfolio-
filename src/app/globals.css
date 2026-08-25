@@ -193,6 +193,17 @@ body {
   to { transform: scale(1.035); }
 }
 
+.artwork-inside-motion {
+  animation: artwork-inside-breathe 6.5s ease-in-out infinite alternate;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+@keyframes artwork-inside-breathe {
+  from { transform: scale(1); }
+  to { transform: scale(1.065); }
+}
+
 @media (max-width: 700px) {
   .intro-shell { grid-template-rows: auto minmax(0, 1fr) auto auto; padding: 1rem .8rem; }
   .intro-brand { max-width: 65%; text-align: center; font-size: 1rem; }
@@ -215,4 +226,5 @@ body {
   .intro-shell::before, .intro-letter-line span, .intro-art-scene img, .intro-art-scene video, .intro-collection-words span, .intro-chapters button i { animation: none; }
   .intro-letter-line span { opacity: 1; transform: none; }
   .living-image { animation: none; }
+  .artwork-inside-motion { animation: none; }
 }
