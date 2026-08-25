@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 export default function CommissionForm({ whatsapp }) {
-  const [form, setForm] = useState({ name: '', email: '', type: '', idea: '' });
+  const [form, setForm] = useState({ name: '', email: '', idea: '' });
 
   function update(event) {
     setForm(current => ({ ...current, [event.target.name]: event.target.value }));
@@ -16,7 +16,6 @@ export default function CommissionForm({ whatsapp }) {
       'Hello! I would like to commission an artwork.',
       `Name: ${form.name}`,
       `Email: ${form.email}`,
-      `Project type: ${form.type}`,
       `Idea: ${form.idea}`,
     ].join('\n');
     window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
@@ -33,17 +32,6 @@ export default function CommissionForm({ whatsapp }) {
       <label className="flex flex-col gap-2 text-sm text-[#183746]">
         Email
         <input required type="email" name="email" value={form.email} onChange={update} placeholder="your.email@example.com" className={fieldClass} />
-      </label>
-      <label className="flex flex-col gap-2 text-sm text-[#183746]">
-        Project Type
-        <select required name="type" value={form.type} onChange={update} className={fieldClass}>
-          <option value="" disabled>Select an option</option>
-          <option>Original painting</option>
-          <option>Portrait</option>
-          <option>Custom size artwork</option>
-          <option>Gift commission</option>
-          <option>Other</option>
-        </select>
       </label>
       <label className="flex flex-col gap-2 text-sm text-[#183746]">
         Tell me about your idea
