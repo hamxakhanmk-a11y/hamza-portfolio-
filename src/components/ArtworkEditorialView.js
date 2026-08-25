@@ -4,6 +4,9 @@ export default function ArtworkEditorialView({ artwork, images, whatsappNumber }
   const cover = images[0];
   const secondary = images.slice(1);
   const projectNumber = String(artwork.display_order || artwork.id || 1).padStart(2, '0');
+  const isCommission = artwork.section === 'commissions';
+  const backHref = isCommission ? '/commissions' : '/portfolio';
+  const backLabel = isCommission ? 'Commissions' : 'Portfolio';
   const whatsappMsg = encodeURIComponent(
     `Hi! I'm interested in "${artwork.title}"${artwork.price ? ` (${artwork.price})` : ''}. Is it available?`,
   );
@@ -37,7 +40,7 @@ export default function ArtworkEditorialView({ artwork, images, whatsappNumber }
 
         <div className="px-5 py-8 sm:px-10 sm:py-12 lg:px-16 lg:py-16">
           <div className="mb-8 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-neutral-400">
-            <Link href="/portfolio" className="transition hover:text-[#075f8f]">← Portfolio</Link>
+            <Link href={backHref} className="transition hover:text-[#075f8f]">← {backLabel}</Link>
             <span>Featured View</span>
           </div>
 
