@@ -25,7 +25,16 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
 
   return (
     <section className="intro-shell intro-embedded" aria-label="Featured artwork introduction">
-      <div className="intro-brand">{siteConfig.artistName}</div>
+      <div className="intro-media" aria-hidden="true">
+        {animatedImage && animatedIsVideo ? (
+          <video src={animatedImage} muted loop autoPlay playsInline preload="auto" style={mediaStyle} />
+        ) : animatedImage ? (
+          <img src={animatedImage} alt="" style={mediaStyle} />
+        ) : heroImage ? (
+          <img src={heroImage} alt="" />
+        ) : null}
+        <div className="intro-media-shade" />
+      </div>
 
       <div className="intro-canvas">
         <div key={chapter} className="intro-scene">
@@ -42,13 +51,6 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
 
           {chapter === 1 && (
             <div className="intro-art-scene">
-              {animatedImage && animatedIsVideo ? (
-                <video src={animatedImage} muted loop autoPlay playsInline preload="metadata" style={mediaStyle} />
-              ) : animatedImage ? (
-                <img src={animatedImage} alt="Animated featured painting" style={mediaStyle} />
-              ) : heroImage ? (
-                <img src={heroImage} alt="Featured painting" />
-              ) : null}
               <div className="intro-art-copy">
                 <p>Painted with intention</p>
                 <h2>Where imagination flows</h2>
@@ -73,19 +75,6 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
             </Link>
           )}
         </div>
-      </div>
-
-      <div className="intro-chapters">
-        {chapters.map((label, index) => (
-            <button type="button" key={label} onClick={() => setChapter(index)} className={chapter === index ? 'active' : ''}>
-            <span>{label}</span>
-            {chapter === index && <i />}
-          </button>
-        ))}
-      </div>
-
-      <div className="intro-ruler" aria-hidden="true">
-        {Array.from({ length: 42 }).map((_, index) => <span key={index} />)}
       </div>
     </section>
   );
