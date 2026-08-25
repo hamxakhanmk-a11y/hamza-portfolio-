@@ -39,11 +39,11 @@ export default async function CommissionsPage() {
           </p>
         </div>
 
-        <CommissionInquiry />
-
-        <div className="mx-auto max-w-6xl px-4 pb-20 pt-20 sm:px-6 sm:pb-28 sm:pt-28">
+        <div className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 sm:pb-28">
           <ArtworkGrid artworks={artworks} emptyMessage="Commissioned pieces coming soon" />
         </div>
+
+        <CommissionInquiry />
       </main>
     </>
   );
