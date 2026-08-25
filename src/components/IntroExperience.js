@@ -40,39 +40,34 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
           ease: 'sine.inOut',
         });
 
-        const story = gsap.timeline({
-          defaults: { ease: 'power2.inOut' },
-          scrollTrigger: {
-            trigger: rootRef.current,
-            start: 'top top',
-            end: '+=300%',
-            pin: true,
-            scrub: .8,
-            anticipatePin: 1,
-            invalidateOnRefresh: true,
-            snap: {
-              snapTo: 'labels',
-              duration: { min: .25, max: .7 },
-              delay: .12,
-              ease: 'power2.inOut',
-            },
+        let activeScene = 0;
+        ScrollTrigger.create({
+          trigger: rootRef.current,
+          start: 'top top',
+          end: '+=270%',
+          pin: true,
+          anticipatePin: 1,
+          invalidateOnRefresh: true,
+          snap: {
+            snapTo: 1 / (scenes.length - 1),
+            duration: { min: .18, max: .45 },
+            delay: .08,
+            ease: 'power2.out',
+          },
+          onUpdate(self) {
+            const nextScene = Math.min(scenes.length - 1, Math.round(self.progress * (scenes.length - 1)));
+            if (nextScene === activeScene) return;
+
+            activeScene = nextScene;
+            gsap.killTweensOf(scenes);
+            gsap.set(scenes, { autoAlpha: 0, scale: .985, yPercent: 0 });
+            gsap.fromTo(
+              scenes[activeScene],
+              { autoAlpha: 0, scale: 1.018, yPercent: self.direction > 0 ? 2 : -2 },
+              { autoAlpha: 1, scale: 1, yPercent: 0, duration: .38, ease: 'power2.out', overwrite: true },
+            );
           },
         });
-
-        story.addLabel('intro', 0);
-        for (let index = 1; index < scenes.length; index += 1) {
-          const transitionAt = index - .28;
-          story
-            .addLabel(['artwork', 'collections', 'enter'][index - 1], index)
-            .to(scenes[index - 1], { autoAlpha: 0, scale: .975, yPercent: -2, duration: .5 }, transitionAt)
-            .fromTo(
-              scenes[index],
-              { autoAlpha: 0, scale: 1.025, yPercent: 3 },
-              { autoAlpha: 1, scale: 1, yPercent: 0, duration: .5, immediateRender: false },
-              transitionAt,
-            );
-        }
-        story.to({}, { duration: .01 }, 3.01);
       }, rootRef);
     }
 
