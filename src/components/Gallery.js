@@ -10,6 +10,8 @@ async function getNewestArtworks() {
     const { data } = await supabase
       .from('artworks')
       .select('*')
+      .eq('show_on_home', true)
+      .eq('show_on_website', true)
       .order('created_at', { ascending: false })
       .limit(4);
     return data || [];

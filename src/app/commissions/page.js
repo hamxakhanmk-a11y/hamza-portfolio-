@@ -15,6 +15,7 @@ async function getCommissions() {
       .from('artworks')
       .select('*')
       .eq('section', 'commissions')
+      .eq('show_on_website', true)
       .order('display_order', { ascending: true })
       .order('created_at', { ascending: false });
     return data || [];

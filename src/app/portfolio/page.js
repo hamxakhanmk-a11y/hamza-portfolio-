@@ -14,6 +14,7 @@ async function getPortfolioArtworks() {
       .from('artworks')
       .select('*')
       .in('section', ['portfolio', 'shop'])
+      .eq('show_on_website', true)
       .order('display_order', { ascending: true })
       .order('created_at', { ascending: false });
     return data || [];

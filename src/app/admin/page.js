@@ -79,7 +79,7 @@ function isVideoSource(source) {
 // ── Empty form state ───────────────────────────────────────────
 const emptyForm = {
   title: '', description: '', medium: '', size: '', price: '',
-  section: 'portfolio', available: true,
+  section: 'portfolio', available: true, show_on_home: true, show_on_website: true,
 };
 
 const emptyShow = {
@@ -493,6 +493,8 @@ export default function AdminPage() {
       price: art.price || '',
       section: art.section || 'shop',
       available: art.available ?? true,
+      show_on_home: art.show_on_home ?? true,
+      show_on_website: art.show_on_website ?? true,
     });
     setImage(null);
     setPreview(art.image_url || null);
@@ -565,6 +567,15 @@ export default function AdminPage() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ available: !current }),
+    });
+    fetchArtworks();
+  }
+
+  async function toggleArtworkVisibility(id, key, current) {
+    await fetch(`/api/artworks/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ [key]: !current }),
     });
     fetchArtworks();
   }
@@ -947,6 +958,19 @@ export default function AdminPage() {
                       <span className="text-sm text-neutral-600">Available for sale</span>
                     </label>
 
+                    <div className="grid gap-3 border-t border-neutral-200 pt-4 sm:grid-cols-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.show_on_home} className="h-4 w-4 accent-[#075f8f]"
+                          onChange={e => setForm({ ...form, show_on_home: e.target.checked })} />
+                        <span className="text-xs text-neutral-600">Show on Home</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.show_on_website} className="h-4 w-4 accent-[#075f8f]"
+                          onChange={e => setForm({ ...form, show_on_website: e.target.checked })} />
+                        <span className="text-xs text-neutral-600">Show on Website</span>
+                      </label>
+                    </div>
+
                     {artMsg && (
                       <p className={`text-xs ${artMsg.startsWith('✓') ? 'text-green-600' : 'text-neutral-500'}`}>{artMsg}</p>
                     )}
@@ -1073,6 +1097,16 @@ export default function AdminPage() {
                             className="text-[10px] px-2 py-1 border border-neutral-300 text-neutral-600 hover:border-neutral-700 transition-colors">
                             Edit
                           </button>
+                          <label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-neutral-600">
+                            <input type="checkbox" checked={art.show_on_home ?? true} className="h-3.5 w-3.5 accent-[#075f8f]"
+                              onChange={() => toggleArtworkVisibility(art.id, 'show_on_home', art.show_on_home ?? true)} />
+                            Home
+                          </label>
+                          <label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-neutral-600">
+                            <input type="checkbox" checked={art.show_on_website ?? true} className="h-3.5 w-3.5 accent-[#075f8f]"
+                              onChange={() => toggleArtworkVisibility(art.id, 'show_on_website', art.show_on_website ?? true)} />
+                            Website
+                          </label>
                           <button onClick={() => deleteArtwork(art.id)}
                             className="text-[10px] text-red-400 hover:text-red-600 transition-colors ml-auto">
                             Delete

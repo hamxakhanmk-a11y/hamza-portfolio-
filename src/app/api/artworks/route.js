@@ -21,7 +21,7 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { title, medium, size, price, image_url, available, description, section } = await req.json();
+  const { title, medium, size, price, image_url, available, description, section, show_on_home, show_on_website } = await req.json();
 
   const targetSection = section || 'portfolio';
   const sectionQuery = targetSection === 'portfolio'
@@ -32,7 +32,13 @@ export async function POST(req) {
 
   const { data, error } = await supabaseAdmin
     .from('artworks')
-    .insert([{ title, medium, size, price, image_url, available, description, section: targetSection, display_order: nextOrder }])
+    .insert([{
+      title, medium, size, price, image_url, available, description,
+      section: targetSection,
+      display_order: nextOrder,
+      show_on_home: show_on_home ?? true,
+      show_on_website: show_on_website ?? true,
+    }])
     .select()
     .single();
 

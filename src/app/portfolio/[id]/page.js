@@ -16,6 +16,7 @@ async function getArtwork(id) {
       .from('artworks')
       .select('*')
       .eq('id', id)
+      .eq('show_on_website', true)
       .single();
     return data || null;
   } catch { return null; }
