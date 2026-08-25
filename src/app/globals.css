@@ -194,7 +194,6 @@ body {
 @keyframes intro-scan { 0% { left: -25%; } 100% { left: 105%; } }
 
 .living-image {
-  animation: living-image-breathe 8s ease-in-out infinite alternate;
   transform-origin: center center;
   will-change: transform;
 }
@@ -205,7 +204,6 @@ body {
 }
 
 .artwork-inside-motion {
-  animation: artwork-inside-breathe 6.5s ease-in-out infinite alternate;
   transform-origin: center center;
   will-change: transform;
 }

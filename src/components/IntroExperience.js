@@ -29,8 +29,10 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
 
       context = gsap.context(() => {
         const scenes = gsap.utils.toArray('.intro-scene');
-        gsap.set(scenes, { autoAlpha: 0, scale: .985 });
-        gsap.set(scenes[0], { autoAlpha: 1, scale: 1 });
+        gsap.set(scenes, { autoAlpha: 0, scale: .985, yPercent: 2 });
+        gsap.set(scenes[0], { autoAlpha: 1, scale: 1, yPercent: 0 });
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
         gsap.to(mediaRef.current, {
           scale: 1.045,
@@ -40,33 +42,35 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
           ease: 'sine.inOut',
         });
 
-        let activeScene = 0;
-        ScrollTrigger.create({
-          trigger: rootRef.current,
-          start: 'top top',
-          end: '+=270%',
-          pin: true,
-          anticipatePin: 1,
-          invalidateOnRefresh: true,
-          snap: {
-            snapTo: 1 / (scenes.length - 1),
-            duration: { min: .18, max: .45 },
-            delay: .08,
-            ease: 'power2.out',
+        const timeline = gsap.timeline({
+          defaults: { ease: 'none' },
+          scrollTrigger: {
+            trigger: rootRef.current,
+            start: 'top top',
+            end: '+=300%',
+            pin: true,
+            scrub: 0.65,
+            anticipatePin: 1,
+            invalidateOnRefresh: true,
           },
-          onUpdate(self) {
-            const nextScene = Math.min(scenes.length - 1, Math.round(self.progress * (scenes.length - 1)));
-            if (nextScene === activeScene) return;
+        });
 
-            activeScene = nextScene;
-            gsap.killTweensOf(scenes);
-            gsap.set(scenes, { autoAlpha: 0, scale: .985, yPercent: 0 });
-            gsap.fromTo(
-              scenes[activeScene],
-              { autoAlpha: 0, scale: 1.018, yPercent: self.direction > 0 ? 2 : -2 },
-              { autoAlpha: 1, scale: 1, yPercent: 0, duration: .38, ease: 'power2.out', overwrite: true },
+        scenes.forEach((scene, index) => {
+          if (index === 0) {
+            timeline.to(scene, { autoAlpha: 0, scale: 1.025, yPercent: -2, duration: 0.45 }, 0.55);
+            return;
+          }
+          const position = index * 1.15;
+          timeline
+            .fromTo(scene,
+              { autoAlpha: 0, scale: 1.025, yPercent: 2 },
+              { autoAlpha: 1, scale: 1, yPercent: 0, duration: 0.45 },
+              position,
+            )
+            .to(scene,
+              { autoAlpha: index === scenes.length - 1 ? 1 : 0, scale: 1.02, yPercent: index === scenes.length - 1 ? 0 : -2, duration: 0.45 },
+              position + 0.7,
             );
-          },
         });
       }, rootRef);
     }
