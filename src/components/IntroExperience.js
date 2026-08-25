@@ -49,6 +49,7 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
             pin: true,
             scrub: .8,
             anticipatePin: 1,
+            invalidateOnRefresh: true,
             snap: {
               snapTo: 'labels',
               duration: { min: .25, max: .7 },
@@ -60,16 +61,18 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
 
         story.addLabel('intro', 0);
         for (let index = 1; index < scenes.length; index += 1) {
+          const transitionAt = index - .28;
           story
-            .to(scenes[index - 1], { autoAlpha: 0, scale: .975, duration: .45 }, index)
+            .addLabel(['artwork', 'collections', 'enter'][index - 1], index)
+            .to(scenes[index - 1], { autoAlpha: 0, scale: .975, yPercent: -2, duration: .5 }, transitionAt)
             .fromTo(
               scenes[index],
               { autoAlpha: 0, scale: 1.025, yPercent: 3 },
-              { autoAlpha: 1, scale: 1, yPercent: 0, duration: .55 },
-              index,
-            )
-            .addLabel(['artwork', 'collections', 'enter'][index - 1], index);
+              { autoAlpha: 1, scale: 1, yPercent: 0, duration: .5, immediateRender: false },
+              transitionAt,
+            );
         }
+        story.to({}, { duration: .01 }, 3.01);
       }, rootRef);
     }
 
