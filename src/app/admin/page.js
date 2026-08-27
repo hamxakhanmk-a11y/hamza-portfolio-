@@ -8,7 +8,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 // ── Image compression ──────────────────────────────────────────
 async function prepareImage(file) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
@@ -20,9 +20,18 @@ async function prepareImage(file) {
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
       const preserveTransparency = file.type === 'image/png';
       canvas.toBlob(blob => {
+        if (!blob) {
+          URL.revokeObjectURL(url);
+          reject(new Error('This photo could not be prepared. Please export it as JPG or PNG and try again.'));
+          return;
+        }
         resolve(new File([blob], preserveTransparency ? 'image.png' : 'image.jpg', { type: preserveTransparency ? 'image/png' : 'image/jpeg' }));
         URL.revokeObjectURL(url);
       }, preserveTransparency ? 'image/png' : 'image/jpeg', 0.9);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('This photo format is not supported. On iPhone, choose “Most Compatible” or export it as JPG.'));
     };
     img.src = url;
   });
@@ -31,6 +40,12 @@ async function prepareImage(file) {
 // ── Upload with client-side compression ───────────────────────
 async function uploadImage(file, token, bucket = 'artworks', preserveOriginal = false) {
   const compressed = preserveOriginal ? file : await prepareImage(file);
+
+  // Large PNGs can exceed Vercel's request-body limit. Send those directly to
+  // the signed Supabase Storage URL instead of routing the bytes through Vercel.
+  if (compressed.size > 3.5 * 1024 * 1024) {
+    return uploadAnimatedMedia(compressed, token, bucket);
+  }
 
   const fd = new FormData();
   fd.append('file', compressed);
@@ -43,6 +58,7 @@ async function uploadImage(file, token, bucket = 'artworks', preserveOriginal = 
   });
 
   if (!res.ok) {
+    if (res.status === 413) return uploadAnimatedMedia(compressed, token, bucket);
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Upload failed');
   }
@@ -598,8 +614,13 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ image_url: url }),
       });
-      if (res.ok) fetchArtworkImages(editingId);
-      else setArtMsg('Failed to add photo. Try again.');
+      if (res.ok) {
+        await fetchArtworkImages(editingId);
+        setArtMsg('✓ Additional photo uploaded!');
+      } else {
+        const error = await res.json().catch(() => ({}));
+        setArtMsg(`Error: ${error.error || 'Failed to add photo. Try again.'}`);
+      }
     } catch (err) {
       setArtMsg(`Error: ${err.message}`);
     }

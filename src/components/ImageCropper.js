@@ -85,25 +85,31 @@ function trimTransparentCanvas(canvas) {
 
 export default function ImageCropper({ file, aspect = 1, allowAspect = false, removeWhite = false, onCancel, onApply }) {
   const imageRef = useRef(null);
+  const frameRef = useRef(null);
   const dragRef = useRef(null);
+  const pointersRef = useRef(new Map());
+  const gestureRef = useRef(null);
   const [source] = useState(() => URL.createObjectURL(file));
   const [natural, setNatural] = useState({ width: 1, height: 1 });
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState(0);
+  const [straighten, setStraighten] = useState(0);
   const [flipX, setFlipX] = useState(false);
   const [mode, setMode] = useState('fit');
   const [removeBackground, setRemoveBackground] = useState(removeWhite);
   const [cropAspect, setCropAspect] = useState(aspect);
   const [aspectChoice, setAspectChoice] = useState(allowAspect ? 'original' : 'fixed');
   const [working, setWorking] = useState(false);
+  const [previewScale, setPreviewScale] = useState(1);
   const usesOriginalSize = allowAspect && aspectChoice === 'original';
+  const totalRotation = rotation + straighten;
 
   const viewWidth = cropAspect >= 1 ? VIEW_SIZE : VIEW_SIZE * cropAspect;
   const viewHeight = cropAspect >= 1 ? VIEW_SIZE / cropAspect : VIEW_SIZE;
-  const quarterTurn = Math.abs(rotation % 180) === 90;
-  const frameWidth = quarterTurn ? natural.height : natural.width;
-  const frameHeight = quarterTurn ? natural.width : natural.height;
+  const rotationRadians = totalRotation * Math.PI / 180;
+  const frameWidth = Math.abs(natural.width * Math.cos(rotationRadians)) + Math.abs(natural.height * Math.sin(rotationRadians));
+  const frameHeight = Math.abs(natural.width * Math.sin(rotationRadians)) + Math.abs(natural.height * Math.cos(rotationRadians));
   const baseScale = mode === 'fit'
     ? Math.min(viewWidth / frameWidth, viewHeight / frameHeight)
     : Math.max(viewWidth / frameWidth, viewHeight / frameHeight);
@@ -111,6 +117,15 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
   const renderedHeight = natural.height * baseScale * zoom;
 
   useEffect(() => () => URL.revokeObjectURL(source), [source]);
+
+  useEffect(() => {
+    if (!frameRef.current || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      setPreviewScale(entry.contentRect.width / viewWidth);
+    });
+    observer.observe(frameRef.current);
+    return () => observer.disconnect();
+  }, [viewWidth]);
 
   useEffect(() => {
     const closeOnEscape = event => {
@@ -135,17 +150,63 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
     };
   }
 
+  function frameCoordinateScale() {
+    const rect = frameRef.current?.getBoundingClientRect();
+    return rect?.width ? viewWidth / rect.width : 1;
+  }
+
   function pointerDown(event) {
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { x: event.clientX, y: event.clientY, start: position };
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const points = [...pointersRef.current.values()];
+    if (points.length === 1) {
+      dragRef.current = { x: event.clientX, y: event.clientY, start: position };
+    } else if (points.length === 2) {
+      const [a, b] = points;
+      gestureRef.current = {
+        distance: Math.hypot(b.x - a.x, b.y - a.y),
+        angle: Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI,
+        zoom,
+        straighten,
+      };
+      dragRef.current = null;
+    }
   }
 
   function pointerMove(event) {
+    if (!pointersRef.current.has(event.pointerId)) return;
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const points = [...pointersRef.current.values()];
+    if (points.length >= 2 && gestureRef.current) {
+      const [a, b] = points;
+      const distance = Math.hypot(b.x - a.x, b.y - a.y);
+      const angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+      const nextZoom = Math.max(0.7, Math.min(4, gestureRef.current.zoom * distance / Math.max(gestureRef.current.distance, 1)));
+      let angleDelta = angle - gestureRef.current.angle;
+      if (angleDelta > 180) angleDelta -= 360;
+      if (angleDelta < -180) angleDelta += 360;
+      setZoom(nextZoom);
+      setStraighten(Math.max(-45, Math.min(45, gestureRef.current.straighten + angleDelta)));
+      setPosition(current => clampPosition(current, nextZoom));
+      return;
+    }
     if (!dragRef.current) return;
+    const coordinateScale = frameCoordinateScale();
     setPosition(clampPosition({
-      x: dragRef.current.start.x + event.clientX - dragRef.current.x,
-      y: dragRef.current.start.y + event.clientY - dragRef.current.y,
+      x: dragRef.current.start.x + (event.clientX - dragRef.current.x) * coordinateScale,
+      y: dragRef.current.start.y + (event.clientY - dragRef.current.y) * coordinateScale,
     }));
+  }
+
+  function pointerEnd(event) {
+    pointersRef.current.delete(event.pointerId);
+    gestureRef.current = null;
+    const remaining = [...pointersRef.current.values()];
+    if (remaining.length === 1) {
+      dragRef.current = { x: remaining[0].x, y: remaining[0].y, start: position };
+    } else {
+      dragRef.current = null;
+    }
   }
 
   function changeZoom(event) {
@@ -164,6 +225,15 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
     setRotation(current => (current + direction + 360) % 360);
     setZoom(1);
     setPosition({ x: 0, y: 0 });
+  }
+
+  function resetAdjustments() {
+    setMode('fit');
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+    setRotation(0);
+    setStraighten(0);
+    setFlipX(false);
   }
 
   function chooseAspect(choice, nextAspect) {
@@ -191,27 +261,28 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
     canvas.width = outputWidth;
     canvas.height = outputHeight;
     const ctx = canvas.getContext('2d', { willReadFrequently: removeBackground });
-    if (usesOriginalSize) {
-      ctx.drawImage(imageRef.current, 0, 0, outputWidth, outputHeight);
-      if (removeBackground) removeEdgeWhiteBackground(ctx, outputWidth, outputHeight);
-      const finalCanvas = trimTransparentCanvas(canvas);
-      const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, 'image/png'));
-      onApply(new File([blob], `original-${Date.now()}.png`, { type: 'image/png' }));
-      setWorking(false);
-      return;
-    }
-
+    const preserveAlpha = removeBackground || file.type === 'image/png';
     const outputScale = outputWidth / viewWidth;
     ctx.clearRect(0, 0, outputWidth, outputHeight);
+    if (!preserveAlpha) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, outputWidth, outputHeight);
+    }
     ctx.translate(outputWidth / 2 + position.x * outputScale, outputHeight / 2 + position.y * outputScale);
-    ctx.rotate(rotation * Math.PI / 180);
+    ctx.rotate(totalRotation * Math.PI / 180);
     ctx.scale(flipX ? -1 : 1, 1);
     ctx.drawImage(imageRef.current, -renderedWidth * outputScale / 2, -renderedHeight * outputScale / 2, renderedWidth * outputScale, renderedHeight * outputScale);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (removeBackground) removeEdgeWhiteBackground(ctx, outputWidth, outputHeight);
     const finalCanvas = trimTransparentCanvas(canvas);
-    const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, 'image/png'));
-    onApply(new File([blob], `edited-${Date.now()}.png`, { type: 'image/png' }));
+    const outputType = preserveAlpha ? 'image/png' : 'image/jpeg';
+    const extension = preserveAlpha ? 'png' : 'jpg';
+    const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, outputType, 0.88));
+    if (!blob) {
+      setWorking(false);
+      return;
+    }
+    onApply(new File([blob], `edited-${Date.now()}.${extension}`, { type: outputType }));
     setWorking(false);
   }
 
@@ -241,12 +312,14 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
 
         <div className="mx-5 sm:mx-8 overflow-auto bg-neutral-100 p-3">
           <div
+            ref={frameRef}
             className="relative overflow-hidden mx-auto bg-[linear-gradient(45deg,#eee_25%,transparent_25%),linear-gradient(-45deg,#eee_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#eee_75%),linear-gradient(-45deg,transparent_75%,#eee_75%)] bg-[length:20px_20px] bg-[position:0_0,0_10px,10px_-10px,-10px_0px] cursor-grab active:cursor-grabbing touch-none"
-            style={{ width: viewWidth, height: viewHeight, maxWidth: '100%' }}
+            style={{ width: '100%', maxWidth: viewWidth, aspectRatio: `${viewWidth} / ${viewHeight}` }}
             onPointerDown={pointerDown}
             onPointerMove={pointerMove}
-            onPointerUp={() => { dragRef.current = null; }}
-            onPointerCancel={() => { dragRef.current = null; }}
+            onPointerUp={pointerEnd}
+            onPointerCancel={pointerEnd}
+            onDoubleClick={resetAdjustments}
           >
             {source && (
               <img
@@ -263,11 +336,11 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
                 }}
                 className="absolute max-w-none select-none pointer-events-none"
                 style={{
-                  width: renderedWidth,
-                  height: renderedHeight,
+                  width: renderedWidth * previewScale,
+                  height: renderedHeight * previewScale,
                   left: '50%',
                   top: '50%',
-                  transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) rotate(${rotation}deg) scaleX(${flipX ? -1 : 1})`,
+                  transform: `translate(-50%, -50%) translate(${position.x * previewScale}px, ${position.y * previewScale}px) rotate(${totalRotation}deg) scaleX(${flipX ? -1 : 1})`,
                 }}
               />
             )}
@@ -296,20 +369,24 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
             </div>
           )}
 
-          {!usesOriginalSize && <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <button type="button" onClick={() => changeMode('fit')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fit' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Full Painting</button>
             <button type="button" onClick={() => changeMode('fill')} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${mode === 'fill' ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Crop to Frame</button>
             <button type="button" onClick={() => rotate(-90)} className="px-4 py-2 text-[10px] uppercase tracking-widest border border-neutral-300">↶ Rotate</button>
             <button type="button" onClick={() => rotate(90)} className="px-4 py-2 text-[10px] uppercase tracking-widest border border-neutral-300">Rotate ↷</button>
             <button type="button" onClick={() => setFlipX(value => !value)} className={`px-4 py-2 text-[10px] uppercase tracking-widest border ${flipX ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300'}`}>Flip</button>
-          </div>}
+            <button type="button" onClick={resetAdjustments} className="px-4 py-2 text-[10px] uppercase tracking-widest border border-neutral-300">Reset</button>
+          </div>
 
-          {!usesOriginalSize && <>
+          <>
             <div className="flex justify-between text-[11px] uppercase tracking-wider text-neutral-500 mb-2"><span>Zoom</span><span>{zoom.toFixed(1)}×</span></div>
             <input type="range" min="0.7" max="4" step="0.02" value={zoom} onChange={changeZoom} className="w-full accent-neutral-900" />
 
+            <div className="flex justify-between text-[11px] uppercase tracking-wider text-neutral-500 mb-2"><span>Straighten</span><span>{Math.round(straighten)}°</span></div>
+            <input type="range" min="-45" max="45" step="1" value={straighten} onChange={event => setStraighten(Number(event.target.value))} className="w-full accent-neutral-900" />
+
             <p className="text-[11px] text-center text-neutral-400">
-              Full Painting keeps every edge visible. Crop to Frame is only for photos you intentionally want to trim.
+              Drag with one finger or the mouse. Pinch with two fingers to zoom and rotate. Double-tap to reset.
             </p>
 
             <div className="flex items-center justify-center gap-2">
@@ -319,7 +396,7 @@ export default function ImageCropper({ file, aspect = 1, allowAspect = false, re
               <button type="button" onClick={() => nudge(0, 10)} className="w-9 h-9 border border-neutral-300">↓</button>
               <button type="button" onClick={() => nudge(10, 0)} className="w-9 h-9 border border-neutral-300">→</button>
             </div>
-          </>}
+          </>
 
           {removeWhite && (
             <label className="flex items-start gap-3 border border-neutral-200 p-3 cursor-pointer">
