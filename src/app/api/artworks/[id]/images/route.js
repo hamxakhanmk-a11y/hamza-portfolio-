@@ -34,3 +34,23 @@ export async function POST(req, props) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }
+
+export async function PATCH(req, props) {
+  if (!isAuthorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { id } = await props.params;
+  const { image_ids } = await req.json();
+  if (!Array.isArray(image_ids) || image_ids.length === 0) {
+    return NextResponse.json({ error: 'No photo order was received.' }, { status: 400 });
+  }
+
+  const results = await Promise.all(image_ids.map((imageId, index) => (
+    supabaseAdmin
+      .from('artwork_images')
+      .update({ sort_order: index })
+      .eq('id', imageId)
+      .eq('artwork_id', id)
+  )));
+  const failed = results.find(result => result.error);
+  if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

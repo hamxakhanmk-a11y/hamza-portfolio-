@@ -143,6 +143,8 @@ export default function AdminPage() {
   // Multiple images per artwork
   const [artworkImages, setArtworkImages] = useState([]);
   const [addingImage, setAddingImage] = useState(false);
+  const [draggedArtworkImageId, setDraggedArtworkImageId] = useState(null);
+  const artworkImagesOrderRef = useRef([]);
 
   // About section state
   const [siteText, setSiteText] = useState({ bio: '', artist_statement: '' });
@@ -601,7 +603,41 @@ export default function AdminPage() {
     if (!artworkId) return;
     const res = await fetch(`/api/artworks/${artworkId}/images`);
     const data = await res.json();
-    setArtworkImages(Array.isArray(data) ? data : []);
+    const images = Array.isArray(data) ? data : [];
+    artworkImagesOrderRef.current = images;
+    setArtworkImages(images);
+  }
+
+  function moveArtworkImage(targetId) {
+    const draggedId = draggedArtworkImageId;
+    if (!draggedId || String(draggedId) === String(targetId)) return;
+    const current = artworkImagesOrderRef.current;
+    const fromIndex = current.findIndex(image => String(image.id) === String(draggedId));
+    const toIndex = current.findIndex(image => String(image.id) === String(targetId));
+    if (fromIndex < 0 || toIndex < 0) return;
+    const next = [...current];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    artworkImagesOrderRef.current = next;
+    setArtworkImages(next);
+  }
+
+  async function saveArtworkImageOrder() {
+    if (!editingId || !draggedArtworkImageId) return;
+    setDraggedArtworkImageId(null);
+    setArtMsg('Saving photo order…');
+    const response = await fetch(`/api/artworks/${editingId}/images`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ image_ids: artworkImagesOrderRef.current.map(image => image.id) }),
+    });
+    if (response.ok) {
+      setArtMsg('✓ Photo order saved!');
+    } else {
+      const error = await response.json().catch(() => ({}));
+      setArtMsg(`Error: ${error.error || 'Could not save photo order.'}`);
+      await fetchArtworkImages(editingId);
+    }
   }
 
   async function addArtworkImage(file) {
@@ -1016,11 +1052,27 @@ export default function AdminPage() {
                       Additional Photos
                     </h3>
                     <p className="text-xs text-neutral-400 mb-6">
-                      Process shots, detail views, different angles — visitors can click through all images on the artwork page.
+                      Process shots, detail views, different angles — drag photos left or right to change their order.
                     </p>
                     <div className="flex gap-3 flex-wrap items-start">
                       {artworkImages.map(img => (
-                        <div key={img.id} className="relative group/img">
+                        <div
+                          key={img.id}
+                          data-artwork-image-id={img.id}
+                          onPointerDown={event => {
+                            if (event.target.closest('button')) return;
+                            event.currentTarget.setPointerCapture(event.pointerId);
+                            setDraggedArtworkImageId(img.id);
+                          }}
+                          onPointerMove={event => {
+                            if (!draggedArtworkImageId) return;
+                            const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-artwork-image-id]');
+                            if (target) moveArtworkImage(target.dataset.artworkImageId);
+                          }}
+                          onPointerUp={saveArtworkImageOrder}
+                          onPointerCancel={() => setDraggedArtworkImageId(null)}
+                          className={`relative group/img touch-pan-y select-none cursor-grab active:cursor-grabbing transition duration-150 ${String(draggedArtworkImageId) === String(img.id) ? 'z-10 scale-105 opacity-75 ring-2 ring-[#075f8f] shadow-lg' : ''}`}
+                        >
                           <img src={img.image_url} alt="extra" className="w-24 h-24 object-cover" />
                           <button
                             type="button"
