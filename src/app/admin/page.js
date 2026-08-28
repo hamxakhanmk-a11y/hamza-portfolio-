@@ -1046,7 +1046,8 @@ export default function AdminPage() {
                           <button
                             type="button"
                             onClick={() => deleteArtworkImage(img.id)}
-                            className="absolute top-1 right-1 bg-neutral-900/80 text-white text-[10px] w-5 h-5 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
+                            aria-label="Remove additional photo"
+                            className="absolute top-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-neutral-900/85 text-sm text-white shadow-md transition-colors hover:bg-red-600"
                           >
                             ✕
                           </button>
@@ -1294,7 +1295,8 @@ export default function AdminPage() {
                           <button
                             type="button"
                             onClick={() => deleteShowImage(img.id)}
-                            className="absolute top-1 right-1 bg-neutral-900/80 text-white text-[10px] w-5 h-5 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
+                            aria-label="Remove show photo"
+                            className="absolute top-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-neutral-900/85 text-sm text-white shadow-md transition-colors hover:bg-red-600"
                           >
                             ✕
                           </button>
@@ -1463,7 +1465,8 @@ export default function AdminPage() {
                     </button>
                     <button
                       onClick={() => deleteAboutImage(img.id)}
-                      className="absolute top-1 right-1 bg-neutral-900/80 text-white text-[10px] w-6 h-6 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
+                      aria-label="Remove about photo"
+                      className="absolute top-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-neutral-900/85 text-sm text-white shadow-md transition-colors hover:bg-red-600"
                     >
                       ✕
                     </button>
