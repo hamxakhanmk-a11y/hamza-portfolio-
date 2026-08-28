@@ -33,11 +33,6 @@ export default function SiteMotion() {
         });
 
         mediaQuery.add('(prefers-reduced-motion: no-preference)', () => {
-          const page = document.querySelector('main');
-          if (page) {
-            gsap.fromTo(page, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.55, ease: 'power2.out' });
-          }
-
           const headings = gsap.utils.toArray('main h1, main h2').filter((heading) => !heading.closest('.intro-shell'));
           headings.forEach((heading) => {
             gsap.fromTo(heading,
@@ -122,7 +117,6 @@ export default function SiteMotion() {
             }
           });
 
-          requestAnimationFrame(() => ScrollTrigger.refresh());
         });
       }, document.body);
     }

@@ -149,7 +149,7 @@ export default function AdminPage() {
   // About section state
   const [siteText, setSiteText] = useState({ bio: '', artist_statement: '' });
   const [aboutImages, setAboutImages] = useState([]);
-  const [addingAboutImage, setAddingAboutImage] = useState(false);
+  const [addingAboutImage, setAddingAboutImage] = useState('');
   const [aboutMsg, setAboutMsg] = useState('');
   const [savingText, setSavingText] = useState('');
 
@@ -371,15 +371,15 @@ export default function AdminPage() {
     setSavingText('');
   }
 
-  async function addAboutImage(file) {
-    setAddingAboutImage(true);
+  async function addAboutImage(file, section) {
+    setAddingAboutImage(section);
     setAboutMsg('Uploading photo…');
     try {
       const url = await uploadImage(file, token);
       const res = await fetch('/api/about-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ image_url: url }),
+        body: JSON.stringify({ image_url: url, section }),
       });
       if (res.ok) {
         setAboutMsg('✓ Photo added!');
@@ -391,7 +391,7 @@ export default function AdminPage() {
     } catch (err) {
       setAboutMsg(`Error: ${err.message}`);
     }
-    setAddingAboutImage(false);
+    setAddingAboutImage('');
   }
 
   async function deleteAboutImage(id) {
@@ -1484,16 +1484,17 @@ export default function AdminPage() {
               />
             </section>
 
-            {/* About Photos */}
-            <section className="border border-neutral-200 bg-white p-4 sm:p-8">
-              <h3 className="text-lg font-light mb-1" style={{ fontFamily: 'var(--font-cormorant)' }}>About Photos</h3>
-              <p className="text-xs text-neutral-400 mb-6">
-                Photos of you, your studio, or your process — shown on the About page.
-              </p>
-              <div className="flex gap-4 flex-wrap items-start">
-                {aboutImages.map(img => (
+            {[
+              { key: 'bio', title: 'Bio Photos', description: 'These photos appear only when visitors select Bio.' },
+              { key: 'statement', title: 'Artist Statement Photos', description: 'These photos appear only when visitors select Artist Statement.' },
+            ].map(photoSection => (
+              <section key={photoSection.key} className="border border-neutral-200 bg-white p-4 sm:p-8">
+                <h3 className="text-lg font-light mb-1" style={{ fontFamily: 'var(--font-cormorant)' }}>{photoSection.title}</h3>
+                <p className="text-xs text-neutral-400 mb-6">{photoSection.description}</p>
+                <div className="flex gap-4 flex-wrap items-start">
+                  {aboutImages.filter(img => (img.section || 'bio') === photoSection.key).map(img => (
                   <div key={img.id} className="relative group/img">
-                    <img src={img.image_url} alt="about" className="w-32 h-32 object-cover" />
+                    <img src={img.image_url} alt={photoSection.title} className="w-32 h-32 object-cover" />
                     <button
                       type="button"
                       onClick={() => adjustStoredImage({
@@ -1523,25 +1524,30 @@ export default function AdminPage() {
                       ✕
                     </button>
                   </div>
-                ))}
-                <label className={`w-32 h-32 border-2 border-dashed border-neutral-300 flex flex-col items-center justify-center cursor-pointer hover:border-neutral-500 transition-colors ${addingAboutImage ? 'opacity-40 pointer-events-none' : ''}`}>
-                  <span className="text-3xl text-neutral-400 leading-none">+</span>
-                  <span className="text-[10px] text-neutral-400 mt-2 tracking-wider">
-                    {addingAboutImage ? 'Uploading…' : 'Add Photo'}
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={e => {
-                      const f = e.target.files[0];
-                      if (f) chooseImage(f, { aspect: 4 / 5, onComplete: addAboutImage });
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-              </div>
-            </section>
+                  ))}
+                  <label className={`w-32 h-32 border-2 border-dashed border-neutral-300 flex flex-col items-center justify-center cursor-pointer hover:border-neutral-500 transition-colors ${addingAboutImage === photoSection.key ? 'opacity-40 pointer-events-none' : ''}`}>
+                    <span className="text-3xl text-neutral-400 leading-none">+</span>
+                    <span className="text-[10px] text-neutral-400 mt-2 tracking-wider">
+                      {addingAboutImage === photoSection.key ? 'Uploading…' : 'Add Photo'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const f = e.target.files[0];
+                        if (f) chooseImage(f, {
+                          aspect: 4 / 5,
+                          allowAspect: true,
+                          onComplete: edited => addAboutImage(edited, photoSection.key),
+                        });
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
+              </section>
+            ))}
           </div>
         )}
 

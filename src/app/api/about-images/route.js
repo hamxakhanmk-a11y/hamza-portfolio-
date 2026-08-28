@@ -22,10 +22,11 @@ export async function GET() {
 
 export async function POST(req) {
   if (!isAuthorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { image_url } = await req.json();
+  const { image_url, section = 'bio' } = await req.json();
+  const targetSection = section === 'statement' ? 'statement' : 'bio';
   const { data, error } = await supabaseAdmin
     .from('about_images')
-    .insert({ image_url, sort_order: 0 })
+    .insert({ image_url, section: targetSection, sort_order: 0 })
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

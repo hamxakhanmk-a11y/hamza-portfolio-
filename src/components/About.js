@@ -24,14 +24,16 @@ async function getAboutData() {
       images = [{ id: 'legacy', image_url: legacyHero.data.image_url }];
     }
 
-    return { text, images };
+    const bioImages = images.filter(image => !image.section || image.section === 'bio');
+    const statementImages = images.filter(image => image.section === 'statement');
+    return { text, bioImages, statementImages };
   } catch {
-    return { text: {}, images: [] };
+    return { text: {}, bioImages: [], statementImages: [] };
   }
 }
 
 export default async function About() {
-  const { text, images } = await getAboutData();
+  const { text, bioImages, statementImages } = await getAboutData();
   const bio = text.bio || siteConfig.bio;
   const statement = text.artist_statement || '';
 
@@ -53,46 +55,13 @@ export default async function About() {
           <div className="w-8 h-px bg-neutral-300 mx-auto mt-6" />
         </div>
 
-        {/* Content grid */}
-        <div className="grid items-start gap-10 md:grid-cols-2 md:gap-14">
-
-          {/* Images */}
-          <div className="flex flex-col gap-6">
-            {images.length === 0 ? (
-              <div className="aspect-[3/4] bg-neutral-200 flex items-end p-6">
-                <p className="text-neutral-400 text-xs tracking-widest uppercase">
-                  Upload photos in Admin → About
-                </p>
-              </div>
-            ) : (
-              images.map((img, i) => (
-                <div
-                  key={img.id}
-                  className={i === 0 ? '' : 'md:ml-10'}
-                >
-                  <img
-                    src={img.image_url}
-                    alt={`${siteConfig.artistName} ${i + 1}`}
-                    className="living-image w-full h-auto block shadow-[0_6px_28px_rgba(0,0,0,0.10)]"
-                  />
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Tabs — Bio / Artist Statement */}
-          <div className="lg:sticky lg:top-28">
-            <AboutTabs bio={bio} statement={statement} />
-
-            <a
-              href="/contact"
-              className="mt-10 inline-block text-xs tracking-[0.2em] uppercase border-b pb-0.5 transition-colors hover:opacity-50"
-              style={{ color: 'var(--color-ocean)', borderColor: 'var(--color-water)' }}
-            >
-              Get in Touch
-            </a>
-          </div>
-        </div>
+        <AboutTabs
+          bio={bio}
+          statement={statement}
+          bioImages={bioImages}
+          statementImages={statementImages}
+          artistName={siteConfig.artistName}
+        />
       </div>
     </section>
   );
