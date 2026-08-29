@@ -2,22 +2,31 @@
 
 import Link from 'next/link';
 import { useLayoutEffect, useRef } from 'react';
-import { siteConfig } from '@/data/config';
+import styles from './IntroExperience.module.css';
+
+const studioLinks = [
+  { label: 'Portfolio', href: '/portfolio' },
+  { label: 'Commissions', href: '/commissions' },
+  { label: 'Shows', href: '/shows' },
+  { label: 'About', href: '/about' },
+  { label: 'Contact', href: '/contact' },
+];
 
 export default function IntroExperience({ heroImage, animatedImage, settings }) {
   const rootRef = useRef(null);
-  const mediaRef = useRef(null);
-  const animatedIsVideo = /\.(mp4|webm)(?:\?|$)/i.test(animatedImage || '');
-  const mediaStyle = {
-    objectPosition: `${settings?.x ?? 50}% ${settings?.y ?? 50}%`,
-    transform: `scale(${settings?.zoom ?? 1})`,
-  };
+  const deviceRef = useRef(null);
+  const artworkRef = useRef(null);
+  const titleRef = useRef(null);
+  const featuredMedia = animatedImage || heroImage;
+  const featuredIsVideo = /\.(mp4|webm)(?:\?|$)/i.test(featuredMedia || '');
+  const mediaPosition = `${settings?.x ?? 50}% ${settings?.y ?? 50}%`;
+  const mediaZoom = Math.max(1, Number(settings?.zoom || 1));
 
   useLayoutEffect(() => {
     let context;
     let cancelled = false;
 
-    async function createScrollStory() {
+    async function animateHero() {
       const [{ gsap }, scrollTriggerModule] = await Promise.all([
         import('gsap'),
         import('gsap/ScrollTrigger'),
@@ -28,54 +37,41 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
       gsap.registerPlugin(ScrollTrigger);
 
       context = gsap.context(() => {
-        const scenes = gsap.utils.toArray('.intro-scene');
-        gsap.set(scenes, { autoAlpha: 0, scale: .985, yPercent: 2 });
-        gsap.set(scenes[0], { autoAlpha: 1, scale: 1, yPercent: 0 });
-
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-        gsap.to(mediaRef.current, {
-          scale: 1.045,
-          duration: 7,
+        const entrance = gsap.timeline({ defaults: { ease: 'power3.out' } });
+        entrance
+          .fromTo(deviceRef.current, { autoAlpha: 0, y: 50, scale: 0.965 }, { autoAlpha: 1, y: 0, scale: 1, duration: 1.1 })
+          .fromTo(`.${styles.utility}`, { autoAlpha: 0, y: -12 }, { autoAlpha: 1, y: 0, duration: 0.55 }, 0.25)
+          .fromTo(`.${styles.screenNav} a`, { autoAlpha: 0, y: -10 }, { autoAlpha: 1, y: 0, stagger: 0.07, duration: 0.45 }, 0.32)
+          .fromTo(artworkRef.current, { autoAlpha: 0, y: 45, rotate: -2, scale: 0.9 }, { autoAlpha: 1, y: 0, rotate: 0, scale: 1, duration: 1.15 }, 0.4)
+          .fromTo(`.${styles.caption}`, { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, stagger: 0.12, duration: 0.55 }, 0.7)
+          .fromTo(titleRef.current, { autoAlpha: 0, yPercent: 40 }, { autoAlpha: 1, yPercent: 0, duration: 0.85 }, 0.55);
+
+        gsap.to(`.${styles.artworkMedia}`, {
+          y: -10,
+          rotate: 0.6,
+          duration: 4.8,
           repeat: -1,
           yoyo: true,
           ease: 'sine.inOut',
         });
 
-        const timeline = gsap.timeline({
-          defaults: { ease: 'none' },
+        gsap.timeline({
           scrollTrigger: {
             trigger: rootRef.current,
             start: 'top top',
-            end: '+=300%',
-            pin: true,
-            scrub: 0.65,
-            anticipatePin: 1,
-            invalidateOnRefresh: true,
+            end: 'bottom top',
+            scrub: 0.8,
           },
-        });
-
-        scenes.forEach((scene, index) => {
-          if (index === 0) {
-            timeline.to(scene, { autoAlpha: 0, scale: 1.025, yPercent: -2, duration: 0.45 }, 0.55);
-            return;
-          }
-          const position = index * 1.15;
-          timeline
-            .fromTo(scene,
-              { autoAlpha: 0, scale: 1.025, yPercent: 2 },
-              { autoAlpha: 1, scale: 1, yPercent: 0, duration: 0.45 },
-              position,
-            )
-            .to(scene,
-              { autoAlpha: index === scenes.length - 1 ? 1 : 0, scale: 1.02, yPercent: index === scenes.length - 1 ? 0 : -2, duration: 0.45 },
-              position + 0.7,
-            );
-        });
+        })
+          .to(artworkRef.current, { yPercent: 12, scale: 1.035, ease: 'none' }, 0)
+          .to(titleRef.current, { yPercent: -16, letterSpacing: '0.015em', ease: 'none' }, 0)
+          .to(deviceRef.current, { y: 35, scale: 0.985, ease: 'none' }, 0);
       }, rootRef);
     }
 
-    createScrollStory();
+    animateHero();
     return () => {
       cancelled = true;
       context?.revert();
@@ -83,56 +79,64 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
   }, []);
 
   return (
-    <section ref={rootRef} className="intro-shell intro-embedded" aria-label="Featured artwork introduction">
-      <div ref={mediaRef} className="intro-media" aria-hidden="true">
-        {animatedImage && animatedIsVideo ? (
-          <video src={animatedImage} muted loop autoPlay playsInline preload="auto" style={mediaStyle} />
-        ) : animatedImage ? (
-          <img src={animatedImage} alt="" style={mediaStyle} />
-        ) : heroImage ? (
-          <img src={heroImage} alt="" />
-        ) : null}
-        <div className="intro-media-shade" />
+    <section ref={rootRef} className={styles.hero} aria-label="Featured artwork">
+      <div className={styles.backdrop} aria-hidden="true">
+        {heroImage && <img src={heroImage} alt="" />}
       </div>
 
-      <div className="intro-canvas">
-        <div className="intro-scene">
-          <div className="intro-type-scene">
-            <p className="intro-eyebrow">Original Artworks</p>
-            <div className="intro-letter-line" aria-label={siteConfig.artistName}>
-              {siteConfig.artistName.split('').map((letter, index) => (
-                <span key={`${letter}-${index}`} style={{ animationDelay: `${index * 70}ms` }}>{letter === ' ' ? '\u00a0' : letter}</span>
+      <div className={styles.glow} aria-hidden="true" />
+
+      <div ref={deviceRef} className={styles.device}>
+        <div className={styles.frame}>
+          <div className={styles.camera} aria-hidden="true" />
+          <div className={styles.screen}>
+            <p className={styles.utility}>Original art · Painted by hand · Created in Pakistan</p>
+
+            <nav className={styles.screenNav} aria-label="Studio navigation">
+              {studioLinks.map(link => (
+                <Link key={link.href} href={link.href}>{link.label}</Link>
               ))}
+            </nav>
+
+            <div className={styles.gridLines} aria-hidden="true" />
+
+            <div ref={artworkRef} className={styles.artwork}>
+              <div className={styles.artworkShadow} aria-hidden="true" />
+              <div className={styles.artworkMedia} style={{ '--media-zoom': mediaZoom }}>
+                {featuredMedia && featuredIsVideo ? (
+                  <video
+                    src={featuredMedia}
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                    preload="auto"
+                    style={{ objectPosition: mediaPosition }}
+                  />
+                ) : featuredMedia ? (
+                  <img src={featuredMedia} alt="Featured artwork by Hamza Khan" style={{ objectPosition: mediaPosition }} />
+                ) : (
+                  <div className={styles.artworkPlaceholder}>Upload your homepage artwork in Admin</div>
+                )}
+              </div>
             </div>
+
+            <p className={`${styles.caption} ${styles.captionLeft}`}>Contemporary miniature<br />rooted in tradition</p>
+            <p className={`${styles.caption} ${styles.captionCenter}`}>Painted with<br />intention</p>
+            <Link href="/portfolio" className={`${styles.caption} ${styles.captionRight}`}>
+              Explore the<br />collection →
+            </Link>
+
+            <h1 ref={titleRef} className={styles.wordmark}>HAMZA ART</h1>
           </div>
         </div>
-
-        <div className="intro-scene">
-          <div className="intro-art-scene">
-            <div className="intro-art-copy">
-              <p>Painted with intention</p>
-              <h2>Where imagination flows</h2>
-            </div>
-          </div>
-        </div>
-
-        <div className="intro-scene">
-          <div className="intro-collection-scene">
-            <p className="intro-eyebrow">Explore the Studio</p>
-            <div className="intro-collection-words">
-              <span>Portfolio</span><span>Commissions</span><span>Shows</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="intro-scene">
-          <Link href="/portfolio" className="intro-enter-scene">
-            <span>Enter the</span>
-            <strong>Collection</strong>
-            <i>→</i>
-          </Link>
-        </div>
+        <div className={styles.base} aria-hidden="true"><span /></div>
       </div>
+
+      <a href="#gallery" className={styles.scrollCue}>
+        <span>Scroll to discover</span>
+        <i>↓</i>
+      </a>
     </section>
   );
 }
