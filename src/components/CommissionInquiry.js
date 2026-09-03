@@ -23,11 +23,11 @@ export default async function CommissionInquiry({ compact = false }) {
     ? instagramValue
     : `https://www.instagram.com/${String(instagramValue).replace(/^@/, '')}/`;
   return (
-    <section className={`commission-inquiry ${compact ? 'commission-inquiry-home' : ''}`}>
+    <section data-scroll-scene={compact ? 'commission' : undefined} className={`commission-inquiry ${compact ? 'commission-inquiry-home home-commission-scene' : ''}`}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="overflow-hidden border border-[#075f8f]/20 bg-[#fffaf2] shadow-[0_24px_70px_rgba(6,58,91,.12)]">
+        <div data-commission-card className="overflow-hidden border border-[#075f8f]/20 bg-[#fffaf2] shadow-[0_24px_70px_rgba(6,58,91,.12)]">
           <div className="grid lg:grid-cols-[1.22fr_.78fr]">
-            <div className="border-b border-[#075f8f]/20 p-6 sm:p-10 lg:border-b-0 lg:border-r lg:p-14">
+            <div data-commission-copy className="border-b border-[#075f8f]/20 p-6 sm:p-10 lg:border-b-0 lg:border-r lg:p-14">
               <p className="mb-3 text-xs uppercase tracking-[0.32em] text-[#ed7189]">Made Especially for You</p>
               <h2 className="text-4xl font-light leading-none text-[#063a5b] sm:text-5xl lg:text-6xl" style={{ fontFamily: 'var(--font-cormorant)' }}>
                 Commission a Piece
@@ -44,7 +44,7 @@ export default async function CommissionInquiry({ compact = false }) {
               </div>
             </div>
 
-            <div className="p-6 sm:p-10 lg:p-12">
+            <div data-commission-form className="p-6 sm:p-10 lg:p-12">
               <CommissionForm whatsapp={whatsapp} />
               <div className="mt-8 flex flex-wrap items-center justify-center gap-5 border-t border-[#075f8f]/20 pt-7 text-xs uppercase tracking-[0.16em] text-[#075f8f]">
                 <a href={`mailto:${email}?subject=${encodeURIComponent('Commission inquiry')}`} className="transition hover:text-[#ed7189]">Email →</a>

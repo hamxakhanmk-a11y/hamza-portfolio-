@@ -33,6 +33,7 @@ export default async function Contact() {
   return (
     <footer
       id="contact"
+      data-scroll-scene="contact"
       className="py-20 text-white sm:py-28"
       style={{ background: 'linear-gradient(145deg, var(--color-deep-ocean), var(--color-ocean))' }}
     >
