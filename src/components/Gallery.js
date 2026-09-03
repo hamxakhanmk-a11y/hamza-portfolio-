@@ -22,11 +22,11 @@ export default async function Gallery() {
   const artworks = await getNewestArtworks();
 
   return (
-    <section id="gallery" data-scroll-scene="gallery" className="home-gallery-scene overflow-hidden bg-white py-24 sm:py-28">
+    <section id="gallery" className="py-24 bg-white">
       <div className="max-w-6xl mx-auto px-6">
 
         {/* Section header */}
-        <div data-gallery-heading className="home-gallery-heading mb-16 flex items-end justify-between">
+        <div className="flex items-end justify-between mb-16">
           <div>
             <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: 'var(--color-coral)' }}>
               Latest Work
@@ -47,26 +47,21 @@ export default async function Gallery() {
           </Link>
         </div>
 
-        <div className="home-gallery-rule" aria-hidden="true"><span /></div>
-
         {artworks.length === 0 ? (
           <p className="text-center text-neutral-300 text-sm tracking-widest uppercase py-16">
             Artworks coming soon
           </p>
         ) : (
-          <div data-gallery-grid className="grid grid-cols-1 gap-10 sm:grid-cols-2 sm:gap-8 lg:grid-cols-4">
-            {artworks.map((artwork, index) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {artworks.map(artwork => (
               <Link
                 key={artwork.id}
                 href={`/portfolio/${artwork.id}`}
-                data-gallery-card
-                className="home-gallery-card group flex h-full flex-col"
+                className="group flex h-full flex-col"
               >
-                <span className="home-gallery-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
                 {/* Image */}
-                <div data-gallery-frame className="home-gallery-art relative mx-auto mt-auto w-fit max-w-full transition-transform duration-500 group-hover:-translate-y-1">
+                <div className="relative w-fit max-w-full mx-auto mt-auto transition-transform duration-500 group-hover:-translate-y-1">
                   <img
-                    data-gallery-image
                     src={artwork.image_url}
                     alt={artwork.title}
                     className="living-image max-w-full w-auto h-auto max-h-[420px] block"
@@ -85,7 +80,7 @@ export default async function Gallery() {
                 </div>
 
                 {/* Info */}
-                <div className="mt-4 min-h-6 border-t border-[#075f8f]/15 px-0.5 pt-3">
+                <div className="mt-3 px-0.5 min-h-6">
                   <h3 className="text-sm text-neutral-700 font-light line-clamp-1">{artwork.title}</h3>
                 </div>
               </Link>
