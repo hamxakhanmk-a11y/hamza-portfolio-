@@ -21,10 +21,21 @@ export default function Navbar() {
   const overlayHero = pathname === '/' && !scrolled && !open;
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10);
+    const onScroll = () => {
+      if (pathname !== '/') {
+        setScrolled(window.scrollY > 10);
+        return;
+      }
+
+      const gallery = document.getElementById('gallery');
+      const navHeight = 132;
+      setScrolled(Boolean(gallery && gallery.getBoundingClientRect().top <= navHeight));
+    };
+
+    onScroll();
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [pathname]);
 
   return (
     <header
