@@ -1,7 +1,6 @@
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import "./globals.css";
 import SiteMotion from "@/components/SiteMotion";
-import PageWaterTransition from "@/components/PageWaterTransition";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -24,7 +23,6 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${cormorant.variable} ${dmSans.variable}`}>
       <body className="bg-white text-neutral-900 antialiased">
         <SiteMotion />
-        <PageWaterTransition />
         {children}
       </body>
     </html>

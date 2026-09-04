@@ -223,101 +223,6 @@ body {
   will-change: transform;
 }
 
-/* Blue liquid page change for the main site navigation. */
-.page-water-transition {
-  position: fixed;
-  z-index: 70;
-  inset: 0;
-  overflow: hidden;
-  visibility: hidden;
-  pointer-events: none;
-  clip-path: circle(0% at 0 50%);
-  background:
-    radial-gradient(ellipse at 24% 48%, rgba(130, 213, 239, .96), transparent 34%),
-    radial-gradient(ellipse at 72% 35%, rgba(27, 125, 190, .92), transparent 42%),
-    linear-gradient(118deg, #052d4c 0%, #075a89 42%, #138dad 72%, #052f54 100%);
-}
-
-.page-water-transition--cover,
-.page-water-transition--reveal {
-  visibility: visible;
-}
-
-.page-water-transition--cover {
-  animation: page-water-cover .42s cubic-bezier(.68, 0, .22, 1) forwards;
-}
-
-.page-water-transition--reveal {
-  animation: page-water-reveal .62s cubic-bezier(.55, 0, .2, 1) forwards;
-}
-
-.page-water-transition__depth,
-.page-water-transition__flow,
-.page-water-transition__glow {
-  position: absolute;
-  inset: -25%;
-  display: block;
-}
-
-.page-water-transition__depth {
-  background:
-    repeating-radial-gradient(ellipse at 38% 50%, transparent 0 6%, rgba(222, 248, 255, .15) 6.5% 7.2%, transparent 8% 12%);
-  opacity: .4;
-  mix-blend-mode: screen;
-  animation: page-water-ripples 3.8s ease-in-out infinite alternate;
-}
-
-.page-water-transition__flow {
-  inset: -18% -34%;
-  width: 168%;
-  background: linear-gradient(102deg, transparent 7%, rgba(173, 232, 247, .18) 22%, rgba(37, 155, 205, .75) 39%, rgba(92, 198, 229, .9) 51%, rgba(6, 83, 141, .78) 66%, transparent 91%);
-  filter: blur(16px);
-  transform: rotate(-7deg) translateX(-18%);
-  mix-blend-mode: screen;
-}
-
-.page-water-transition__flow--one { animation: page-water-flow-one 1.55s ease-in-out infinite alternate; }
-.page-water-transition__flow--two { opacity: .72; animation: page-water-flow-two 2.1s ease-in-out infinite alternate; }
-
-.page-water-transition__glow {
-  inset: -35%;
-  background: radial-gradient(ellipse at center, rgba(221, 250, 255, .43), transparent 46%);
-  filter: blur(22px);
-  animation: page-water-glow 1.7s ease-in-out infinite alternate;
-}
-
-@keyframes page-water-cover {
-  from { clip-path: circle(0% at 0 50%); }
-  58% { clip-path: circle(106% at 18% 50%); }
-  to { clip-path: circle(152% at 50% 50%); }
-}
-
-@keyframes page-water-reveal {
-  from { clip-path: circle(152% at 50% 50%); }
-  48% { clip-path: circle(108% at 100% 50%); }
-  to { clip-path: circle(0% at 100% 50%); }
-}
-
-@keyframes page-water-flow-one {
-  from { transform: rotate(-7deg) translateX(-23%) translateY(-3%); }
-  to { transform: rotate(-7deg) translateX(17%) translateY(4%); }
-}
-
-@keyframes page-water-flow-two {
-  from { transform: rotate(8deg) translateX(14%) translateY(-5%); }
-  to { transform: rotate(8deg) translateX(-18%) translateY(6%); }
-}
-
-@keyframes page-water-ripples {
-  from { transform: scale(.92) rotate(-3deg); }
-  to { transform: scale(1.08) rotate(4deg); }
-}
-
-@keyframes page-water-glow {
-  from { transform: translate3d(-7%, -2%, 0) scale(.88); opacity: .46; }
-  to { transform: translate3d(9%, 3%, 0) scale(1.1); opacity: .9; }
-}
-
 .editorial-art-frame {
   display: flex;
   width: 100%;
@@ -363,5 +268,4 @@ body {
   .intro-letter-line span { opacity: 1; transform: none; }
   .living-image { animation: none; }
   .artwork-inside-motion { animation: none; }
-  .page-water-transition { display: none; }
 }
