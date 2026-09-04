@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 
 import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
-import Navbar from '@/components/Navbar';
 import ArtworkEditorialView from '@/components/ArtworkEditorialView';
 import { siteConfig } from '@/data/config';
 
@@ -69,7 +68,6 @@ export default async function ArtworkDetailPage(props) {
 
   return (
     <>
-      <Navbar />
       <ArtworkEditorialView artwork={artwork} images={allImages} whatsappNumber={whatsappNumber} />
     </>
   );

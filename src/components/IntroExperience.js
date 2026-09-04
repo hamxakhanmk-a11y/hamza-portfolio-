@@ -47,11 +47,8 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
           scrollTrigger: {
             trigger: rootRef.current,
             start: 'top top',
-            end: '+=300%',
-            pin: true,
+            end: 'bottom bottom',
             scrub: 0.65,
-            anticipatePin: 1,
-            invalidateOnRefresh: true,
           },
         });
 
@@ -84,53 +81,55 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
 
   return (
     <section ref={rootRef} className="intro-shell intro-embedded" aria-label="Featured artwork introduction">
-      <div ref={mediaRef} className="intro-media" aria-hidden="true">
-        {animatedImage && animatedIsVideo ? (
-          <video src={animatedImage} muted loop autoPlay playsInline preload="auto" style={mediaStyle} />
-        ) : animatedImage ? (
-          <img src={animatedImage} alt="" style={mediaStyle} />
-        ) : heroImage ? (
-          <img src={heroImage} alt="" />
-        ) : null}
-        <div className="intro-media-shade" />
-      </div>
-
-      <div className="intro-canvas">
-        <div className="intro-scene">
-          <div className="intro-type-scene">
-            <p className="intro-eyebrow">Original Artworks</p>
-            <div className="intro-letter-line" aria-label={siteConfig.artistName}>
-              {siteConfig.artistName.split('').map((letter, index) => (
-                <span key={`${letter}-${index}`} style={{ animationDelay: `${index * 70}ms` }}>{letter === ' ' ? '\u00a0' : letter}</span>
-              ))}
-            </div>
-          </div>
+      <div className="intro-sticky">
+        <div ref={mediaRef} className="intro-media" aria-hidden="true">
+          {animatedImage && animatedIsVideo ? (
+            <video src={animatedImage} muted loop autoPlay playsInline preload="auto" style={mediaStyle} />
+          ) : animatedImage ? (
+            <img src={animatedImage} alt="" style={mediaStyle} />
+          ) : heroImage ? (
+            <img src={heroImage} alt="" />
+          ) : null}
+          <div className="intro-media-shade" />
         </div>
 
-        <div className="intro-scene">
-          <div className="intro-art-scene">
-            <div className="intro-art-copy">
-              <p>Painted with intention</p>
-              <h2>Where imagination flows</h2>
+        <div className="intro-canvas">
+          <div className="intro-scene">
+            <div className="intro-type-scene">
+              <p className="intro-eyebrow">Original Artworks</p>
+              <div className="intro-letter-line" aria-label={siteConfig.artistName}>
+                {siteConfig.artistName.split('').map((letter, index) => (
+                  <span key={`${letter}-${index}`} style={{ animationDelay: `${index * 70}ms` }}>{letter === ' ' ? '\u00a0' : letter}</span>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="intro-scene">
-          <div className="intro-collection-scene">
-            <p className="intro-eyebrow">Explore the Studio</p>
-            <div className="intro-collection-words">
-              <span>Portfolio</span><span>Commissions</span><span>Shows</span>
+          <div className="intro-scene">
+            <div className="intro-art-scene">
+              <div className="intro-art-copy">
+                <p>Painted with intention</p>
+                <h2>Where imagination flows</h2>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="intro-scene">
-          <Link href="/portfolio" className="intro-enter-scene">
-            <span>Enter the</span>
-            <strong>Collection</strong>
-            <i>→</i>
-          </Link>
+          <div className="intro-scene">
+            <div className="intro-collection-scene">
+              <p className="intro-eyebrow">Explore the Studio</p>
+              <div className="intro-collection-words">
+                <span>Portfolio</span><span>Commissions</span><span>Shows</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="intro-scene">
+            <Link href="/portfolio" className="intro-enter-scene">
+              <span>Enter the</span>
+              <strong>Collection</strong>
+              <i>→</i>
+            </Link>
+          </div>
         </div>
       </div>
     </section>

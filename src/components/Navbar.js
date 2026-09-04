@@ -24,7 +24,6 @@ export default function Navbar() {
   const router = useRouter();
   const desktopNavRef = useRef(null);
   const mobileNavRef = useRef(null);
-  const navigationTimer = useRef(null);
   const flowTimer = useRef(null);
   const overlayHero = pathname === '/' && !scrolled && !open;
   const currentHref = pendingHref || links.find(({ href }) => (
@@ -87,7 +86,6 @@ export default function Navbar() {
   }, [currentHref, open]);
 
   useEffect(() => () => {
-    window.clearTimeout(navigationTimer.current);
     window.clearTimeout(flowTimer.current);
   }, []);
 
@@ -96,7 +94,6 @@ export default function Navbar() {
     event.preventDefault();
     if (href === currentHref && !pendingHref) return;
 
-    window.clearTimeout(navigationTimer.current);
     window.clearTimeout(flowTimer.current);
     setPendingHref(href);
     setFlowing(false);
@@ -106,18 +103,17 @@ export default function Navbar() {
       flowTimer.current = window.setTimeout(() => setFlowing(false), 1120);
     });
 
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    navigationTimer.current = window.setTimeout(() => {
-      router.push(href);
-    }, reducedMotion ? 0 : 760);
+    router.push(href);
   };
+
+  if (pathname.startsWith('/admin')) return null;
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-[background-color,box-shadow,backdrop-filter] duration-500 ${
+      className={`navbar-shell fixed top-0 left-0 right-0 z-50 transition-shadow duration-300 ${
         overlayHero
-          ? 'bg-gradient-to-b from-[#022d47]/70 via-[#022d47]/22 to-transparent text-white'
-          : 'bg-[#fffaf2]/95 text-[#075f8f] backdrop-blur-md'
+          ? 'navbar-shell--hero text-white'
+          : 'navbar-shell--solid text-[#075f8f]'
       } ${
         scrolled || !overlayHero ? 'shadow-sm' : ''
       }`}
@@ -128,7 +124,8 @@ export default function Navbar() {
       }`}>
         <Link
           href="/"
-          className="max-w-[calc(100%-4rem)] truncate text-lg uppercase tracking-[0.18em] sm:text-xl sm:tracking-[0.3em] md:text-2xl"
+          prefetch={true}
+          className="max-w-[calc(100%-4rem)] truncate text-lg uppercase tracking-[0.18em] transition-colors duration-300 sm:text-xl sm:tracking-[0.3em] md:text-2xl"
           style={{ fontFamily: 'var(--font-cormorant)', color: overlayHero ? '#fffaf2' : 'var(--color-ocean)' }}
         >
           {siteConfig.artistName}
@@ -159,6 +156,7 @@ export default function Navbar() {
           <Link
             key={label}
             href={href}
+            prefetch={true}
             onClick={(event) => changePage(event, href)}
             aria-current={currentHref === href ? 'page' : undefined}
             className={`nav-flow-link px-4 py-2 text-xs tracking-[0.25em] uppercase ${currentHref === href ? 'nav-flow-link--active' : ''}`}
@@ -180,6 +178,7 @@ export default function Navbar() {
             <Link
               key={label}
               href={href}
+              prefetch={true}
               onClick={(event) => changePage(event, href)}
               aria-current={currentHref === href ? 'page' : undefined}
               className={`nav-flow-link w-full py-3 text-center text-xs uppercase tracking-[0.25em] ${currentHref === href ? 'nav-flow-link--active' : ''}`}

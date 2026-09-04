@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
 
 async function getShows() {
   try {
@@ -24,7 +23,6 @@ export default async function ShowsPage() {
 
   return (
     <>
-      <Navbar />
       <main className="bg-white min-h-screen">
         <div className="mx-auto max-w-2xl px-4 pb-10 pt-28 text-center sm:px-6 sm:pb-16 sm:pt-36">
           <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: 'var(--color-coral)' }}>Exhibitions</p>

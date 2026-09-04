@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 
 import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
-import Navbar from '@/components/Navbar';
 import ShowEditorialView from '@/components/ShowEditorialView';
 
 async function getShow(id) {
@@ -40,7 +39,6 @@ export default async function ShowDetailPage(props) {
 
   return (
     <>
-      <Navbar />
       <ShowEditorialView show={show} images={images} />
     </>
   );
