@@ -53,6 +53,7 @@ export default function Navbar() {
       }`}>
         <Link
           href="/"
+          data-page-transition
           className="max-w-[calc(100%-4rem)] truncate text-lg uppercase tracking-[0.18em] sm:text-xl sm:tracking-[0.3em] md:text-2xl"
           style={{ fontFamily: 'var(--font-cormorant)', color: overlayHero ? '#fffaf2' : 'var(--color-ocean)' }}
         >
@@ -80,6 +81,7 @@ export default function Navbar() {
           <a
             key={label}
             href={href}
+            data-page-transition
             className="text-xs tracking-[0.25em] uppercase transition-colors hover:opacity-60"
             style={{ color: overlayHero ? '#fffaf2' : 'var(--color-ocean)' }}
           >
@@ -95,6 +97,7 @@ export default function Navbar() {
             <a
               key={label}
               href={href}
+              data-page-transition
               onClick={() => setOpen(false)}
               className="w-full py-3 text-center text-xs uppercase tracking-[0.25em]"
               style={{ color: 'var(--color-ocean)' }}
