@@ -223,6 +223,96 @@ body {
   will-change: transform;
 }
 
+/* Shared liquid selector adapted from the Supreme Art Tracker tabs. */
+.nav-flow-tabs {
+  position: relative;
+  isolation: isolate;
+}
+
+.nav-flow-indicator {
+  position: absolute;
+  z-index: 0;
+  top: .35rem;
+  bottom: .35rem;
+  left: 0;
+  width: var(--nav-flow-w, 0px);
+  border-radius: 999px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(var(--nav-flow-x, 0px), 0, 0);
+  background: linear-gradient(112deg, #063a5b 0%, #0879aa 38%, #1a9fc5 66%, #07547f 100%);
+  box-shadow: 0 5px 18px rgba(6, 79, 119, .28);
+}
+
+.nav-flow-tabs--ready .nav-flow-indicator {
+  opacity: 1;
+  transition:
+    transform 1.08s cubic-bezier(.16, 1, .3, 1),
+    width .96s cubic-bezier(.16, 1, .3, 1),
+    height .96s cubic-bezier(.16, 1, .3, 1),
+    opacity .24s ease;
+}
+
+.nav-flow-indicator::before {
+  content: "";
+  position: absolute;
+  inset: -55% -45%;
+  border-radius: inherit;
+  background: linear-gradient(100deg, transparent 6%, rgba(147, 197, 253, .25) 24%, rgba(56, 189, 248, .72) 46%, rgba(186, 230, 253, .56) 62%, rgba(14, 116, 144, .3) 78%, transparent 94%);
+  filter: blur(5px);
+  animation: nav-water-shimmer 3.6s ease-in-out infinite;
+}
+
+.nav-flow-indicator::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 2px -8px;
+  border-radius: inherit;
+  background: rgba(56, 189, 248, .22);
+  filter: blur(8px);
+  opacity: .72;
+}
+
+.nav-flow-tabs.is-flowing > .nav-flow-indicator {
+  animation: nav-liquid-tab-morph 1.12s cubic-bezier(.16, 1, .3, 1);
+}
+
+.nav-flow-link {
+  position: relative;
+  z-index: 1;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: transform .68s cubic-bezier(.16, 1, .3, 1), color .52s ease, opacity .3s ease;
+}
+
+.nav-flow-link:hover { opacity: .72; }
+.nav-flow-link--active { transform: scale(1.07); opacity: 1; }
+
+.nav-flow-tabs--mobile .nav-flow-indicator {
+  top: 0;
+  bottom: auto;
+  left: .75rem;
+  right: .75rem;
+  width: auto;
+  height: var(--nav-flow-h, 0px);
+  transform: translate3d(0, var(--nav-flow-y, 0px), 0);
+}
+
+@keyframes nav-liquid-tab-morph {
+  0% { border-radius: 999px; filter: saturate(1) blur(0); }
+  38% { border-radius: 44% 66% 58% 42% / 62% 42% 66% 38%; filter: saturate(1.1) blur(.25px); }
+  72% { border-radius: 62% 42% 46% 58% / 44% 64% 40% 60%; filter: saturate(1.05) blur(.12px); }
+  100% { border-radius: 999px; filter: saturate(1) blur(0); }
+}
+
+@keyframes nav-water-shimmer {
+  0% { transform: translate3d(-36%, -2%, 0) rotate(-5deg); }
+  50% { transform: translate3d(18%, 3%, 0) rotate(3deg); }
+  100% { transform: translate3d(42%, -1%, 0) rotate(-2deg); }
+}
+
 .editorial-art-frame {
   display: flex;
   width: 100%;
@@ -268,4 +358,7 @@ body {
   .intro-letter-line span { opacity: 1; transform: none; }
   .living-image { animation: none; }
   .artwork-inside-motion { animation: none; }
+  .nav-flow-indicator,
+  .nav-flow-indicator::before,
+  .nav-flow-link { animation: none !important; transition: none !important; }
 }
