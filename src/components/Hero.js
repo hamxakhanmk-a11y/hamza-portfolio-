@@ -18,6 +18,10 @@ async function getHeroImages() {
         'hero_stage_2_eyebrow', 'hero_stage_2_title',
         'hero_stage_3_eyebrow', 'hero_stage_3_title',
         'hero_stage_4_eyebrow', 'hero_stage_4_title',
+        'hero_stage_1_text_x', 'hero_stage_1_text_y',
+        'hero_stage_2_text_x', 'hero_stage_2_text_y',
+        'hero_stage_3_text_x', 'hero_stage_3_text_y',
+        'hero_stage_4_text_x', 'hero_stage_4_text_y',
       ]),
     ]);
     const images = {};
@@ -50,18 +54,26 @@ export default async function Hero() {
     1: {
       eyebrow: images.hero_stage_1_eyebrow || 'Original Artworks',
       title: images.hero_stage_1_title || siteConfig.artistName,
+      x: Number(images.hero_stage_1_text_x || 50),
+      y: Number(images.hero_stage_1_text_y || 52),
     },
     2: {
       eyebrow: images.hero_stage_2_eyebrow || 'Painted with intention',
       title: images.hero_stage_2_title || 'Where imagination flows',
+      x: Number(images.hero_stage_2_text_x || 76),
+      y: Number(images.hero_stage_2_text_y || 50),
     },
     3: {
       eyebrow: images.hero_stage_3_eyebrow || 'Dhikr through observation',
       title: images.hero_stage_3_title || 'Painting becomes a form of praise',
+      x: Number(images.hero_stage_3_text_x || 50),
+      y: Number(images.hero_stage_3_text_y || 50),
     },
     4: {
       eyebrow: images.hero_stage_4_eyebrow || 'Enter the',
       title: images.hero_stage_4_title || 'Collection',
+      x: Number(images.hero_stage_4_text_x || 50),
+      y: Number(images.hero_stage_4_text_y || 50),
     },
   };
 

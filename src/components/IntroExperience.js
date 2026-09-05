@@ -16,6 +16,10 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   const stage4X = cameraStages?.[4]?.x ?? 50;
   const stage4Y = cameraStages?.[4]?.y ?? 50;
   const stage4Zoom = cameraStages?.[4]?.zoom ?? 1;
+  const textPosition = stage => ({
+    left: `${heroText?.[stage]?.x ?? 50}%`,
+    top: `${heroText?.[stage]?.y ?? 50}%`,
+  });
 
   useLayoutEffect(() => {
     const rootElement = rootRef.current;
@@ -231,7 +235,10 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
       <div className="intro-sticky">
         <div ref={mediaRef} className="intro-media" aria-hidden="true">
           {heroImage ? (
-            <img src={heroImage} alt="" />
+            <>
+              <img className="intro-media-backdrop" src={heroImage} alt="" />
+              <img className="intro-media-artwork" src={heroImage} alt="" />
+            </>
           ) : null}
           <div className="intro-media-shade" />
         </div>
@@ -239,18 +246,20 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
         <div className="intro-canvas">
           <div className="intro-scene">
             <div className="intro-type-scene">
-              <p className="intro-eyebrow">{heroText?.[1]?.eyebrow || 'Original Artworks'}</p>
-              <div className="intro-letter-line" aria-label={heroText?.[1]?.title || siteConfig.artistName}>
-                {(heroText?.[1]?.title || siteConfig.artistName).split('').map((letter, index) => (
-                  <span key={`${letter}-${index}`} style={{ animationDelay: `${index * 70}ms` }}>{letter === ' ' ? '\u00a0' : letter}</span>
-                ))}
+              <div className="intro-positioned-copy" style={textPosition(1)}>
+                <p className="intro-eyebrow">{heroText?.[1]?.eyebrow || 'Original Artworks'}</p>
+                <div className="intro-letter-line" aria-label={heroText?.[1]?.title || siteConfig.artistName}>
+                  {(heroText?.[1]?.title || siteConfig.artistName).split('').map((letter, index) => (
+                    <span key={`${letter}-${index}`} style={{ animationDelay: `${index * 70}ms` }}>{letter === ' ' ? '\u00a0' : letter}</span>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
 
           <div className="intro-scene">
             <div className="intro-art-scene">
-              <div className="intro-art-copy">
+              <div className="intro-art-copy intro-positioned-copy" style={textPosition(2)}>
                 <p>{heroText?.[2]?.eyebrow || 'Painted with intention'}</p>
                 <h2>{heroText?.[2]?.title || 'Where imagination flows'}</h2>
               </div>
@@ -259,18 +268,22 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
 
           <div className="intro-scene">
             <div className="intro-collection-scene">
-              <p className="intro-eyebrow">{heroText?.[3]?.eyebrow || 'Dhikr through observation'}</p>
-              <div className="intro-collection-words intro-stage-statement">
-                <span>{heroText?.[3]?.title || 'Painting becomes a form of praise'}</span>
+              <div className="intro-positioned-copy" style={textPosition(3)}>
+                <p className="intro-eyebrow">{heroText?.[3]?.eyebrow || 'Dhikr through observation'}</p>
+                <div className="intro-collection-words intro-stage-statement">
+                  <span>{heroText?.[3]?.title || 'Painting becomes a form of praise'}</span>
+                </div>
               </div>
             </div>
           </div>
 
           <div className="intro-scene">
             <Link href="/portfolio" className="intro-enter-scene">
-              <span>{heroText?.[4]?.eyebrow || 'Enter the'}</span>
-              <strong>{heroText?.[4]?.title || 'Collection'}</strong>
-              <i>→</i>
+              <div className="intro-positioned-copy" style={textPosition(4)}>
+                <span>{heroText?.[4]?.eyebrow || 'Enter the'}</span>
+                <strong>{heroText?.[4]?.title || 'Collection'}</strong>
+                <i>→</i>
+              </div>
             </Link>
           </div>
         </div>
