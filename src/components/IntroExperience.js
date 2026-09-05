@@ -4,14 +4,15 @@ import Link from 'next/link';
 import { useLayoutEffect, useRef } from 'react';
 import { siteConfig } from '@/data/config';
 
-export default function IntroExperience({ heroImage, animatedImage, settings }) {
+export default function IntroExperience({ heroImage, cameraStages }) {
   const rootRef = useRef(null);
   const mediaRef = useRef(null);
-  const animatedIsVideo = /\.(mp4|webm)(?:\?|$)/i.test(animatedImage || '');
-  const mediaStyle = {
-    objectPosition: `${settings?.x ?? 50}% ${settings?.y ?? 50}%`,
-    transform: `scale(${settings?.zoom ?? 1})`,
-  };
+  const stage2X = cameraStages?.[2]?.x ?? 72;
+  const stage2Y = cameraStages?.[2]?.y ?? 35;
+  const stage2Zoom = cameraStages?.[2]?.zoom ?? 1.32;
+  const stage3X = cameraStages?.[3]?.x ?? 28;
+  const stage3Y = cameraStages?.[3]?.y ?? 48;
+  const stage3Zoom = cameraStages?.[3]?.zoom ?? 1.48;
 
   useLayoutEffect(() => {
     let context;
@@ -29,17 +30,18 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
 
       context = gsap.context(() => {
         const scenes = gsap.utils.toArray('.intro-scene');
-        const compactView = window.matchMedia('(max-width: 700px)').matches;
-        const firstDetail = compactView
-          ? { scale: 1.2, xPercent: -3.5, yPercent: 1 }
-          : { scale: 1.32, xPercent: -7, yPercent: 1 };
-        const secondDetail = compactView
-          ? { scale: 1.3, xPercent: 4, yPercent: -1.5 }
-          : { scale: 1.48, xPercent: 9, yPercent: -2 };
+        const firstDetail = {
+          scale: stage2Zoom,
+          transformOrigin: `${stage2X}% ${stage2Y}%`,
+        };
+        const secondDetail = {
+          scale: stage3Zoom,
+          transformOrigin: `${stage3X}% ${stage3Y}%`,
+        };
 
         gsap.set(scenes, { autoAlpha: 0, scale: .985, yPercent: 2 });
         gsap.set(scenes[0], { autoAlpha: 1, scale: 1, yPercent: 0 });
-        gsap.set(mediaRef.current, { scale: 1, xPercent: 0, yPercent: 0 });
+        gsap.set(mediaRef.current, { scale: 1, transformOrigin: '50% 50%' });
 
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
@@ -66,8 +68,7 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
           }, 1)
           .to(mediaRef.current, {
             scale: 1,
-            xPercent: 0,
-            yPercent: 0,
+            transformOrigin: '50% 50%',
             duration: 1,
             ease: 'power2.inOut',
           }, 2)
@@ -115,17 +116,13 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
       cancelled = true;
       context?.revert();
     };
-  }, []);
+  }, [stage2X, stage2Y, stage2Zoom, stage3X, stage3Y, stage3Zoom]);
 
   return (
     <section ref={rootRef} className="intro-shell intro-embedded" aria-label="Featured artwork introduction">
       <div className="intro-sticky">
         <div ref={mediaRef} className="intro-media" aria-hidden="true">
-          {animatedImage && animatedIsVideo ? (
-            <video src={animatedImage} muted loop autoPlay playsInline preload="auto" style={mediaStyle} />
-          ) : animatedImage ? (
-            <img src={animatedImage} alt="" style={mediaStyle} />
-          ) : heroImage ? (
+          {heroImage ? (
             <img src={heroImage} alt="" />
           ) : null}
           <div className="intro-media-shade" />

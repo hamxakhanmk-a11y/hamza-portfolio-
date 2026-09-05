@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { siteConfig } from '@/data/config';
 import ImageCropper from '@/components/ImageCropper';
+import HeroCameraEditor from '@/components/HeroCameraEditor';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -87,11 +88,6 @@ async function uploadAnimatedMedia(file, token, bucket = 'artworks') {
   return publicUrl;
 }
 
-function isVideoSource(source) {
-  const value = typeof source === 'string' ? source : source?.type || '';
-  return /video\/(mp4|webm)|\.(mp4|webm)(?:\?|$)/i.test(value);
-}
-
 // ── Empty form state ───────────────────────────────────────────
 const emptyForm = {
   title: '', description: '', medium: '', size: '', price: '',
@@ -100,6 +96,15 @@ const emptyForm = {
 
 const emptyShow = {
   title: '', description: '', location: '', date: '', cover_image: '',
+};
+
+const heroCameraDefaults = {
+  hero_stage_2_x: '72',
+  hero_stage_2_y: '35',
+  hero_stage_2_zoom: '1.32',
+  hero_stage_3_x: '28',
+  hero_stage_3_y: '48',
+  hero_stage_3_zoom: '1.48',
 };
 
 export default function AdminPage() {
@@ -118,15 +123,15 @@ export default function AdminPage() {
   const [artMsg, setArtMsg] = useState('');
 
   // Site photos state
-  const [siteImages, setSiteImages] = useState({ hero: '', hero_animated: '', about: '' });
+  const [siteImages, setSiteImages] = useState({ hero: '', about: '' });
   const [heroFile, setHeroFile] = useState(null);
   const [heroPreview, setHeroPreview] = useState(null);
-  const [animatedHeroFile, setAnimatedHeroFile] = useState(null);
-  const [animatedHeroPreview, setAnimatedHeroPreview] = useState(null);
   const [aboutFile, setAboutFile] = useState(null);
   const [aboutPreview, setAboutPreview] = useState(null);
   const [photoMsg, setPhotoMsg] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState('');
+  const [cameraMsg, setCameraMsg] = useState('');
+  const [savingCameraPath, setSavingCameraPath] = useState(false);
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [layoutSection, setLayoutSection] = useState('portfolio');
@@ -137,7 +142,6 @@ export default function AdminPage() {
 
   const fileRef = useRef(null);
   const heroRef = useRef(null);
-  const animatedHeroRef = useRef(null);
   const aboutRef = useRef(null);
 
   // Multiple images per artwork
@@ -676,9 +680,7 @@ export default function AdminPage() {
     setUploadingPhoto(key);
     setMsg('Uploading…');
     try {
-      const url = key === 'hero_animated'
-        ? await uploadAnimatedMedia(file, token)
-        : await uploadImage(file, token, 'artworks');
+      const url = await uploadImage(file, token, 'artworks');
       const res = await fetch('/api/site-images', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -688,7 +690,6 @@ export default function AdminPage() {
         setMsg('✓ Photo updated! Refresh the site to see it.');
         setSiteImages(prev => ({ ...prev, [key]: url }));
         if (key === 'hero') { setHeroFile(null); setHeroPreview(null); }
-        if (key === 'hero_animated') { setAnimatedHeroFile(null); setAnimatedHeroPreview(null); }
         if (key === 'about') { setAboutFile(null); setAboutPreview(null); }
       } else {
         const error = await res.json().catch(() => ({}));
@@ -700,15 +701,17 @@ export default function AdminPage() {
     setUploadingPhoto('');
   }
 
-  async function saveAnimatedHeroSettings() {
-    setPhotoMsg('Saving animated-photo alignment…');
-    const keys = ['hero_animated_x', 'hero_animated_y', 'hero_animated_zoom'];
+  async function saveHeroCameraSettings() {
+    setSavingCameraPath(true);
+    setCameraMsg('Saving camera path…');
+    const keys = Object.keys(heroCameraDefaults);
     const responses = await Promise.all(keys.map(key => fetch('/api/site-text', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ key, value: String(siteText[key] || '') }),
+      body: JSON.stringify({ key, value: String(siteText[key] || heroCameraDefaults[key]) }),
     })));
-    setPhotoMsg(responses.every(response => response.ok) ? '✓ Banner animation alignment saved!' : 'Error: Could not save alignment.');
+    setCameraMsg(responses.every(response => response.ok) ? '✓ Camera path saved and published!' : 'Error: Could not save the camera path.');
+    setSavingCameraPath(false);
   }
 
   // ── Login screen ───────────────────────────────────────────
@@ -1629,10 +1632,9 @@ export default function AdminPage() {
             </p>
 
             {[
-              { key: 'hero', label: 'Normal Hero Photo', desc: 'Used as the featured painting inside the homepage banner.', file: heroFile, setFile: setHeroFile, previewState: heroPreview, setPreview: setHeroPreview, ref: heroRef },
-              { key: 'hero_animated', label: 'Animated Hero Media', desc: 'Played directly during the Artwork stage of the homepage banner. Upload MP4, WebM, animated GIF/WebP, or PNG.', file: animatedHeroFile, setFile: setAnimatedHeroFile, previewState: animatedHeroPreview, setPreview: setAnimatedHeroPreview, ref: animatedHeroRef, animated: true },
+              { key: 'hero', label: 'Hero Painting', desc: 'The single painting used throughout the homepage scroll animation.', file: heroFile, setFile: setHeroFile, previewState: heroPreview, setPreview: setHeroPreview, ref: heroRef },
               { key: 'about', label: 'About Photo', desc: 'Your photo shown in the About section', file: aboutFile, setFile: setAboutFile, previewState: aboutPreview, setPreview: setAboutPreview, ref: aboutRef },
-            ].map(({ key, label, desc, file, setFile, previewState, setPreview: setP, ref, animated }) => (
+            ].map(({ key, label, desc, file, setFile, previewState, setPreview: setP, ref }) => (
               <div key={key} className="border border-neutral-200 bg-white p-4 sm:p-8">
                 <h3 className="text-lg font-light mb-1" style={{ fontFamily: 'var(--font-cormorant)' }}>{label}</h3>
                 <p className="text-xs text-neutral-400 mb-6">{desc}</p>
@@ -1643,13 +1645,11 @@ export default function AdminPage() {
                     <p className="text-xs tracking-wider uppercase text-neutral-400">Current</p>
                     <div className="aspect-[4/3] bg-neutral-100 overflow-hidden">
                       {siteImages[key]
-                        ? isVideoSource(siteImages[key])
-                          ? <video src={siteImages[key]} muted loop autoPlay playsInline className="h-full w-full object-cover" />
-                          : <img src={siteImages[key]} alt={label} className="w-full h-full object-cover" />
+                        ? <img src={siteImages[key]} alt={label} className="w-full h-full object-cover" />
                         : <div className="w-full h-full flex items-center justify-center text-neutral-300 text-xs tracking-widest uppercase">No photo yet</div>
                       }
                     </div>
-                    {siteImages[key] && (!animated || siteImages[key].toLowerCase().split('?')[0].endsWith('.png')) && (
+                    {siteImages[key] && (
                       <button type="button" className="self-start text-xs text-neutral-600 underline underline-offset-4"
                         onClick={() => adjustStoredImage({
                           url: siteImages[key],
@@ -1666,7 +1666,7 @@ export default function AdminPage() {
                             setSiteImages(current => ({ ...current, [key]: imageUrl }));
                           },
                         })}>
-                        {animated ? 'Adjust Current Animated Photo' : 'Adjust Current Photo'}
+                        Adjust Current Photo
                       </button>
                     )}
                   </div>
@@ -1679,27 +1679,14 @@ export default function AdminPage() {
                       onClick={() => ref.current?.click()}
                     >
                       {previewState
-                        ? isVideoSource(file)
-                          ? <video src={previewState} muted loop autoPlay playsInline className="h-full w-full object-cover" />
-                          : <img src={previewState} alt="preview" className="w-full h-full object-cover" />
+                        ? <img src={previewState} alt="preview" className="w-full h-full object-cover" />
                         : <p className="text-neutral-400 text-sm">Click to select photo</p>
                       }
                     </div>
-                    <input ref={ref} type="file" accept={animated ? ".mp4,.webm,.gif,.webp,.png,video/mp4,video/webm,image/gif,image/webp,image/png" : "image/*"} className="hidden"
+                    <input ref={ref} type="file" accept="image/*" className="hidden"
                       onChange={e => {
                         const f = e.target.files[0];
                         if (!f) return;
-                        if (animated && (isVideoSource(f) || f.type === 'image/gif' || f.type === 'image/webp')) {
-                          if (f.size > 40 * 1024 * 1024) {
-                            setPhotoMsg('Animated media must be smaller than 40 MB. Export a compressed MP4 or WebM.');
-                            e.target.value = '';
-                            return;
-                          }
-                          setFile(f);
-                          setP(URL.createObjectURL(f));
-                          e.target.value = '';
-                          return;
-                        }
                         chooseImage(f, {
                           aspect: key.startsWith('hero') ? 16 / 9 : 4 / 5,
                           allowAspect: false,
@@ -1723,44 +1710,6 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {animated && (
-                  <div className="mt-7 border-t border-neutral-200 pt-6">
-                    <h4 className="text-sm font-medium text-neutral-700">Banner Animation Alignment</h4>
-                    <p className="mt-1 text-xs leading-relaxed text-neutral-400">
-                      Position and scale the animation as it appears during the Artwork stage of the homepage banner.
-                    </p>
-                    <div className="mt-5 grid gap-5 sm:grid-cols-2">
-                      {[
-                        { key: 'hero_animated_x', label: 'Horizontal position', min: 0, max: 100, step: 1, fallback: 50, suffix: '%' },
-                        { key: 'hero_animated_y', label: 'Vertical position', min: 0, max: 100, step: 1, fallback: 50, suffix: '%' },
-                        { key: 'hero_animated_zoom', label: 'Animated photo zoom', min: 0.6, max: 1.2, step: 0.01, fallback: 1, suffix: '×' },
-                      ].map(control => (
-                        <label key={control.key} className="flex flex-col gap-2">
-                          <span className="flex justify-between text-[10px] uppercase tracking-wider text-neutral-500">
-                            {control.label}
-                            <span>{siteText[control.key] || control.fallback}{control.suffix}</span>
-                          </span>
-                          <input type="range" min={control.min} max={control.max} step={control.step}
-                            value={siteText[control.key] || control.fallback}
-                            onChange={event => setSiteText(current => ({ ...current, [control.key]: event.target.value }))}
-                            className="w-full accent-neutral-900" />
-                        </label>
-                      ))}
-                    </div>
-                    <div className="mt-6 flex flex-wrap gap-3">
-                      <button type="button" onClick={saveAnimatedHeroSettings}
-                        className="bg-neutral-900 px-6 py-3 text-xs uppercase tracking-[0.17em] text-white transition-colors hover:bg-neutral-700">
-                        Save Banner Alignment
-                      </button>
-                      <button type="button"
-                        onClick={() => setSiteText(current => ({ ...current, hero_animated_x: '50', hero_animated_y: '50', hero_animated_zoom: '1' }))}
-                        className="border border-neutral-300 px-5 py-3 text-xs uppercase tracking-[0.14em] text-neutral-600 hover:border-neutral-700">
-                        Reset Alignment
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {photoMsg && (
                   <p className={`mt-4 text-xs ${photoMsg.startsWith('✓') ? 'text-green-600' : 'text-neutral-500'}`}>
                     {photoMsg}
@@ -1768,6 +1717,15 @@ export default function AdminPage() {
                 )}
               </div>
             ))}
+
+            <HeroCameraEditor
+              image={siteImages.hero}
+              values={{ ...heroCameraDefaults, ...siteText }}
+              onChange={updates => setSiteText(current => ({ ...current, ...updates }))}
+              onSave={saveHeroCameraSettings}
+              saving={savingCameraPath}
+              message={cameraMsg}
+            />
           </div>
         )}
 
