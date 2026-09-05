@@ -20,8 +20,15 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const storageOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL;
   return (
     <html lang="en" className={`${cormorant.variable} ${dmSans.variable}`}>
+      {storageOrigin && (
+        <head>
+          <link rel="preconnect" href={storageOrigin} crossOrigin="anonymous" />
+          <link rel="dns-prefetch" href={storageOrigin} />
+        </head>
+      )}
       <body className="bg-white text-neutral-900 antialiased">
         <Navbar />
         <SiteMotion />

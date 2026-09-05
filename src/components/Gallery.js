@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import BalancedArtworkImage from '@/components/BalancedArtworkImage';
+import { isRoundArtwork } from '@/data/artworkPresentation';
 
 async function getNewestArtworks() {
   try {
@@ -60,17 +62,12 @@ export default async function Gallery() {
                 className="group flex h-full flex-col"
               >
                 {/* Image */}
-                <div className="relative w-fit max-w-full mx-auto mt-auto transition-transform duration-500 group-hover:-translate-y-1">
-                  <img
+                <div className="relative mt-auto flex aspect-square w-full items-end justify-center transition-transform duration-500 group-hover:-translate-y-1">
+                  <BalancedArtworkImage
                     src={artwork.image_url}
                     alt={artwork.title}
-                    className="living-image max-w-full w-auto h-auto max-h-[420px] block"
-                    style={{
-                      mixBlendMode: 'multiply',
-                      filter: artwork.image_url?.toLowerCase().includes('.png')
-                        ? 'drop-shadow(0 16px 12px rgba(0,0,0,.15))'
-                        : 'none',
-                    }}
+                    round={isRoundArtwork(artwork)}
+                    sizes="(max-width: 640px) 88vw, (max-width: 1024px) 44vw, 22vw"
                   />
                   {!artwork.available && (
                     <div className="absolute top-2 left-2 bg-neutral-800/80 text-white text-[9px] tracking-[0.2em] uppercase px-2.5 py-1">

@@ -1,10 +1,13 @@
 import Link from 'next/link';
+import Image from 'next/image';
+import { isRoundArtwork } from '@/data/artworkPresentation';
 
 export default function ArtworkEditorialView({ artwork, images, whatsappNumber }) {
   const cover = images[0];
   const secondary = images.slice(1);
   const projectNumber = String(artwork.display_order || artwork.id || 1).padStart(2, '0');
   const isCommission = artwork.section === 'commissions';
+  const roundArtwork = isRoundArtwork(artwork);
   const backHref = isCommission ? '/commissions' : '/portfolio';
   const backLabel = isCommission ? 'Commissions' : 'Portfolio';
   const whatsappMsg = encodeURIComponent(
@@ -46,7 +49,16 @@ export default function ArtworkEditorialView({ artwork, images, whatsappNumber }
 
           {cover && (
             <figure className="editorial-art-frame mx-auto max-w-5xl">
-              <img src={cover.image_url} alt={artwork.title} className="artwork-inside-motion h-auto w-auto object-contain" />
+              <div className={`relative ${roundArtwork ? 'aspect-square h-[90%] max-h-[90%] max-w-[90%]' : 'h-full w-full'}`}>
+                <Image
+                  src={cover.image_url}
+                  alt={artwork.title}
+                  fill
+                  sizes="(max-width: 1024px) 90vw, 900px"
+                  fetchPriority="high"
+                  className={`artwork-inside-motion ${roundArtwork ? 'rounded-full object-cover' : 'object-contain'}`}
+                />
+              </div>
             </figure>
           )}
 
@@ -80,7 +92,16 @@ export default function ArtworkEditorialView({ artwork, images, whatsappNumber }
                       </div>
                     </div>
                     <div className="editorial-art-frame">
-                      <img src={image.image_url} alt={image.caption || `${artwork.title} view ${index + 2}`} className="artwork-inside-motion h-auto w-auto object-contain" />
+                      <div className="relative h-full w-full">
+                        <Image
+                          src={image.image_url}
+                          alt={image.caption || `${artwork.title} view ${index + 2}`}
+                          fill
+                          sizes="(max-width: 768px) 90vw, 70vw"
+                          loading="lazy"
+                          className="artwork-inside-motion object-contain"
+                        />
+                      </div>
                     </div>
                   </figure>
                 );

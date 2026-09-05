@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import BalancedArtworkImage from '@/components/BalancedArtworkImage';
+import { isRoundArtwork } from '@/data/artworkPresentation';
 
 export default function ArtworkGrid({ artworks, emptyMessage = 'Coming soon' }) {
   if (!artworks || artworks.length === 0) {
@@ -12,7 +13,7 @@ export default function ArtworkGrid({ artworks, emptyMessage = 'Coming soon' }) 
 
   return (
     <div className="grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 sm:gap-y-16 lg:grid-cols-3 lg:gap-x-10">
-      {artworks.map(artwork => (
+      {artworks.map((artwork, index) => (
         <Link
           key={artwork.id}
           href={`/portfolio/${artwork.id}`}
@@ -22,6 +23,8 @@ export default function ArtworkGrid({ artworks, emptyMessage = 'Coming soon' }) 
             <BalancedArtworkImage
               src={artwork.image_url}
               alt={artwork.title}
+              round={isRoundArtwork(artwork)}
+              eager={index < 3}
             />
             {!artwork.available && (
               <div className="absolute top-3 left-3 bg-neutral-800/80 text-white text-[9px] tracking-[0.25em] uppercase px-3 py-1.5">
