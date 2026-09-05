@@ -15,8 +15,9 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   const stage3Zoom = cameraStages?.[3]?.zoom ?? 1.48;
 
   useLayoutEffect(() => {
+    const rootElement = rootRef.current;
     let context;
-    let observer;
+    let observers = [];
     let sectionTrigger;
     let stageTimeline;
     let cancelled = false;
@@ -132,8 +133,13 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
             .to({}, { duration: .16 }, .82);
         }
 
+        function setHeroInteraction(active) {
+          rootElement?.classList.toggle('intro-gesture-active', active);
+          observers.forEach(observer => active ? observer.enable() : observer.disable());
+        }
+
         function leaveHero(direction) {
-          observer.disable();
+          setHeroInteraction(false);
           const heroHeight = rootRef.current?.offsetHeight || window.innerHeight * scenes.length;
           const destination = direction > 0
             ? (rootRef.current?.offsetTop || 0) + heroHeight
@@ -151,9 +157,9 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           showStage(nextStage);
         }
 
-        observer = ScrollTrigger.observe({
+        const wheelObserver = ScrollTrigger.observe({
           target: window,
-          type: 'wheel,touch',
+          type: 'wheel',
           preventDefault: true,
           allowClicks: true,
           tolerance: 10,
@@ -162,8 +168,23 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           onUp: () => changeStage(-1),
         });
 
+        // A finger moving upward means the page should advance, while wheel
+        // direction is reported the other way around by Observer.
+        const touchObserver = ScrollTrigger.observe({
+          target: window,
+          type: 'touch',
+          preventDefault: true,
+          allowClicks: true,
+          tolerance: 10,
+          lockAxis: true,
+          onUp: () => changeStage(1),
+          onDown: () => changeStage(-1),
+        });
+        observers = [wheelObserver, touchObserver];
+        setHeroInteraction(false);
+
         function activateHero(self) {
-          observer.enable();
+          setHeroInteraction(true);
           if (settingStagePosition || animating) return;
           const nearestStage = Math.round(self.progress * (scenes.length - 1));
           activeStage = Math.min(scenes.length - 1, Math.max(0, nearestStage));
@@ -178,16 +199,16 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           onEnter: activateHero,
           onEnterBack: activateHero,
           onLeave: () => {
-            if (!settingStagePosition) observer.disable();
+            if (!settingStagePosition) setHeroInteraction(false);
           },
           onLeaveBack: () => {
-            if (!settingStagePosition) observer.disable();
+            if (!settingStagePosition) setHeroInteraction(false);
           },
         });
 
         const insideHero = window.scrollY >= sectionTrigger.start && window.scrollY <= sectionTrigger.end;
         if (insideHero) activateHero(sectionTrigger);
-        else observer.disable();
+        else setHeroInteraction(false);
       }, rootRef);
     }
 
@@ -195,7 +216,8 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
     return () => {
       cancelled = true;
       stageTimeline?.kill();
-      observer?.kill();
+      observers.forEach(observer => observer.kill());
+      rootElement?.classList.remove('intro-gesture-active');
       sectionTrigger?.kill();
       context?.revert();
     };

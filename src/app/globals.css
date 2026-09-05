@@ -90,6 +90,10 @@ body {
   touch-action: pan-y;
 }
 
+.intro-shell.intro-embedded.intro-gesture-active .intro-sticky {
+  touch-action: none;
+}
+
 .intro-embedded::before { display: none; }
 
 .intro-sticky {
