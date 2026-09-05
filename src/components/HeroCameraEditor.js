@@ -29,6 +29,8 @@ export default function HeroCameraEditor({ image, values, onChange, onSave, savi
   const x = numberValue(values[`${prefix}_x`], config.defaults.x);
   const y = numberValue(values[`${prefix}_y`], config.defaults.y);
   const zoom = numberValue(values[`${prefix}_zoom`], config.defaults.zoom);
+  const cameraX = (x - 50) * (1 - zoom);
+  const cameraY = (y - 50) * (1 - zoom);
 
   function updatePoint(event) {
     const bounds = previewRef.current?.getBoundingClientRect();
@@ -107,8 +109,8 @@ export default function HeroCameraEditor({ image, values, onChange, onSave, savi
                 draggable="false"
                 className="h-full w-full object-cover"
                 style={{
-                  transform: `scale(${zoom})`,
-                  transformOrigin: `${x}% ${y}%`,
+                  transform: `translate(${cameraX}%, ${cameraY}%) scale(${zoom})`,
+                  transformOrigin: '50% 50%',
                   transition: dragging ? 'none' : 'transform 420ms cubic-bezier(.16, 1, .3, 1)',
                 }}
               />

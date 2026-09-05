@@ -33,11 +33,17 @@ export default function IntroExperience({ heroImage, cameraStages }) {
 
       context = gsap.context(() => {
         const scenes = gsap.utils.toArray('.intro-scene');
+        const detailCamera = (x, y, zoom) => ({
+          scale: zoom,
+          xPercent: (x - 50) * (1 - zoom),
+          yPercent: (y - 50) * (1 - zoom),
+          transformOrigin: '50% 50%',
+        });
         const cameraStops = [
-          { scale: 1, transformOrigin: '50% 50%' },
-          { scale: stage2Zoom, transformOrigin: `${stage2X}% ${stage2Y}%` },
-          { scale: stage3Zoom, transformOrigin: `${stage3X}% ${stage3Y}%` },
-          { scale: 1, transformOrigin: '50% 50%' },
+          { scale: 1, xPercent: 0, yPercent: 0, transformOrigin: '50% 50%' },
+          detailCamera(stage2X, stage2Y, stage2Zoom),
+          detailCamera(stage3X, stage3Y, stage3Zoom),
+          { scale: 1, xPercent: 0, yPercent: 0, transformOrigin: '50% 50%' },
         ];
         let activeStage = 0;
         let animating = false;
@@ -45,7 +51,12 @@ export default function IntroExperience({ heroImage, cameraStages }) {
 
         gsap.set(scenes, { autoAlpha: 0, scale: .985, yPercent: 2 });
         gsap.set(scenes[0], { autoAlpha: 1, scale: 1, yPercent: 0 });
-        gsap.set(mediaRef.current, { scale: 1, transformOrigin: '50% 50%' });
+        gsap.set(mediaRef.current, {
+          scale: 1,
+          xPercent: 0,
+          yPercent: 0,
+          transformOrigin: '50% 50%',
+        });
 
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
@@ -103,7 +114,6 @@ export default function IntroExperience({ heroImage, cameraStages }) {
             }, 0)
             .to(mediaRef.current, {
               ...camera,
-              smoothOrigin: true,
               force3D: true,
               duration: .82,
               ease: 'power3.inOut',
