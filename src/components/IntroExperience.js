@@ -29,21 +29,21 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
 
       context = gsap.context(() => {
         const scenes = gsap.utils.toArray('.intro-scene');
+        const compactView = window.matchMedia('(max-width: 700px)').matches;
+        const firstDetail = compactView
+          ? { scale: 1.2, xPercent: -3.5, yPercent: 1 }
+          : { scale: 1.32, xPercent: -7, yPercent: 1 };
+        const secondDetail = compactView
+          ? { scale: 1.3, xPercent: 4, yPercent: -1.5 }
+          : { scale: 1.48, xPercent: 9, yPercent: -2 };
+
         gsap.set(scenes, { autoAlpha: 0, scale: .985, yPercent: 2 });
         gsap.set(scenes[0], { autoAlpha: 1, scale: 1, yPercent: 0 });
+        gsap.set(mediaRef.current, { scale: 1, xPercent: 0, yPercent: 0 });
 
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-        gsap.to(mediaRef.current, {
-          scale: 1.045,
-          duration: 7,
-          repeat: -1,
-          yoyo: true,
-          ease: 'sine.inOut',
-        });
-
         const timeline = gsap.timeline({
-          defaults: { ease: 'none' },
           scrollTrigger: {
             trigger: rootRef.current,
             start: 'top top',
@@ -52,23 +52,61 @@ export default function IntroExperience({ heroImage, animatedImage, settings }) 
           },
         });
 
-        scenes.forEach((scene, index) => {
-          if (index === 0) {
-            timeline.to(scene, { autoAlpha: 0, scale: 1.025, yPercent: -2, duration: 0.45 }, 0.55);
-            return;
-          }
-          const position = index * 1.15;
-          timeline
-            .fromTo(scene,
-              { autoAlpha: 0, scale: 1.025, yPercent: 2 },
-              { autoAlpha: 1, scale: 1, yPercent: 0, duration: 0.45 },
-              position,
-            )
-            .to(scene,
-              { autoAlpha: index === scenes.length - 1 ? 1 : 0, scale: 1.02, yPercent: index === scenes.length - 1 ? 0 : -2, duration: 0.45 },
-              position + 0.7,
-            );
-        });
+        // Four-part scrollytelling camera: establishing shot, two details, full reveal.
+        timeline
+          .to(mediaRef.current, {
+            ...firstDetail,
+            duration: 1,
+            ease: 'power2.inOut',
+          }, 0)
+          .to(mediaRef.current, {
+            ...secondDetail,
+            duration: 1,
+            ease: 'power2.inOut',
+          }, 1)
+          .to(mediaRef.current, {
+            scale: 1,
+            xPercent: 0,
+            yPercent: 0,
+            duration: 1,
+            ease: 'power2.inOut',
+          }, 2)
+          .to(scenes[0], {
+            autoAlpha: 0,
+            scale: 1.025,
+            yPercent: -2,
+            duration: .24,
+            ease: 'power1.inOut',
+          }, .58)
+          .fromTo(scenes[1],
+            { autoAlpha: 0, scale: 1.035, yPercent: 2 },
+            { autoAlpha: 1, scale: 1, yPercent: 0, duration: .28, ease: 'power1.out' },
+            .72,
+          )
+          .to(scenes[1], {
+            autoAlpha: 0,
+            scale: 1.025,
+            yPercent: -2,
+            duration: .24,
+            ease: 'power1.in',
+          }, 1.58)
+          .fromTo(scenes[2],
+            { autoAlpha: 0, scale: 1.035, yPercent: 2 },
+            { autoAlpha: 1, scale: 1, yPercent: 0, duration: .28, ease: 'power1.out' },
+            1.72,
+          )
+          .to(scenes[2], {
+            autoAlpha: 0,
+            scale: 1.025,
+            yPercent: -2,
+            duration: .24,
+            ease: 'power1.in',
+          }, 2.58)
+          .fromTo(scenes[3],
+            { autoAlpha: 0, scale: 1.035, yPercent: 2 },
+            { autoAlpha: 1, scale: 1, yPercent: 0, duration: .3, ease: 'power1.out' },
+            2.7,
+          );
       }, rootRef);
     }
 

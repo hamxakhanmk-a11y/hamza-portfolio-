@@ -104,6 +104,8 @@ body {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  transform-origin: center center;
+  will-change: transform;
 }
 
 .intro-media img, .intro-media video {
