@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import HeroMedia from '@/components/HeroMedia';
 
 const STAGES = [
   { number: 1, note: 'Opening full-painting view' },
@@ -51,7 +52,7 @@ export default function HeroTextEditor({ image, values, defaults, onChange, onSa
             Hero Stage Text
           </h3>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-neutral-500">
-            Edit each caption, then drag it over the painting to choose its position.
+            Edit each caption, then drag it over the hero image or video to choose its position.
           </p>
         </div>
         <button
@@ -102,9 +103,9 @@ export default function HeroTextEditor({ image, values, defaults, onChange, onSa
           aria-label={`Choose the text position for hero animation stage ${stage}`}
         >
           {image ? (
-            <img src={image} alt="Hero text position preview" draggable="false" className="h-full w-full object-cover" />
+            <HeroMedia src={image} alt="Hero text position preview" className="h-full w-full object-cover" />
           ) : (
-            <div className="grid h-full place-items-center text-xs uppercase tracking-[.18em] text-white/50">Upload a hero painting first</div>
+            <div className="grid h-full place-items-center text-xs uppercase tracking-[.18em] text-white/50">Upload hero media first</div>
           )}
           <div className="pointer-events-none absolute inset-0 bg-[#022d47]/30" />
           <div

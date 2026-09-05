@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import HeroMedia from '@/components/HeroMedia';
 
 const STAGES = {
   1: {
@@ -70,7 +71,7 @@ export default function HeroCameraEditor({ image, values, onChange, onSave, savi
             Hero Camera Path
           </h3>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-neutral-500">
-            Set an independent focal point and zoom for every stage to build the complete camera path.
+            Set an independent focal point and zoom for every stage. The same camera path works with a painting or a looping hero video.
           </p>
         </div>
         <div className="flex rounded-full bg-[#eaf6fa] p-1">
@@ -113,10 +114,9 @@ export default function HeroCameraEditor({ image, values, onChange, onSave, savi
             aria-label={`Choose the focal point for hero animation stage ${stage}`}
           >
             {image ? (
-              <img
+              <HeroMedia
                 src={image}
                 alt="Hero camera preview"
-                draggable="false"
                 className="h-full w-full object-cover"
                 style={{
                   transform: `translate(${cameraX}%, ${cameraY}%) scale(${zoom})`,
@@ -126,7 +126,7 @@ export default function HeroCameraEditor({ image, values, onChange, onSave, savi
               />
             ) : (
               <div className="grid h-full place-items-center px-6 text-center text-xs uppercase tracking-[0.18em] text-white/55">
-                Upload a hero painting first
+                Upload hero media first
               </div>
             )}
             {image && (
@@ -146,7 +146,7 @@ export default function HeroCameraEditor({ image, values, onChange, onSave, savi
             )}
           </div>
           <p className="mt-2 text-[10px] leading-relaxed text-neutral-400">
-            The marker is the visual anchor—the camera pushes toward this part of the painting.
+            The marker is the visual anchor—the camera pushes toward this part of the hero media.
           </p>
         </div>
 

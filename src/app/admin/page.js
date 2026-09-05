@@ -5,6 +5,7 @@ import { siteConfig } from '@/data/config';
 import ImageCropper from '@/components/ImageCropper';
 import HeroCameraEditor from '@/components/HeroCameraEditor';
 import HeroTextEditor from '@/components/HeroTextEditor';
+import HeroMedia, { isVideoSource } from '@/components/HeroMedia';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -708,14 +709,16 @@ export default function AdminPage() {
     setUploadingPhoto(key);
     setMsg('Uploading…');
     try {
-      const url = await uploadImage(file, token, 'artworks');
+      const url = file.type.startsWith('video/')
+        ? await uploadAnimatedMedia(file, token, 'artworks')
+        : await uploadImage(file, token, 'artworks');
       const res = await fetch('/api/site-images', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ key, image_url: url }),
       });
       if (res.ok) {
-        setMsg('✓ Photo updated! Refresh the site to see it.');
+        setMsg(`✓ ${key === 'hero' ? 'Hero media' : 'Photo'} updated! Refresh the site to see it.`);
         setSiteImages(prev => ({ ...prev, [key]: url }));
         if (key === 'hero') { setHeroFile(null); setHeroPreview(null); }
         if (key === 'about') { setAboutFile(null); setAboutPreview(null); }
@@ -1666,14 +1669,14 @@ export default function AdminPage() {
         {activeTab === 'photos' && (
           <div className="flex flex-col gap-10">
             <h2 className="text-2xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>
-              Site Photos
+              Site Media
             </h2>
             <p className="text-sm text-neutral-500 -mt-6">
-              Change the main photos shown on your website.
+              Change the main images and hero media shown on your website.
             </p>
 
             {[
-              { key: 'hero', label: 'Hero Painting', desc: 'The single painting used throughout the homepage scroll animation.', file: heroFile, setFile: setHeroFile, previewState: heroPreview, setPreview: setHeroPreview, ref: heroRef },
+              { key: 'hero', label: 'Hero Painting or Video', desc: 'Upload one painting, animated image, or video for the four-stage homepage camera animation. MP4 or WebM is recommended for video.', file: heroFile, setFile: setHeroFile, previewState: heroPreview, setPreview: setHeroPreview, ref: heroRef },
               { key: 'about', label: 'About Photo', desc: 'Your photo shown in the About section', file: aboutFile, setFile: setAboutFile, previewState: aboutPreview, setPreview: setAboutPreview, ref: aboutRef },
             ].map(({ key, label, desc, file, setFile, previewState, setPreview: setP, ref }) => (
               <div key={key} className="border border-neutral-200 bg-white p-4 sm:p-8">
@@ -1686,11 +1689,11 @@ export default function AdminPage() {
                     <p className="text-xs tracking-wider uppercase text-neutral-400">Current</p>
                     <div className="aspect-[4/3] bg-neutral-100 overflow-hidden">
                       {siteImages[key]
-                        ? <img src={siteImages[key]} alt={label} className="w-full h-full object-cover" />
+                        ? <HeroMedia src={siteImages[key]} alt={label} className="w-full h-full object-cover" />
                         : <div className="w-full h-full flex items-center justify-center text-neutral-300 text-xs tracking-widest uppercase">No photo yet</div>
                       }
                     </div>
-                    {siteImages[key] && (
+                    {siteImages[key] && !(key === 'hero' && isVideoSource(siteImages[key])) && (
                       <button type="button" className="self-start text-xs text-neutral-600 underline underline-offset-4"
                         onClick={() => adjustStoredImage({
                           url: siteImages[key],
@@ -1720,14 +1723,20 @@ export default function AdminPage() {
                       onClick={() => ref.current?.click()}
                     >
                       {previewState
-                        ? <img src={previewState} alt="preview" className="w-full h-full object-cover" />
-                        : <p className="text-neutral-400 text-sm">Click to select photo</p>
+                        ? <HeroMedia src={previewState} mimeType={file?.type} alt="preview" className="w-full h-full object-cover" />
+                        : <p className="px-4 text-center text-neutral-400 text-sm">Click to select {key === 'hero' ? 'a painting or video' : 'a photo'}</p>
                       }
                     </div>
-                    <input ref={ref} type="file" accept="image/*" className="hidden"
+                    <input ref={ref} type="file" accept={key === 'hero' ? 'image/*,video/*' : 'image/*'} className="hidden"
                       onChange={e => {
                         const f = e.target.files[0];
                         if (!f) return;
+                        if (key === 'hero' && f.type.startsWith('video/')) {
+                          setFile(f);
+                          setP(URL.createObjectURL(f));
+                          e.target.value = '';
+                          return;
+                        }
                         chooseImage(f, {
                           aspect: key.startsWith('hero') ? 16 / 9 : 4 / 5,
                           allowAspect: false,

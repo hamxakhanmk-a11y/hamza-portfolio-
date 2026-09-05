@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useLayoutEffect, useRef } from 'react';
 import { siteConfig } from '@/data/config';
+import HeroMedia from '@/components/HeroMedia';
 
 export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   const rootRef = useRef(null);
@@ -270,7 +271,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
       <div className="intro-sticky">
         <div ref={mediaRef} className="intro-media" aria-hidden="true">
           {heroImage ? (
-            <img ref={imageRef} src={heroImage} alt="" />
+            <HeroMedia ref={imageRef} src={heroImage} alt="" preload="auto" />
           ) : null}
           <div className="intro-media-shade" />
         </div>
