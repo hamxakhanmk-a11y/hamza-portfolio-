@@ -86,6 +86,8 @@ body {
   overflow: visible;
   color: #fff;
   background: #063a5b;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .intro-embedded::before { display: none; }
@@ -198,6 +200,21 @@ body {
 .intro-collection-words span { animation: intro-word .8s cubic-bezier(.2,.8,.2,1) both; }
 .intro-collection-words span:nth-child(2) { color: #ed7189; animation-delay: .12s; }
 .intro-collection-words span:nth-child(3) { color: #27a8c7; animation-delay: .24s; }
+.intro-stage-statement {
+  width: min(88vw, 1000px);
+  max-width: none;
+  font-size: clamp(2.4rem, 5vw, 5.6rem);
+  line-height: .95;
+  text-wrap: balance;
+}
+.intro-stage-statement span,
+.intro-art-copy h2,
+.intro-enter-scene strong {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.intro-enter-scene strong { max-width: 92vw; text-align: center; }
 
 .intro-enter-scene { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #063a5b; }
 .intro-enter-scene span { font-size: clamp(.75rem, 1vw, .95rem); letter-spacing: .35em; text-transform: uppercase; }
@@ -395,8 +412,9 @@ body {
   .intro-art-scene::after { background: linear-gradient(0deg, rgba(3,29,49,.9), transparent 68%); }
   .intro-art-copy { top: auto; right: 1.35rem; bottom: 1.5rem; left: 1.35rem; width: auto; transform: none; text-align: center; }
   .intro-art-copy h2 { font-size: clamp(2.3rem, 12vw, 4rem); }
-  .intro-letter-line { font-size: clamp(2.5rem, 14vw, 4.5rem); }
+  .intro-letter-line { max-width: 94vw; font-size: clamp(2.2rem, 10.5vw, 3.25rem); white-space: nowrap; }
   .intro-collection-words { flex-direction: column; font-size: clamp(3.2rem, 16vw, 5rem); }
+  .intro-stage-statement { width: min(92vw, 38rem); font-size: clamp(2.1rem, 10vw, 3.8rem); line-height: .98; }
   .intro-enter-scene strong { font-size: clamp(4rem, 20vw, 6rem); }
   .intro-chapters { width: 100%; gap: .35rem; }
   .intro-chapters button { min-height: 3rem; border-radius: .55rem; font-size: .58rem; letter-spacing: .02em; }

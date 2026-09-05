@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { siteConfig } from '@/data/config';
 import ImageCropper from '@/components/ImageCropper';
 import HeroCameraEditor from '@/components/HeroCameraEditor';
+import HeroTextEditor from '@/components/HeroTextEditor';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -107,6 +108,17 @@ const heroCameraDefaults = {
   hero_stage_3_zoom: '1.48',
 };
 
+const heroTextDefaults = {
+  hero_stage_1_eyebrow: 'Original Artworks',
+  hero_stage_1_title: siteConfig.artistName,
+  hero_stage_2_eyebrow: 'Painted with intention',
+  hero_stage_2_title: 'Where imagination flows',
+  hero_stage_3_eyebrow: 'Dhikr through observation',
+  hero_stage_3_title: 'Painting becomes a form of praise',
+  hero_stage_4_eyebrow: 'Enter the',
+  hero_stage_4_title: 'Collection',
+};
+
 export default function AdminPage() {
   const [token, setToken] = useState(() => typeof window === 'undefined' ? null : localStorage.getItem('admin_token'));
   const [password, setPassword] = useState('');
@@ -132,6 +144,8 @@ export default function AdminPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState('');
   const [cameraMsg, setCameraMsg] = useState('');
   const [savingCameraPath, setSavingCameraPath] = useState(false);
+  const [heroTextMsg, setHeroTextMsg] = useState('');
+  const [savingHeroText, setSavingHeroText] = useState(false);
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [layoutSection, setLayoutSection] = useState('portfolio');
@@ -712,6 +726,19 @@ export default function AdminPage() {
     })));
     setCameraMsg(responses.every(response => response.ok) ? '✓ Camera path saved and published!' : 'Error: Could not save the camera path.');
     setSavingCameraPath(false);
+  }
+
+  async function saveHeroTextSettings() {
+    setSavingHeroText(true);
+    setHeroTextMsg('Saving hero text…');
+    const keys = Object.keys(heroTextDefaults);
+    const responses = await Promise.all(keys.map(key => fetch('/api/site-text', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ key, value: String(siteText[key] ?? heroTextDefaults[key]) }),
+    })));
+    setHeroTextMsg(responses.every(response => response.ok) ? '✓ All four hero stages saved and published!' : 'Error: Could not save all hero stage text.');
+    setSavingHeroText(false);
   }
 
   // ── Login screen ───────────────────────────────────────────
@@ -1717,6 +1744,15 @@ export default function AdminPage() {
                 )}
               </div>
             ))}
+
+            <HeroTextEditor
+              values={siteText}
+              defaults={heroTextDefaults}
+              onChange={updates => setSiteText(current => ({ ...current, ...updates }))}
+              onSave={saveHeroTextSettings}
+              saving={savingHeroText}
+              message={heroTextMsg}
+            />
 
             <HeroCameraEditor
               image={siteImages.hero}

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useLayoutEffect, useRef } from 'react';
 import { siteConfig } from '@/data/config';
 
-export default function IntroExperience({ heroImage, cameraStages }) {
+export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   const rootRef = useRef(null);
   const mediaRef = useRef(null);
   const stage2X = cameraStages?.[2]?.x ?? 72;
@@ -128,14 +128,16 @@ export default function IntroExperience({ heroImage, cameraStages }) {
                 ease: 'power2.out',
               },
               .52,
-            );
+            )
+            .to({}, { duration: .16 }, .82);
         }
 
         function leaveHero(direction) {
           observer.disable();
+          const heroHeight = rootRef.current?.offsetHeight || window.innerHeight * scenes.length;
           const destination = direction > 0
-            ? sectionTrigger.end + window.innerHeight
-            : Math.max(0, sectionTrigger.start - window.innerHeight);
+            ? (rootRef.current?.offsetTop || 0) + heroHeight
+            : Math.max(0, sectionTrigger.start - (rootRef.current?.firstElementChild?.clientHeight || window.innerHeight));
           window.scrollTo({ top: destination, behavior: 'smooth' });
         }
 
@@ -155,6 +157,7 @@ export default function IntroExperience({ heroImage, cameraStages }) {
           preventDefault: true,
           allowClicks: true,
           tolerance: 10,
+          lockAxis: true,
           onDown: () => changeStage(1),
           onUp: () => changeStage(-1),
         });
@@ -211,9 +214,9 @@ export default function IntroExperience({ heroImage, cameraStages }) {
         <div className="intro-canvas">
           <div className="intro-scene">
             <div className="intro-type-scene">
-              <p className="intro-eyebrow">Original Artworks</p>
-              <div className="intro-letter-line" aria-label={siteConfig.artistName}>
-                {siteConfig.artistName.split('').map((letter, index) => (
+              <p className="intro-eyebrow">{heroText?.[1]?.eyebrow || 'Original Artworks'}</p>
+              <div className="intro-letter-line" aria-label={heroText?.[1]?.title || siteConfig.artistName}>
+                {(heroText?.[1]?.title || siteConfig.artistName).split('').map((letter, index) => (
                   <span key={`${letter}-${index}`} style={{ animationDelay: `${index * 70}ms` }}>{letter === ' ' ? '\u00a0' : letter}</span>
                 ))}
               </div>
@@ -223,25 +226,25 @@ export default function IntroExperience({ heroImage, cameraStages }) {
           <div className="intro-scene">
             <div className="intro-art-scene">
               <div className="intro-art-copy">
-                <p>Painted with intention</p>
-                <h2>Where imagination flows</h2>
+                <p>{heroText?.[2]?.eyebrow || 'Painted with intention'}</p>
+                <h2>{heroText?.[2]?.title || 'Where imagination flows'}</h2>
               </div>
             </div>
           </div>
 
           <div className="intro-scene">
             <div className="intro-collection-scene">
-              <p className="intro-eyebrow">Explore the Studio</p>
-              <div className="intro-collection-words">
-                <span>Portfolio</span><span>Commissions</span><span>Shows</span>
+              <p className="intro-eyebrow">{heroText?.[3]?.eyebrow || 'Dhikr through observation'}</p>
+              <div className="intro-collection-words intro-stage-statement">
+                <span>{heroText?.[3]?.title || 'Painting becomes a form of praise'}</span>
               </div>
             </div>
           </div>
 
           <div className="intro-scene">
             <Link href="/portfolio" className="intro-enter-scene">
-              <span>Enter the</span>
-              <strong>Collection</strong>
+              <span>{heroText?.[4]?.eyebrow || 'Enter the'}</span>
+              <strong>{heroText?.[4]?.title || 'Collection'}</strong>
               <i>→</i>
             </Link>
           </div>

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import IntroExperience from '@/components/IntroExperience';
+import { siteConfig } from '@/data/config';
 
 async function getHeroImages() {
   try {
@@ -12,6 +13,10 @@ async function getHeroImages() {
       supabase.from('site_text').select('key,value').in('key', [
         'hero_stage_2_x', 'hero_stage_2_y', 'hero_stage_2_zoom',
         'hero_stage_3_x', 'hero_stage_3_y', 'hero_stage_3_zoom',
+        'hero_stage_1_eyebrow', 'hero_stage_1_title',
+        'hero_stage_2_eyebrow', 'hero_stage_2_title',
+        'hero_stage_3_eyebrow', 'hero_stage_3_title',
+        'hero_stage_4_eyebrow', 'hero_stage_4_title',
       ]),
     ]);
     const images = {};
@@ -35,6 +40,24 @@ export default async function Hero() {
       zoom: Number(images.hero_stage_3_zoom || 1.48),
     },
   };
+  const heroText = {
+    1: {
+      eyebrow: images.hero_stage_1_eyebrow || 'Original Artworks',
+      title: images.hero_stage_1_title || siteConfig.artistName,
+    },
+    2: {
+      eyebrow: images.hero_stage_2_eyebrow || 'Painted with intention',
+      title: images.hero_stage_2_title || 'Where imagination flows',
+    },
+    3: {
+      eyebrow: images.hero_stage_3_eyebrow || 'Dhikr through observation',
+      title: images.hero_stage_3_title || 'Painting becomes a form of praise',
+    },
+    4: {
+      eyebrow: images.hero_stage_4_eyebrow || 'Enter the',
+      title: images.hero_stage_4_title || 'Collection',
+    },
+  };
 
-  return <IntroExperience heroImage={images.hero || ''} cameraStages={cameraStages} />;
+  return <IntroExperience heroImage={images.hero || ''} cameraStages={cameraStages} heroText={heroText} />;
 }

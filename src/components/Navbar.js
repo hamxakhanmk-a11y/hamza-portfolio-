@@ -133,7 +133,9 @@ export default function Navbar() {
 
         {/* Mobile hamburger */}
         <button
-          className="absolute right-4 flex h-11 w-11 flex-col items-center justify-center gap-[5px] sm:right-6 md:hidden"
+          className={`absolute right-4 flex h-11 w-11 flex-col items-center justify-center gap-[5px] rounded-full sm:right-6 md:hidden ${
+            overlayHero ? 'bg-[#022d47]/35 backdrop-blur-sm' : 'bg-white/80'
+          }`}
           onClick={() => setOpen(!open)}
           aria-label="Toggle menu"
         >
