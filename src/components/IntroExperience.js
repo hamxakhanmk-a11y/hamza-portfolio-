@@ -7,6 +7,7 @@ import { siteConfig } from '@/data/config';
 export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   const rootRef = useRef(null);
   const mediaRef = useRef(null);
+  const imageRef = useRef(null);
   const stage2X = cameraStages?.[2]?.x ?? 72;
   const stage2Y = cameraStages?.[2]?.y ?? 35;
   const stage2Zoom = cameraStages?.[2]?.zoom ?? 1.32;
@@ -17,8 +18,8 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   const stage4Y = cameraStages?.[4]?.y ?? 50;
   const stage4Zoom = cameraStages?.[4]?.zoom ?? 1;
   const textPosition = stage => ({
-    left: `${heroText?.[stage]?.x ?? 50}%`,
-    top: `${heroText?.[stage]?.y ?? 50}%`,
+    '--intro-text-x': `${heroText?.[stage]?.x ?? 50}%`,
+    '--intro-text-y': `${heroText?.[stage]?.y ?? 50}%`,
   });
 
   useLayoutEffect(() => {
@@ -53,6 +54,12 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           detailCamera(stage3X, stage3Y, stage3Zoom),
           detailCamera(stage4X, stage4Y, stage4Zoom),
         ];
+        const cameraFocus = [
+          '50% 50%',
+          `${stage2X}% ${stage2Y}%`,
+          `${stage3X}% ${stage3Y}%`,
+          `${stage4X}% ${stage4Y}%`,
+        ];
         let activeStage = 0;
         let animating = false;
         let settingStagePosition = false;
@@ -65,6 +72,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           yPercent: 0,
           transformOrigin: '50% 50%',
         });
+        gsap.set(imageRef.current, { objectPosition: cameraFocus[0] });
 
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
@@ -93,6 +101,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           if (immediate) {
             animating = false;
             gsap.set(mediaRef.current, { ...camera, force3D: true });
+            gsap.set(imageRef.current, { objectPosition: cameraFocus[index] });
             scenes.forEach((scene, sceneIndex) => {
               gsap.set(scene, {
                 autoAlpha: sceneIndex === index ? 1 : 0,
@@ -123,6 +132,11 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
             .to(mediaRef.current, {
               ...camera,
               force3D: true,
+              duration: .82,
+              ease: 'power3.inOut',
+            }, 0)
+            .to(imageRef.current, {
+              objectPosition: cameraFocus[index],
               duration: .82,
               ease: 'power3.inOut',
             }, 0)
@@ -235,10 +249,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
       <div className="intro-sticky">
         <div ref={mediaRef} className="intro-media" aria-hidden="true">
           {heroImage ? (
-            <>
-              <img className="intro-media-backdrop" src={heroImage} alt="" />
-              <img className="intro-media-artwork" src={heroImage} alt="" />
-            </>
+            <img ref={imageRef} src={heroImage} alt="" />
           ) : null}
           <div className="intro-media-shade" />
         </div>
