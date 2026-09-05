@@ -71,7 +71,7 @@ export default async function Contact() {
           <span className="text-lg" style={{ fontFamily: "var(--font-cormorant)" }}>
             {siteConfig.artistName}
           </span>
-          <span>© {new Date().getFullYear()} All content made by {siteConfig.artistName}</span>
+          <span>All content made by {siteConfig.artistName}</span>
         </div>
       </div>
     </footer>
