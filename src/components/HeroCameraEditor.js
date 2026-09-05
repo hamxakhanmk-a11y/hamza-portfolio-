@@ -3,6 +3,11 @@
 import { useRef, useState } from 'react';
 
 const STAGES = {
+  1: {
+    label: 'Stage 1 · Opening view',
+    description: 'Choose where the opening camera starts before the story begins to flow.',
+    defaults: { x: 50, y: 50, zoom: 1 },
+  },
   2: {
     label: 'Stage 2 · First detail',
     description: 'The first push-in after the opening view.',
@@ -26,7 +31,7 @@ function numberValue(value, fallback) {
 }
 
 export default function HeroCameraEditor({ image, values, onChange, onSave, saving, message }) {
-  const [stage, setStage] = useState(2);
+  const [stage, setStage] = useState(1);
   const [dragging, setDragging] = useState(false);
   const previewRef = useRef(null);
   const config = STAGES[stage];
@@ -65,11 +70,11 @@ export default function HeroCameraEditor({ image, values, onChange, onSave, savi
             Hero Camera Path
           </h3>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-neutral-500">
-            Stage 1 opens on the complete painting. Set the focal point and zoom for Stages 2, 3, and 4 independently.
+            Set an independent focal point and zoom for every stage to build the complete camera path.
           </p>
         </div>
         <div className="flex rounded-full bg-[#eaf6fa] p-1">
-          {[2, 3, 4].map(item => (
+          {[1, 2, 3, 4].map(item => (
             <button
               key={item}
               type="button"
@@ -158,7 +163,7 @@ export default function HeroCameraEditor({ image, values, onChange, onSave, savi
             </span>
             <input
               type="range"
-              min={stage === 4 ? '1' : '1.05'}
+              min={stage === 1 || stage === 4 ? '1' : '1.05'}
               max="1.8"
               step="0.01"
               value={zoom}

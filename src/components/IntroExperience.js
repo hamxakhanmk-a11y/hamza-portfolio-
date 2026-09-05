@@ -8,6 +8,9 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   const rootRef = useRef(null);
   const mediaRef = useRef(null);
   const imageRef = useRef(null);
+  const stage1X = cameraStages?.[1]?.x ?? 50;
+  const stage1Y = cameraStages?.[1]?.y ?? 50;
+  const stage1Zoom = cameraStages?.[1]?.zoom ?? 1;
   const stage2X = cameraStages?.[2]?.x ?? 72;
   const stage2Y = cameraStages?.[2]?.y ?? 35;
   const stage2Zoom = cameraStages?.[2]?.zoom ?? 1.32;
@@ -49,13 +52,13 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           transformOrigin: '50% 50%',
         });
         const cameraStops = [
-          { scale: 1, xPercent: 0, yPercent: 0, transformOrigin: '50% 50%' },
+          detailCamera(stage1X, stage1Y, stage1Zoom),
           detailCamera(stage2X, stage2Y, stage2Zoom),
           detailCamera(stage3X, stage3Y, stage3Zoom),
           detailCamera(stage4X, stage4Y, stage4Zoom),
         ];
         const cameraFocus = [
-          '50% 50%',
+          `${stage1X}% ${stage1Y}%`,
           `${stage2X}% ${stage2Y}%`,
           `${stage3X}% ${stage3Y}%`,
           `${stage4X}% ${stage4Y}%`,
@@ -66,12 +69,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
 
         gsap.set(scenes, { autoAlpha: 0, scale: .985, yPercent: 2 });
         gsap.set(scenes[0], { autoAlpha: 1, scale: 1, yPercent: 0 });
-        gsap.set(mediaRef.current, {
-          scale: 1,
-          xPercent: 0,
-          yPercent: 0,
-          transformOrigin: '50% 50%',
-        });
+        gsap.set(mediaRef.current, { ...cameraStops[0], force3D: true });
         gsap.set(imageRef.current, { objectPosition: cameraFocus[0] });
 
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -178,6 +176,29 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           showStage(nextStage);
         }
 
+        function isBypassGesture(self) {
+          const event = self?.event;
+          const target = event?.target;
+          if (target instanceof Element && target.closest('[data-hero-scroll-bypass]')) return true;
+
+          const touch = event?.touches?.[0] || event?.changedTouches?.[0];
+          const clientY = touch?.clientY ?? event?.clientY;
+          const bypass = document.querySelector('[data-hero-scroll-bypass]');
+          const bounds = bypass?.getBoundingClientRect();
+          return Number.isFinite(clientY)
+            && bounds
+            && clientY >= bounds.top
+            && clientY <= bounds.bottom;
+        }
+
+        function handleGesture(direction, self) {
+          if (direction > 0 && isBypassGesture(self)) {
+            leaveHero(1);
+            return;
+          }
+          changeStage(direction);
+        }
+
         const wheelObserver = ScrollTrigger.observe({
           target: window,
           type: 'wheel',
@@ -185,8 +206,8 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           allowClicks: true,
           tolerance: 10,
           lockAxis: true,
-          onDown: () => changeStage(1),
-          onUp: () => changeStage(-1),
+          onDown: self => handleGesture(1, self),
+          onUp: self => handleGesture(-1, self),
         });
 
         // A finger moving upward means the page should advance, while wheel
@@ -198,8 +219,8 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           allowClicks: true,
           tolerance: 10,
           lockAxis: true,
-          onUp: () => changeStage(1),
-          onDown: () => changeStage(-1),
+          onUp: self => handleGesture(1, self),
+          onDown: self => handleGesture(-1, self),
         });
         observers = [wheelObserver, touchObserver];
         setHeroInteraction(false);
@@ -242,7 +263,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
       sectionTrigger?.kill();
       context?.revert();
     };
-  }, [stage2X, stage2Y, stage2Zoom, stage3X, stage3Y, stage3Zoom, stage4X, stage4Y, stage4Zoom]);
+  }, [stage1X, stage1Y, stage1Zoom, stage2X, stage2Y, stage2Zoom, stage3X, stage3Y, stage3Zoom, stage4X, stage4Y, stage4Zoom]);
 
   return (
     <section ref={rootRef} className="intro-shell intro-embedded" aria-label="Featured artwork introduction">

@@ -119,7 +119,7 @@ export default function Navbar() {
       }`}
     >
       {/* Top row — artist name */}
-      <div className={`relative flex min-h-16 items-center justify-between border-b px-4 py-3 sm:px-6 md:justify-center ${
+      <div data-hero-scroll-bypass className={`relative flex min-h-16 items-center justify-between border-b px-4 py-3 sm:px-6 md:justify-center ${
         overlayHero ? 'border-white/20' : 'border-neutral-100'
       }`}>
         <Link

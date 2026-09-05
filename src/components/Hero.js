@@ -11,6 +11,7 @@ async function getHeroImages() {
     const [{ data }, { data: settingRows }] = await Promise.all([
       supabase.from('site_images').select('key,image_url').eq('key', 'hero'),
       supabase.from('site_text').select('key,value').in('key', [
+        'hero_stage_1_x', 'hero_stage_1_y', 'hero_stage_1_zoom',
         'hero_stage_2_x', 'hero_stage_2_y', 'hero_stage_2_zoom',
         'hero_stage_3_x', 'hero_stage_3_y', 'hero_stage_3_zoom',
         'hero_stage_4_x', 'hero_stage_4_y', 'hero_stage_4_zoom',
@@ -34,6 +35,11 @@ async function getHeroImages() {
 export default async function Hero() {
   const images = await getHeroImages();
   const cameraStages = {
+    1: {
+      x: Number(images.hero_stage_1_x || 50),
+      y: Number(images.hero_stage_1_y || 50),
+      zoom: Number(images.hero_stage_1_zoom || 1),
+    },
     2: {
       x: Number(images.hero_stage_2_x || 72),
       y: Number(images.hero_stage_2_y || 35),

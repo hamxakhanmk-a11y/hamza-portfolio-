@@ -44,6 +44,7 @@ export default function BalancedArtworkImage({ src, alt, round = false, eager = 
       style={{
         ...size,
         clipPath: round ? 'circle(49.5% at 50% 50%)' : 'none',
+        filter: 'drop-shadow(0 18px 14px rgba(0,0,0,.16))',
       }}
     />
   );

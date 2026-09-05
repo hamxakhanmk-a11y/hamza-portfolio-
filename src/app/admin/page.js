@@ -100,6 +100,9 @@ const emptyShow = {
 };
 
 const heroCameraDefaults = {
+  hero_stage_1_x: '50',
+  hero_stage_1_y: '50',
+  hero_stage_1_zoom: '1',
   hero_stage_2_x: '72',
   hero_stage_2_y: '35',
   hero_stage_2_zoom: '1.32',
