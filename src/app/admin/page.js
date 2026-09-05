@@ -106,6 +106,9 @@ const heroCameraDefaults = {
   hero_stage_3_x: '28',
   hero_stage_3_y: '48',
   hero_stage_3_zoom: '1.48',
+  hero_stage_4_x: '50',
+  hero_stage_4_y: '50',
+  hero_stage_4_zoom: '1',
 };
 
 const heroTextDefaults = {

@@ -13,6 +13,7 @@ async function getHeroImages() {
       supabase.from('site_text').select('key,value').in('key', [
         'hero_stage_2_x', 'hero_stage_2_y', 'hero_stage_2_zoom',
         'hero_stage_3_x', 'hero_stage_3_y', 'hero_stage_3_zoom',
+        'hero_stage_4_x', 'hero_stage_4_y', 'hero_stage_4_zoom',
         'hero_stage_1_eyebrow', 'hero_stage_1_title',
         'hero_stage_2_eyebrow', 'hero_stage_2_title',
         'hero_stage_3_eyebrow', 'hero_stage_3_title',
@@ -38,6 +39,11 @@ export default async function Hero() {
       x: Number(images.hero_stage_3_x || 28),
       y: Number(images.hero_stage_3_y || 48),
       zoom: Number(images.hero_stage_3_zoom || 1.48),
+    },
+    4: {
+      x: Number(images.hero_stage_4_x || 50),
+      y: Number(images.hero_stage_4_y || 50),
+      zoom: Number(images.hero_stage_4_zoom || 1),
     },
   };
   const heroText = {

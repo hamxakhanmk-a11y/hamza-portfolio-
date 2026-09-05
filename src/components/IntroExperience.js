@@ -13,6 +13,9 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   const stage3X = cameraStages?.[3]?.x ?? 28;
   const stage3Y = cameraStages?.[3]?.y ?? 48;
   const stage3Zoom = cameraStages?.[3]?.zoom ?? 1.48;
+  const stage4X = cameraStages?.[4]?.x ?? 50;
+  const stage4Y = cameraStages?.[4]?.y ?? 50;
+  const stage4Zoom = cameraStages?.[4]?.zoom ?? 1;
 
   useLayoutEffect(() => {
     const rootElement = rootRef.current;
@@ -44,7 +47,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           { scale: 1, xPercent: 0, yPercent: 0, transformOrigin: '50% 50%' },
           detailCamera(stage2X, stage2Y, stage2Zoom),
           detailCamera(stage3X, stage3Y, stage3Zoom),
-          { scale: 1, xPercent: 0, yPercent: 0, transformOrigin: '50% 50%' },
+          detailCamera(stage4X, stage4Y, stage4Zoom),
         ];
         let activeStage = 0;
         let animating = false;
@@ -221,7 +224,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
       sectionTrigger?.kill();
       context?.revert();
     };
-  }, [stage2X, stage2Y, stage2Zoom, stage3X, stage3Y, stage3Zoom]);
+  }, [stage2X, stage2Y, stage2Zoom, stage3X, stage3Y, stage3Zoom, stage4X, stage4Y, stage4Zoom]);
 
   return (
     <section ref={rootRef} className="intro-shell intro-embedded" aria-label="Featured artwork introduction">

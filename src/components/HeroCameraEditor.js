@@ -10,8 +10,13 @@ const STAGES = {
   },
   3: {
     label: 'Stage 3 · Second detail',
-    description: 'The second focal area before the final pull-back.',
+    description: 'The second focal area before the final view.',
     defaults: { x: 28, y: 48, zoom: 1.48 },
+  },
+  4: {
+    label: 'Stage 4 · Final view',
+    description: 'Keep the full painting or turn the ending into another detail shot.',
+    defaults: { x: 50, y: 50, zoom: 1 },
   },
 };
 
@@ -60,11 +65,11 @@ export default function HeroCameraEditor({ image, values, onChange, onSave, savi
             Hero Camera Path
           </h3>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-neutral-500">
-            Stage 1 and Stage 4 show the complete painting. Set the two detail shots between them by dragging the focal point and choosing the zoom.
+            Stage 1 opens on the complete painting. Set the focal point and zoom for Stages 2, 3, and 4 independently.
           </p>
         </div>
         <div className="flex rounded-full bg-[#eaf6fa] p-1">
-          {[2, 3].map(item => (
+          {[2, 3, 4].map(item => (
             <button
               key={item}
               type="button"
@@ -153,7 +158,7 @@ export default function HeroCameraEditor({ image, values, onChange, onSave, savi
             </span>
             <input
               type="range"
-              min="1.05"
+              min={stage === 4 ? '1' : '1.05'}
               max="1.8"
               step="0.01"
               value={zoom}
