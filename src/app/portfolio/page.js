@@ -2,6 +2,9 @@ export const dynamic = 'force-dynamic';
 
 import { createClient } from '@supabase/supabase-js';
 import ArtworkGrid from '@/components/ArtworkGrid';
+import PortfolioGallery from '@/components/PortfolioGallery';
+import { isRoundArtwork } from '@/data/artworkPresentation';
+import { siteConfig } from '@/data/config';
 
 async function getPortfolioArtworks() {
   try {
@@ -22,11 +25,25 @@ async function getPortfolioArtworks() {
 
 export default async function PortfolioPage() {
   const artworks = await getPortfolioArtworks();
+  const galleryArtworks = artworks
+    .filter(artwork => artwork.image_url)
+    .map(artwork => ({
+      id: artwork.id,
+      title: artwork.title,
+      image_url: artwork.image_url,
+      size: artwork.size,
+      medium: artwork.medium,
+      price: artwork.price,
+      available: artwork.available,
+      round: isRoundArtwork(artwork),
+    }));
 
   return (
     <>
       <main className="bg-white min-h-screen">
-        <div className="pb-10 pt-28 text-center sm:pb-16 sm:pt-36">
+        <PortfolioGallery artworks={galleryArtworks} artistName={siteConfig.artistName} />
+
+        <div id="portfolio-collection" className="scroll-mt-24 pb-10 pt-28 text-center sm:pb-16 sm:pt-36">
           <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: 'var(--color-coral)' }}>Collection</p>
           <h1 className="text-4xl font-light text-neutral-900 sm:text-5xl md:text-6xl" style={{ fontFamily: 'var(--font-cormorant)' }}>
             Portfolio
