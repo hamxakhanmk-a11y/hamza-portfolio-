@@ -2,17 +2,19 @@ export const dynamic = 'force-dynamic';
 
 import { createClient } from '@supabase/supabase-js';
 import ArtworkGrid from '@/components/ArtworkGrid';
-import PortfolioGallery from '@/components/PortfolioGallery';
-import { isRoundArtwork } from '@/data/artworkPresentation';
-import { siteConfig } from '@/data/config';
+import GalleryTour from '@/components/GalleryTour';
+import { TOUR_SETTING_KEY, parseTourMap, resolveTourSlots } from '@/data/galleryTour';
+
+function publicClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
 
 async function getPortfolioArtworks() {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
-    const { data } = await supabase
+    const { data } = await publicClient()
       .from('artworks')
       .select('*')
       .in('section', ['portfolio', 'shop'])
@@ -23,25 +25,30 @@ async function getPortfolioArtworks() {
   } catch { return []; }
 }
 
+async function getTourMap() {
+  try {
+    const { data } = await publicClient().from('site_text').select('value').eq('key', TOUR_SETTING_KEY).maybeSingle();
+    return parseTourMap(data?.value);
+  } catch { return {}; }
+}
+
 export default async function PortfolioPage() {
-  const artworks = await getPortfolioArtworks();
-  const galleryArtworks = artworks
-    .filter(artwork => artwork.image_url)
-    .map(artwork => ({
+  const [artworks, tourMap] = await Promise.all([getPortfolioArtworks(), getTourMap()]);
+  const tourSlots = resolveTourSlots(tourMap, artworks).map(({ slot, artwork }) => ({
+    slot,
+    artwork: artwork && {
       id: artwork.id,
       title: artwork.title,
       image_url: artwork.image_url,
       size: artwork.size,
       medium: artwork.medium,
-      price: artwork.price,
-      available: artwork.available,
-      round: isRoundArtwork(artwork),
-    }));
+    },
+  }));
 
   return (
     <>
       <main className="bg-white min-h-screen">
-        <PortfolioGallery artworks={galleryArtworks} artistName={siteConfig.artistName} />
+        <GalleryTour slots={tourSlots} />
 
         <div id="portfolio-collection" className="scroll-mt-24 pb-10 pt-28 text-center sm:pb-16 sm:pt-36">
           <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: 'var(--color-coral)' }}>Collection</p>

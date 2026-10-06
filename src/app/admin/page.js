@@ -6,6 +6,7 @@ import ImageCropper from '@/components/ImageCropper';
 import HeroCameraEditor from '@/components/HeroCameraEditor';
 import HeroTextEditor from '@/components/HeroTextEditor';
 import HeroMedia, { isVideoSource } from '@/components/HeroMedia';
+import { TOUR_SLOTS, TOUR_SETTING_KEY, parseTourMap, resolveTourSlots } from '@/data/galleryTour';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -168,6 +169,8 @@ export default function AdminPage() {
   const [draggedArtworkId, setDraggedArtworkId] = useState(null);
   const [layoutMsg, setLayoutMsg] = useState('');
   const [savingLayout, setSavingLayout] = useState(false);
+  const [tourMsg, setTourMsg] = useState('');
+  const [savingTour, setSavingTour] = useState(false);
 
   const fileRef = useRef(null);
   const heroRef = useRef(null);
@@ -486,6 +489,30 @@ export default function AdminPage() {
       setLayoutMsg(`Error: ${error.error || 'Could not save layout.'}`);
     }
     setSavingLayout(false);
+  }
+
+  function setTourChoice(slotId, value) {
+    const map = parseTourMap(siteText[TOUR_SETTING_KEY]);
+    if (value === 'auto') delete map[slotId];
+    else map[slotId] = value === 'none' ? 'none' : Number(value);
+    setSiteText(prev => ({ ...prev, [TOUR_SETTING_KEY]: JSON.stringify(map) }));
+    setTourMsg('');
+  }
+
+  async function saveTourSlots() {
+    setSavingTour(true);
+    setTourMsg('Saving gallery tour…');
+    const response = await fetch('/api/site-text', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ key: TOUR_SETTING_KEY, value: siteText[TOUR_SETTING_KEY] || '{}' }),
+    });
+    if (response.ok) setTourMsg('✓ Gallery tour saved and published!');
+    else {
+      const error = await response.json().catch(() => ({}));
+      setTourMsg(`Error: ${error.error || 'Could not save the gallery tour.'}`);
+    }
+    setSavingTour(false);
   }
 
   async function fetchSiteImages() {
@@ -821,7 +848,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex gap-5 overflow-x-auto border-b border-neutral-200 bg-white px-4 sm:gap-8 sm:px-6">
-        {[['dashboard', 'Dashboard'], ['artworks', 'Artworks'], ['layout', 'Layout'], ['shows', 'Shows'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
+        {[['dashboard', 'Dashboard'], ['artworks', 'Artworks'], ['layout', 'Layout'], ['tour', 'Gallery Tour'], ['shows', 'Shows'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -868,6 +895,7 @@ export default function AdminPage() {
                 {[
                   ['+ Add Artwork', 'artworks'],
                   ['Arrange Paintings', 'layout'],
+                  ['Choose Gallery Tour Paintings', 'tour'],
                   ['Manage Shows', 'shows'],
                   ['Edit About', 'about'],
                   ['Edit Contact Details', 'contact'],
@@ -944,6 +972,69 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* ═══════════════ GALLERY TOUR ═══════════════ */}
+        {activeTab === 'tour' && (() => {
+          const tourMap = parseTourMap(siteText[TOUR_SETTING_KEY]);
+          const tourArtworks = artworks.filter(art => (art.section === 'portfolio' || art.section === 'shop') && art.show_on_website !== false && art.image_url);
+          const resolved = new Map(resolveTourSlots(tourMap, tourArtworks).map(entry => [entry.slot, entry.artwork]));
+          const formatTime = seconds => `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')}`;
+          return (
+            <div className="flex flex-col gap-7">
+              <div>
+                <p className="mb-2 text-xs uppercase tracking-[0.25em] text-neutral-400">Portfolio Page</p>
+                <h2 className="text-4xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Gallery Tour</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-500">
+                  The walk-through at the top of the Portfolio page has {TOUR_SLOTS.length} places on its walls. Each card shows where that place is in the tour.
+                  Choose a painting for it, leave it on <strong>Automatic</strong> to fill it from your portfolio, or choose <strong>Empty wall</strong>.
+                  Close-ups are where the camera stops in front of the painting.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5">
+                {TOUR_SLOTS.map(slot => {
+                  const choice = tourMap[slot.id];
+                  const shown = resolved.get(slot.id);
+                  return (
+                    <div key={slot.id} className="overflow-hidden border border-neutral-200 bg-white">
+                      <div className="relative aspect-video bg-neutral-100">
+                        <img src={`/gallery-tour/slots/${slot.id}.jpg`} alt={`Wall place ${slot.id} in the gallery tour`} className="h-full w-full object-cover" loading="lazy" />
+                        <span className="absolute left-2 top-2 bg-neutral-900 px-2 py-1 text-xs text-white">{slot.id}</span>
+                        <span className={`absolute right-2 top-2 px-2 py-1 text-[9px] uppercase tracking-wider ${slot.closeUp ? 'bg-[#ed7189] text-white' : 'bg-white/90 text-neutral-500'}`}>
+                          {slot.closeUp ? 'Close-up' : 'In the distance'}
+                        </span>
+                        <span className="absolute bottom-2 left-2 bg-white/90 px-2 py-1 text-[10px] text-neutral-600">at {formatTime(slot.at)}</span>
+                      </div>
+                      <div className="flex items-center gap-3 p-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-neutral-50">
+                          {shown ? <img src={shown.image_url} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-[9px] uppercase text-neutral-300">Empty</span>}
+                        </div>
+                        <select
+                          value={choice == null ? 'auto' : String(choice)}
+                          onChange={event => setTourChoice(slot.id, event.target.value)}
+                          className="min-w-0 flex-1 border border-neutral-200 bg-white px-2 py-2 text-xs text-neutral-700"
+                          aria-label={`Painting for wall place ${slot.id}`}
+                        >
+                          <option value="auto">Automatic{choice == null && shown ? ` (${shown.title})` : ''}</option>
+                          <option value="none">Empty wall</option>
+                          {tourArtworks.map(art => <option key={art.id} value={String(art.id)}>{art.title}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="sticky bottom-3 flex flex-col items-center justify-between gap-3 border border-neutral-200 bg-white/95 p-4 shadow-lg backdrop-blur sm:flex-row">
+                <p className={`text-xs ${tourMsg.startsWith('✓') ? 'text-green-700' : 'text-neutral-500'}`}>{tourMsg || 'Changes are published only after you save.'}</p>
+                <button onClick={saveTourSlots} disabled={savingTour}
+                  className="w-full bg-neutral-900 px-7 py-3 text-xs uppercase tracking-[0.18em] text-white disabled:opacity-40 sm:w-auto">
+                  {savingTour ? 'Saving…' : 'Save Gallery Tour'}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ═══════════════ ARTWORKS TAB ═══════════════ */}
         {activeTab === 'artworks' && (
