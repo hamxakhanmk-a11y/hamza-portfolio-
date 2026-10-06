@@ -465,16 +465,6 @@ body {
 }
 
 /* ── Portfolio gallery tour ── */
-.gallery-tour-box[data-portrait="true"] {
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 91%, transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 91%, transparent);
-}
-.gallery-tour-slot { opacity: calc(1 - var(--haze, 0)); will-change: transform; backface-visibility: hidden; }
-.gallery-tour-art {
-  display: block;
-  object-fit: fill;
-  filter: brightness(var(--light, 1)) drop-shadow(0 16px 18px rgba(28, 22, 16, .3));
-}
-.gallery-tour-caption { color: #34302b; filter: brightness(var(--light, 1)); }
-.gallery-tour-title { font-family: var(--font-cormorant), serif; font-size: 54px; line-height: 1.1; }
-.gallery-tour-meta { margin-top: 10px; font-size: 24px; letter-spacing: .14em; text-transform: uppercase; color: rgba(52, 48, 43, .6); }
+.gallery-tour-fade { height: 14%; }
+.gallery-tour-fade--top { top: var(--band-top, -100px); background: linear-gradient(#efedea, rgba(239, 237, 234, 0)); }
+.gallery-tour-fade--bottom { top: var(--band-bottom, 100%); transform: translateY(-100%); background: linear-gradient(rgba(239, 237, 234, 0), #efedea); }
