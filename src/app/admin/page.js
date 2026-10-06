@@ -978,16 +978,14 @@ export default function AdminPage() {
           const tourMap = parseTourMap(siteText[TOUR_SETTING_KEY]);
           const tourArtworks = artworks.filter(art => (art.section === 'portfolio' || art.section === 'shop') && art.show_on_website !== false && art.image_url);
           const resolved = new Map(resolveTourSlots(tourMap, tourArtworks).map(entry => [entry.slot, entry.artwork]));
-          const formatTime = seconds => `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')}`;
           return (
             <div className="flex flex-col gap-7">
               <div>
                 <p className="mb-2 text-xs uppercase tracking-[0.25em] text-neutral-400">Portfolio Page</p>
                 <h2 className="text-4xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Gallery Tour</h2>
                 <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-500">
-                  The walk-through at the top of the Portfolio page has {TOUR_SLOTS.length} places on its walls. Each card shows where that place is in the tour.
+                  The 3D gallery at the top of the Portfolio page has {TOUR_SLOTS.length} places on its walls, visited in this order. Each card shows where that place is in the hall.
                   Choose a painting for it, leave it on <strong>Automatic</strong> to fill it from your portfolio, or choose <strong>Empty wall</strong>.
-                  Close-ups are where the camera stops in front of the painting.
                 </p>
               </div>
 
@@ -997,13 +995,18 @@ export default function AdminPage() {
                   const shown = resolved.get(slot.id);
                   return (
                     <div key={slot.id} className="overflow-hidden border border-neutral-200 bg-white">
-                      <div className="relative aspect-video bg-neutral-100">
-                        <img src={`/gallery-tour/slots/${slot.id}.jpg`} alt={`Wall place ${slot.id} in the gallery tour`} className="h-full w-full object-cover" loading="lazy" />
+                      <div className="relative flex aspect-video items-center justify-center bg-neutral-50">
+                        {/* plan of the hall: entrance at the bottom, this place highlighted */}
+                        <svg viewBox="0 0 120 60" className="h-full w-full" aria-label={`Place ${slot.id}, ${slot.side < 0 ? 'left' : 'right'} wall`}>
+                          <rect x="6" y="18" width="108" height="24" fill="#fff" stroke="#d4d4d4" />
+                          {TOUR_SLOTS.map(other => (
+                            <rect key={other.id} x={10 + (other.id - 1) * 8.6} y={other.side < 0 ? 16 : 41} width="5" height="3"
+                              fill={other.id === slot.id ? '#ed7189' : '#d4d4d4'} />
+                          ))}
+                          <text x="8" y="56" fontSize="5" fill="#a3a3a3">ENTRANCE →</text>
+                        </svg>
                         <span className="absolute left-2 top-2 bg-neutral-900 px-2 py-1 text-xs text-white">{slot.id}</span>
-                        <span className={`absolute right-2 top-2 px-2 py-1 text-[9px] uppercase tracking-wider ${slot.closeUp ? 'bg-[#ed7189] text-white' : 'bg-white/90 text-neutral-500'}`}>
-                          {slot.closeUp ? 'Close-up' : 'In the distance'}
-                        </span>
-                        <span className="absolute bottom-2 left-2 bg-white/90 px-2 py-1 text-[10px] text-neutral-600">at {formatTime(slot.at)}</span>
+                        <span className="absolute right-2 top-2 bg-white/90 px-2 py-1 text-[9px] uppercase tracking-wider text-neutral-500">{slot.side < 0 ? 'Left wall' : 'Right wall'}</span>
                       </div>
                       <div className="flex items-center gap-3 p-3">
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-neutral-50">

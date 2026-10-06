@@ -463,8 +463,3 @@ body {
   .nav-flow-indicator::before,
   .nav-flow-link { animation: none !important; transition: none !important; }
 }
-
-/* ── Portfolio gallery tour ── */
-.gallery-tour-fade { height: 14%; }
-.gallery-tour-fade--top { top: var(--band-top, -100px); background: linear-gradient(#efedea, rgba(239, 237, 234, 0)); }
-.gallery-tour-fade--bottom { top: var(--band-bottom, 100%); transform: translateY(-100%); background: linear-gradient(rgba(239, 237, 234, 0), #efedea); }

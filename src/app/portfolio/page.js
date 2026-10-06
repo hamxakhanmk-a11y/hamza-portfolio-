@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import ArtworkGrid from '@/components/ArtworkGrid';
 import GalleryTour from '@/components/GalleryTour';
 import { TOUR_SETTING_KEY, parseTourMap, resolveTourSlots } from '@/data/galleryTour';
+import { isRoundArtwork } from '@/data/artworkPresentation';
+import { siteConfig } from '@/data/config';
 
 function publicClient() {
   return createClient(
@@ -42,13 +44,16 @@ export default async function PortfolioPage() {
       image_url: artwork.image_url,
       size: artwork.size,
       medium: artwork.medium,
+      price: artwork.price,
+      available: artwork.available,
+      round: isRoundArtwork(artwork),
     },
   }));
 
   return (
     <>
       <main className="bg-white min-h-screen">
-        <GalleryTour slots={tourSlots} />
+        <GalleryTour slots={tourSlots} artistName={siteConfig.artistName} />
 
         <div id="portfolio-collection" className="scroll-mt-24 pb-10 pt-28 text-center sm:pb-16 sm:pt-36">
           <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: 'var(--color-coral)' }}>Collection</p>
