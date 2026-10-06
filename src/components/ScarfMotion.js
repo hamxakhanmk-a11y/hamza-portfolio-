@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createHeroWaterMotion } from "@/lib/heroWaterMotion";
 
 const ARTWORK = "1787632591923-45abc927-9983-4e23-a0f9-78a020e6a361.png";
 const REPAIR_AREAS = [
@@ -124,6 +125,7 @@ export default function ScarfMotion({ src, imageRef }) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       const scene = new THREE.Scene();
+      const water = createHeroWaterMotion(THREE, scene, src);
       const camera = new THREE.OrthographicCamera(0, 1361, 0, -644, 0.1, 2000);
       camera.position.z = 1000;
       scene.add(new THREE.HemisphereLight("#eee3ff", "#514070", 1.8));
@@ -235,6 +237,7 @@ export default function ScarfMotion({ src, imageRef }) {
         camera.bottom = camera.top - vh;
         camera.updateProjectionMatrix();
         animate.forEach((update) => update(elapsed));
+        water.update(elapsed);
         renderer.render(scene, camera);
         canvas.style.opacity = "1";
         frame = requestAnimationFrame(draw);
@@ -290,6 +293,7 @@ export default function ScarfMotion({ src, imageRef }) {
         geometries.forEach((geometry) => geometry.dispose());
         materials.forEach((material) => material.dispose());
         repairTexture?.dispose();
+        water.dispose();
         renderer.dispose();
         canvas.style.opacity = "0";
       };

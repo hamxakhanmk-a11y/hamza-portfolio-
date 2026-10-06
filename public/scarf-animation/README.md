@@ -22,3 +22,17 @@ arms into blue water and the ribbon dangling below the bent legs over the
 turquoise fish. Reconstruct matching painted water and fish surface. Preserve
 the wrapped cloth, woman's face, body, limbs, hat, colors, brushwork, framing,
 and proportions. Do not add fabric, transform the woman, or introduce objects.
+
+## Water And Bubbles
+
+heroWaterMotion uses the original artwork texture in the same Three.js renderer
+as the scarf. A luminance/color mask selects pale painted water curls and foam;
+paint-space outlines protect the fish and woman, and corner ornaments are
+excluded. Slow travelling ripples and a restrained moving sheen animate those
+water features over an 18-second cycle. The ten large blue-white bubbles around
+the fish's head have individually phased small drifts and size pulses; their
+coral appendages stay fixed. Small bright water bubbles also follow the current.
+
+The existing crop/zoom alignment, reduced-motion fallback, and offscreen/tab
+pause apply to the entire composition. No additional generated image or stock
+video is used for water or bubbles.
