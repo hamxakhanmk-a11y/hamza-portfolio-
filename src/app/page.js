@@ -5,6 +5,7 @@ import Gallery from "@/components/Gallery";
 import Contact from "@/components/Contact";
 import CommissionInquiry from "@/components/CommissionInquiry";
 import WaterSurface from "@/components/WaterSurface";
+import HomeMistTransition from "@/components/HomeMistTransition";
 
 export default function Home() {
   return (
@@ -12,6 +13,7 @@ export default function Home() {
       <main>
         <WaterSurface />
         <Hero />
+        <HomeMistTransition />
         <Gallery />
         <CommissionInquiry compact />
         <Contact />

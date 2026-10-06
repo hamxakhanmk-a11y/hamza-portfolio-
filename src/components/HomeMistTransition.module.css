@@ -1,0 +1,13 @@
+.mist {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 45;
+  pointer-events: none;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mist { display: none; }
+}
