@@ -4,36 +4,79 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TOUR_SLOTS } from '@/data/galleryTour';
 
-// A sunlit 3D gallery the visitor glides through by scrolling. Paintings are real objects on the walls,
-// so they stay perfectly still; the camera follows a smooth path with gentle pauses at each painting.
+// A white 3D gallery the visitor glides through by scrolling, laid out like the reference film:
+// frosted glass doors open onto the entrance hall (arched window at the end, a stair beside it),
+// a corridor turns into the great hall (oval skylights, benches, paintings in pairs), the side
+// hall leads to a wide flight of stairs, and at the top the route turns into the glass hall.
+// Paintings are fixed objects on the walls, so they never move; the camera does the walking.
 
-// ── Layout (metres) ─────────────────────────────────────────────
-// Ground hall from the entrance to an arch, a double-height stair hall with a glass wall,
-// then the first-floor hall (glass on the right, paintings on the left) ending at a window.
-const HALL_HALF_WIDTH = 4;
-const HALL_HEIGHT = 7; // ground hall
-const UPPER_FLOOR = 4.6; // first-floor level
-const UPPER_HEIGHT = 6.2; // first-floor room height
-const FIRST_PAINTING_Z = -14;
-const UPPER_FIRST_Z = -72;
-const PAINTING_SPACING = 6.5;
-const HANG_HEIGHT = 2.35;
-const EYE_HEIGHT = 1.75;
-const GROUND_START = 12;
-const GROUND_END = -51; // arch into the stair hall
-const STAIR_START_Z = -55;
-const STEPS = 24;
-const STEP_RUN = 0.4;
-const STAIR_END_Z = STAIR_START_Z - STEPS * STEP_RUN;
-const END_Z = -113;
-const SKYLIGHT_HALF_WIDTH = 1.5;
-const BEAM_SPACING = 0.95;
-const STOP_SCREEN_SHARE = 72; // svh of scrolling per camera stop
+const EYE = 1.7;
+const UPPER = 4.2; // first-floor level
+const UPPER_EYE = UPPER + EYE;
+const HANG = 2.1; // painting centre height above its floor
+const STOP_SCREEN_SHARE = 70; // svh of scrolling per camera stop
+const WALL_T = 0.3;
 
-const WALL = 0xf5f3ef;
-const FLOOR = 0xefece8;
-const STONE = 0xf7f4f0;
-const FOG = 0xf6f3f1;
+const WALL = 0xf4f2ef;
+const FLOOR = 0xeeece8;
+const FOG = 0xf3f2f0;
+
+// Where each wall place hangs: position of the canvas centre and the way it faces (rotation about y).
+const PLACES = {
+  1: { pos: [3.85, HANG, -5.2], yaw: -Math.PI / 2 },
+  2: { pos: [3.85, HANG, -7.8], yaw: -Math.PI / 2 },
+  3: { pos: [3.85, HANG, -11.5], yaw: -Math.PI / 2 },
+  4: { pos: [-3.85, HANG, -4], yaw: Math.PI / 2 },
+  5: { pos: [-3.85, HANG, -7], yaw: Math.PI / 2 },
+  6: { pos: [-3.85, HANG, -10], yaw: Math.PI / 2 },
+  7: { pos: [16.2, HANG, -18.95], yaw: 0 },
+  8: { pos: [18.8, HANG, -18.95], yaw: 0 },
+  9: { pos: [23.2, HANG, -9.25], yaw: Math.PI },
+  10: { pos: [25.8, HANG, -9.25], yaw: Math.PI },
+  11: { pos: [30.2, HANG, -18.95], yaw: 0 },
+  12: { pos: [32.8, HANG, -18.95], yaw: 0 },
+  13: { pos: [37.2, HANG, -9.25], yaw: Math.PI },
+  14: { pos: [39.8, HANG, -9.25], yaw: Math.PI },
+  15: { pos: [48, HANG, -10.25], yaw: Math.PI },
+  16: { pos: [52, HANG, -10.25], yaw: Math.PI },
+  17: { pos: [56, HANG, -10.25], yaw: Math.PI },
+  18: { pos: [78.25, UPPER + HANG, -22.5], yaw: -Math.PI / 2 },
+  19: { pos: [78.25, UPPER + HANG, -30.2], yaw: -Math.PI / 2 },
+  20: { pos: [78.25, UPPER + HANG, -32.8], yaw: -Math.PI / 2 },
+  21: { pos: [78.25, UPPER + HANG, -41], yaw: -Math.PI / 2 },
+};
+
+// The camera's route: a keyframe per line (position, look-at point); `stop` marks where scrolling pauses.
+const PATH = [
+  { pos: [0, EYE, 5.5], look: [0, 2.2, -8], stop: { kind: 'entrance' } },
+  { pos: [0, EYE, -1.5], look: [0, 2.3, -16] },
+  { pos: [0.25, EYE, -6.5], look: [4, HANG, -6.5], stop: { bay: [1, 2] } },
+  { pos: [0.6, EYE, -11.5], look: [4, HANG - 0.1, -11.5], stop: { bay: [3] } },
+  { pos: [2.2, EYE, -6.6], look: [-4, HANG, -7.3], stop: { bay: [4, 5, 6] } },
+  { pos: [2.6, EYE, -12.6], look: [6, 1.9, -14.1] },
+  { pos: [5.5, EYE, -14.1], look: [14, 1.9, -14.1] },
+  { pos: [11.2, EYE, -14.1], look: [28, 2.6, -14.1], stop: { kind: 'view', text: 'The great hall' } },
+  { pos: [14, EYE, -14.1], look: [24, HANG, -16] },
+  { pos: [17.5, EYE, -15.3], look: [17.5, HANG, -19.1], stop: { bay: [7, 8] } },
+  { pos: [21, EYE, -14.1], look: [30, HANG, -12] },
+  { pos: [24.5, EYE, -12.9], look: [24.5, HANG, -9.1], stop: { bay: [9, 10] } },
+  { pos: [28, EYE, -14.1], look: [36, HANG, -16] },
+  { pos: [31.5, EYE, -15.3], look: [31.5, HANG, -19.1], stop: { bay: [11, 12] } },
+  { pos: [35, EYE, -14.1], look: [42, HANG, -12.5] },
+  { pos: [38.5, EYE, -12.9], look: [38.5, HANG, -9.1], stop: { bay: [13, 14] } },
+  { pos: [42, EYE, -14.1], look: [52, 2.0, -14.1] },
+  { pos: [45.5, EYE, -15.8], look: [53, HANG, -10.1], stop: { bay: [15, 16, 17] } },
+  { pos: [59, EYE, -14.1], look: [70, 4.5, -14.1] },
+  { pos: [66.2, 3.8, -14.1], look: [78, 7, -14.1] },
+  { pos: [72, UPPER_EYE, -14.1], look: [78.4, 6.8, -14.1], stop: { kind: 'view', text: 'Up to the first floor' } },
+  { pos: [74.4, UPPER_EYE, -17], look: [76, 6.2, -30] },
+  { pos: [75.6, UPPER_EYE, -21], look: [78.4, UPPER + HANG, -22.5], stop: { bay: [18] } },
+  { pos: [74.4, UPPER_EYE, -25.5], look: [75, 6.2, -40] },
+  { pos: [74.8, UPPER_EYE, -31.5], look: [78.4, UPPER + HANG, -31.5], stop: { bay: [19, 20] } },
+  { pos: [74.4, UPPER_EYE, -36], look: [75, 6.2, -50] },
+  { pos: [75.6, UPPER_EYE, -39.5], look: [78.4, UPPER + HANG, -41], stop: { bay: [21] } },
+  { pos: [74.4, UPPER_EYE, -44], look: [74.4, 6.6, -50], stop: { kind: 'end' } },
+];
 
 function optimizedImage(url) {
   return `/_next/image?url=${encodeURIComponent(url)}&w=1080&q=75`;
@@ -42,6 +85,7 @@ function optimizedImage(url) {
 const smootherstep = t => t * t * t * (t * (t * 6 - 15) + 10);
 // Slows down around each stop without ever quite stopping: a dwell, not a halt.
 const dwell = t => 0.3 * t + 0.7 * smootherstep(t);
+const clamp01 = t => Math.min(1, Math.max(0, t));
 
 function cssFont(variable, fallback) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
@@ -58,89 +102,25 @@ function hasTransparentCorners(image) {
   return [[1, 1], [size - 2, 1], [1, size - 2], [size - 2, size - 2]].every(([x, y]) => data[(y * size + x) * 4 + 3] < 40);
 }
 
-function labelCanvas(artwork, fontFamily, align) {
+// The title under a painting, as the film has it.
+function labelCanvas(artwork, fontFamily) {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
-  canvas.height = 640;
-  const ctx = canvas.getContext('2d');
-  ctx.textBaseline = 'top';
-  ctx.textAlign = align;
-  const x = align === 'left' ? 24 : 1000;
-  const words = String(artwork.title || '').toUpperCase().split(/\s+/);
-  ctx.font = `500 76px ${fontFamily}`;
-  if ('letterSpacing' in ctx) ctx.letterSpacing = '6px';
-  const lines = [];
-  let line = '';
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word;
-    if (ctx.measureText(next).width > 940 && line) { lines.push(line); line = word; } else line = next;
-  }
-  if (line) lines.push(line);
-  ctx.fillStyle = '#4b4149';
-  lines.slice(0, 4).forEach((text, k) => ctx.fillText(text, x, 20 + k * 86));
-  let y = 20 + Math.min(lines.length, 4) * 86 + 26;
-  ctx.fillStyle = '#ed7189';
-  ctx.fillRect(align === 'left' ? x : x - 90, y, 90, 3);
-  y += 30;
-  if ('letterSpacing' in ctx) ctx.letterSpacing = '5px';
-  ctx.font = `500 30px ${fontFamily}`;
-  ctx.fillStyle = 'rgba(75,65,73,0.8)';
-  const meta = [artwork.size, artwork.medium].filter(Boolean).join('  ·  ').toUpperCase();
-  if (meta) { ctx.fillText(meta, x, y); y += 46; }
-  if (artwork.available === false) ctx.fillText('SOLD', x, y);
-  else if (artwork.price) ctx.fillText(String(artwork.price).toUpperCase(), x, y);
-  return canvas;
-}
-
-function titleCanvas(name, fontFamily) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 720;
-  const ctx = canvas.getContext('2d');
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  ctx.font = `600 250px ${fontFamily}`;
-  if ('letterSpacing' in ctx) ctx.letterSpacing = '18px';
-  // pale stone with a pearl sheen
-  const pearl = ctx.createLinearGradient(0, 160, 2048, 420);
-  pearl.addColorStop(0, '#efe3ea');
-  pearl.addColorStop(0.35, '#e6e3f1');
-  pearl.addColorStop(0.6, '#e2eeec');
-  pearl.addColorStop(1, '#f1e6e0');
-  ctx.fillStyle = pearl;
-  ctx.fillText(name.toUpperCase(), 1024, 400);
-  ctx.font = `500 92px ${fontFamily}`;
-  if ('letterSpacing' in ctx) ctx.letterSpacing = '40px';
-  ctx.fillStyle = '#8f7f98';
-  ctx.fillText('PORTFOLIO', 1024, 600);
-  return canvas;
-}
-
-function radialCanvas(inner, outer) {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  const g = ctx.createRadialGradient(128, 110, 0, 128, 128, 128);
-  g.addColorStop(0, inner);
-  g.addColorStop(1, outer);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 256, 256);
-  return canvas;
-}
-
-function shaftCanvas() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  for (let x = 0; x < 512; x++) {
-    // stripes matching the skylight beams, fading towards the floor
-    const stripe = 0.5 + 0.5 * Math.cos((x / 512) * Math.PI * 2 * 8);
-    const g = ctx.createLinearGradient(0, 0, 0, 256);
-    g.addColorStop(0, `rgba(255,246,236,${0.9 * stripe})`);
-    g.addColorStop(1, 'rgba(255,246,236,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(x, 0, 1, 256);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#5a5651';
+  ctx.font = `500 58px ${fontFamily}`;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '4px';
+  let title = String(artwork.title || '').toUpperCase();
+  while (title.length > 4 && ctx.measureText(title).width > 980) title = `${title.slice(0, -2)}…`;
+  ctx.fillText(title, 512, 24);
+  const meta = [artwork.size, artwork.medium].filter(Boolean).join('  ·  ').toUpperCase();
+  if (meta) {
+    ctx.fillStyle = 'rgba(90,86,81,0.7)';
+    ctx.font = `500 30px ${fontFamily}`;
+    ctx.fillText(meta, 512, 112);
   }
   return canvas;
 }
@@ -165,11 +145,13 @@ export default function GalleryTour({ slots, artistName }) {
   const [stop, setStop] = useState(0);
   const [hovering, setHovering] = useState(false);
   const [progress, setProgress] = useState(0);
-  const hung = slots.filter(entry => entry.artwork).map(entry => ({ ...entry, place: TOUR_SLOTS.find(s => s.id === entry.slot) })).filter(entry => entry.place);
-  // camera stops: entrance title, the ground-floor paintings, the stairs, the first-floor paintings, the window at the end
-  let number = 0;
-  const paintingStops = floor => hung.filter(entry => entry.place.floor === floor).sort((a, b) => a.place.id - b.place.id).map(entry => ({ kind: 'painting', number: ++number, ...entry }));
-  const tourStops = [{ kind: 'entrance' }, ...paintingStops('ground'), { kind: 'stairs' }, ...paintingStops('upper'), { kind: 'end' }];
+  const hung = slots.filter(entry => entry.artwork && PLACES[entry.slot]);
+  const bySlot = new Map(hung.map(entry => [entry.slot, entry.artwork]));
+  const numberOf = new Map(hung.map((entry, i) => [entry.slot, i + 1]));
+  // the stops along the route; a bay with no paintings hung is skipped
+  const tourStops = PATH.filter(key => key.stop).map(key => key.stop).map(marker => (
+    marker.bay ? { kind: 'bay', paintings: marker.bay.filter(id => bySlot.has(id)).map(id => ({ slot: id, number: numberOf.get(id), artwork: bySlot.get(id) })) } : marker
+  )).filter(marker => marker.kind !== 'bay' || marker.paintings.length);
   const stopCount = tourStops.length;
 
   useEffect(() => {
@@ -178,12 +160,11 @@ export default function GalleryTour({ slots, artistName }) {
     let cleanup = () => {};
 
     (async () => {
-      const [THREE, { EffectComposer }, { RenderPass }, { UnrealBloomPass }, { ShaderPass }, { OutputPass }, { RoomEnvironment }] = await Promise.all([
+      const [THREE, { EffectComposer }, { RenderPass }, { UnrealBloomPass }, { OutputPass }, { RoomEnvironment }] = await Promise.all([
         import('three'),
         import('three/addons/postprocessing/EffectComposer.js'),
         import('three/addons/postprocessing/RenderPass.js'),
         import('three/addons/postprocessing/UnrealBloomPass.js'),
-        import('three/addons/postprocessing/ShaderPass.js'),
         import('three/addons/postprocessing/OutputPass.js'),
         import('three/addons/environments/RoomEnvironment.js'),
       ]);
@@ -201,7 +182,7 @@ export default function GalleryTour({ slots, artistName }) {
       }
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, narrow ? 1.25 : 1.75));
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.92;
+      renderer.toneMappingExposure = 1.0;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -212,31 +193,32 @@ export default function GalleryTour({ slots, artistName }) {
       const keep = item => { disposables.push(item); return item; };
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(FOG);
-      scene.fog = new THREE.Fog(FOG, 26, 95);
+      scene.fog = new THREE.Fog(FOG, 30, 110);
       const pmrem = new THREE.PMREMGenerator(renderer);
-      const envTexture = keep(pmrem.fromScene(new RoomEnvironment(), 0.04).texture);
-      scene.environment = envTexture;
-      scene.environmentIntensity = 0.3;
+      scene.environment = keep(pmrem.fromScene(new RoomEnvironment(), 0.04).texture);
+      scene.environmentIntensity = 0.4;
       pmrem.dispose();
 
       const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 160);
       const fontFamily = cssFont('--font-cormorant', 'Georgia, serif');
       await (document.fonts?.ready || Promise.resolve());
       const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
-      const canvasTexture = (canvas, repeat) => {
+      const canvasTexture = canvas => {
         const texture = keep(new THREE.CanvasTexture(canvas));
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.anisotropy = maxAnisotropy;
-        if (repeat) { texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(...repeat); }
         return texture;
       };
 
-      // ── Materials ──
-      const wallMat = keep(new THREE.MeshStandardMaterial({ color: WALL, roughness: 0.95 }));
-      const floorMat = keep(new THREE.MeshStandardMaterial({ color: FLOOR, roughness: 0.38 }));
-      const stoneMat = keep(new THREE.MeshStandardMaterial({ color: STONE, roughness: 0.8 }));
-      const goldMat = keep(new THREE.MeshStandardMaterial({ color: 0xc9a25e, metalness: 0.85, roughness: 0.32 }));
-      const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xfffbf8, fog: false, toneMapped: false }));
+      // ── Materials: smooth, matte, off-white ──
+      const wallMat = keep(new THREE.MeshStandardMaterial({ color: WALL, roughness: 1 }));
+      const floorMat = keep(new THREE.MeshStandardMaterial({ color: FLOOR, roughness: 0.45 }));
+      const stepMat = keep(new THREE.MeshStandardMaterial({ color: 0xe8e5e1, roughness: 0.9 }));
+      const frameMat = keep(new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.5, metalness: 0.4 }));
+      const glassMat = keep(new THREE.MeshStandardMaterial({ color: 0xf2f5f7, roughness: 0.2, transparent: true, opacity: 0.55 }));
+      const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, toneMapped: false }));
+      const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
+      const canvasEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf2f0ec, roughness: 0.9 }));
 
       const add = (geometry, material, position, options = {}) => {
         const mesh = new THREE.Mesh(keep(geometry), material);
@@ -247,175 +229,179 @@ export default function GalleryTour({ slots, artistName }) {
         scene.add(mesh);
         return mesh;
       };
-      const TALL_TOP = UPPER_FLOOR + UPPER_HEIGHT;
-      const sunDirection = new THREE.Vector3(0.55, 1, -0.32).normalize(); // towards the sun
-
-      // ── Ceilings: slabs either side of a slatted skylight, cornices, and the sun shafts below ──
-      const beamGeo = keep(new THREE.BoxGeometry(SKYLIGHT_HALF_WIDTH * 2, 0.4, 0.26));
-      const beamMeshes = [];
-      const shaftSource = canvasTexture(shaftCanvas());
-      const matrix = new THREE.Matrix4();
-      const ceiling = (zFrom, zTo, baseY, top) => {
-        const len = zFrom - zTo, mid = (zFrom + zTo) / 2, height = top - baseY;
-        const slabWidth = HALL_HALF_WIDTH - SKYLIGHT_HALF_WIDTH;
-        for (const side of [-1, 1]) {
-          add(new THREE.BoxGeometry(slabWidth, 0.4, len), stoneMat, [side * (SKYLIGHT_HALF_WIDTH + slabWidth / 2), top + 0.2, mid]);
-          add(new THREE.BoxGeometry(0.3, 0.22, len), stoneMat, [side * (HALL_HALF_WIDTH - 0.15), top - 0.11, mid], { cast: false });
-        }
-        const beams = new THREE.InstancedMesh(beamGeo, stoneMat, Math.ceil(len / BEAM_SPACING));
-        for (let k = 0; k < beams.count; k++) {
-          matrix.makeTranslation(0, top + 0.2, zFrom - BEAM_SPACING / 2 - k * BEAM_SPACING);
-          beams.setMatrixAt(k, matrix);
-        }
-        beams.castShadow = true;
-        beams.receiveShadow = true;
-        scene.add(beams);
-        beamMeshes.push(beams);
-        add(new THREE.PlaneGeometry(SKYLIGHT_HALF_WIDTH * 2 + 1, len), skyMat, [0, top + 1.6, mid], { rotation: [Math.PI / 2, 0, 0], cast: false, receive: false });
-        const shaftTex = keep(shaftSource.clone());
-        shaftTex.wrapS = THREE.RepeatWrapping;
-        shaftTex.repeat.set(len / (BEAM_SPACING * 8), 1);
-        const shaftMat = keep(new THREE.MeshBasicMaterial({ map: shaftTex, transparent: true, opacity: 0.025, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
-        for (const offset of [-0.6, 0.6]) {
-          const shaft = add(new THREE.PlaneGeometry(len, height * 1.15), shaftMat, [0, 0, mid], { cast: false, receive: false });
-          // lean the plane along the sun's direction from the skylight down to the floor
-          shaft.rotation.set(0, Math.PI / 2, 0);
-          shaft.rotateX(-Math.atan2(sunDirection.x, sunDirection.y));
-          shaft.position.set(offset - (sunDirection.x / sunDirection.y) * (height / 2), baseY + height / 2, mid);
-        }
+      // a solid box from its extents
+      const block = (x0, x1, y0, y1, z0, z1, material = wallMat, options) =>
+        add(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), material, [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], options);
+      // a wall along x or z with a rectangular opening in it
+      const wallX = (x, z0, z1, y0, y1, hole) => { // wall in the plane x = const, running along z
+        if (!hole) return block(x - WALL_T / 2, x + WALL_T / 2, y0, y1, z0, z1);
+        const [h0, h1, hTop] = hole; // z range of the opening, and its height above y0
+        block(x - WALL_T / 2, x + WALL_T / 2, y0, y1, z0, Math.max(h0, h1));
+        block(x - WALL_T / 2, x + WALL_T / 2, y0, y1, Math.min(h0, h1), z1);
+        block(x - WALL_T / 2, x + WALL_T / 2, y0 + hTop, y1, Math.min(h0, h1), Math.max(h0, h1));
       };
-
-      // ── Columns and arches ──
-      const column = (x, z, baseY, height) => {
-        const shaft = height - 1.05;
-        add(new THREE.CylinderGeometry(0.27, 0.3, shaft, 28), stoneMat, [x, baseY + 0.32 + shaft / 2, z]);
-        add(new THREE.BoxGeometry(0.78, 0.32, 0.78), stoneMat, [x, baseY + 0.16, z]);
-        add(new THREE.CylinderGeometry(0.42, 0.29, 0.32, 28), stoneMat, [x, baseY + height - 0.57, z]);
-        add(new THREE.BoxGeometry(0.86, 0.16, 0.86), stoneMat, [x, baseY + height - 0.33, z]);
+      const wallZ = (z, x0, x1, y0, y1, hole) => { // wall in the plane z = const, running along x
+        if (!hole) return block(x0, x1, y0, y1, z - WALL_T / 2, z + WALL_T / 2);
+        const [h0, h1, hTop] = hole;
+        block(x0, h0, y0, y1, z - WALL_T / 2, z + WALL_T / 2);
+        block(h1, x1, y0, y1, z - WALL_T / 2, z + WALL_T / 2);
+        block(h0, h1, y0 + hTop, y1, z - WALL_T / 2, z + WALL_T / 2);
       };
-      const wallWithOpening = (height, hole) => {
+      const floor = (x0, x1, z0, z1, y = 0) =>
+        add(new THREE.PlaneGeometry(x1 - x0, Math.abs(z1 - z0)), floorMat, [(x0 + x1) / 2, y, (z0 + z1) / 2], { rotation: [-Math.PI / 2, 0, 0], cast: false });
+      // a ceiling slab with skylight holes ("rect" strips or "oval" openings), bright sky above
+      const ceiling = (x0, x1, z0, z1, y, holes = []) => {
         const shape = new THREE.Shape();
-        shape.moveTo(-HALL_HALF_WIDTH, 0);
-        shape.lineTo(HALL_HALF_WIDTH, 0);
-        shape.lineTo(HALL_HALF_WIDTH, height);
-        shape.lineTo(-HALL_HALF_WIDTH, height);
-        shape.lineTo(-HALL_HALF_WIDTH, 0);
-        shape.holes.push(hole);
-        return shape;
+        shape.moveTo(x0, z0); shape.lineTo(x1, z0); shape.lineTo(x1, z1); shape.lineTo(x0, z1); shape.lineTo(x0, z0);
+        for (const hole of holes) {
+          const path = new THREE.Path();
+          if (hole.oval) path.absellipse(hole.oval[0], hole.oval[1], hole.oval[2], hole.oval[3], 0, Math.PI * 2, false, 0);
+          else { const [a0, a1, b0, b1] = hole.rect; path.moveTo(a0, b0); path.lineTo(a1, b0); path.lineTo(a1, b1); path.lineTo(a0, b1); path.lineTo(a0, b0); }
+          shape.holes.push(path);
+        }
+        // the shape's y runs along world z; rotating it flat drops the extrusion below y
+        const slab = add(new THREE.ExtrudeGeometry(shape, { depth: 0.45, bevelEnabled: false, curveSegments: 48 }), wallMat, [0, y + 0.45, 0], { rotation: [Math.PI / 2, 0, 0] });
+        slab.receiveShadow = false;
+        add(new THREE.PlaneGeometry(x1 - x0 + 4, Math.abs(z1 - z0) + 4), skyMat, [(x0 + x1) / 2, y + 2.2, (z0 + z1) / 2], { rotation: [Math.PI / 2, 0, 0], cast: false, receive: false });
       };
-      const archedHole = (halfWidth, bottom, spring) => {
+      const archedWindowWall = (x0, x1, y0, height, z, radius, sill, spring) => {
+        const w = x1 - x0;
+        const shape = new THREE.Shape();
+        shape.moveTo(-w / 2, 0); shape.lineTo(w / 2, 0); shape.lineTo(w / 2, height); shape.lineTo(-w / 2, height); shape.lineTo(-w / 2, 0);
         const hole = new THREE.Path();
-        hole.moveTo(-halfWidth, bottom);
-        hole.lineTo(-halfWidth, spring);
-        hole.absarc(0, spring, halfWidth, Math.PI, 0, true);
-        hole.lineTo(halfWidth, bottom);
-        hole.lineTo(-halfWidth, bottom);
-        return hole;
+        hole.moveTo(-radius, sill); hole.lineTo(-radius, spring); hole.absarc(0, spring, radius, Math.PI, 0, true); hole.lineTo(radius, sill); hole.lineTo(-radius, sill);
+        shape.holes.push(hole);
+        add(new THREE.ExtrudeGeometry(shape, { depth: WALL_T, bevelEnabled: false, curveSegments: 40 }), wallMat, [(x0 + x1) / 2, y0, z - WALL_T / 2]);
+        add(new THREE.PlaneGeometry(w + 6, height + 6), skyMat, [(x0 + x1) / 2, y0 + height / 2, z - 3], { cast: false, receive: false });
+        for (let k = -1; k <= 1; k++) block((x0 + x1) / 2 + k * radius * 0.5 - 0.025, (x0 + x1) / 2 + k * radius * 0.5 + 0.025, y0 + sill, y0 + spring + radius * (k ? 0.86 : 1), z + 0.1, z + 0.15, frameMat, { cast: false });
+        for (const y of [spring - (spring - sill) * 0.35, spring + (spring - sill) * 0.2]) block((x0 + x1) / 2 - radius, (x0 + x1) / 2 + radius, y0 + y - 0.025, y0 + y + 0.025, z + 0.1, z + 0.15, frameMat, { cast: false });
       };
-      const archWall = (z, baseY, height, openingHalfWidth, springHeight) => {
-        const geometry = new THREE.ExtrudeGeometry(wallWithOpening(height, archedHole(openingHalfWidth, 0, springHeight)), { depth: 0.7, bevelEnabled: false, curveSegments: 40 });
-        add(geometry, wallMat, [0, baseY, z - 0.35]);
-        column(-openingHalfWidth - 0.55, z + 0.75, baseY, height);
-        column(openingHalfWidth + 0.55, z + 0.75, baseY, height);
+      // a glass wall: bright glazing behind piers and a slim mullion grid
+      const glazing = (axis, at, a0, a1, y0, y1, outward = 1) => { // outward: which side of the wall is outside
+        const len = Math.abs(a1 - a0), mid = (a0 + a1) / 2, h = y1 - y0;
+        if (axis === 'x') {
+          add(new THREE.PlaneGeometry(len, h), skyMat, [at + 0.35 * outward, (y0 + y1) / 2, mid], { rotation: [0, outward > 0 ? -Math.PI / 2 : Math.PI / 2, 0], cast: false, receive: false });
+          for (let z = Math.max(a0, a1); z >= Math.min(a0, a1); z -= 4) block(at - 0.2, at + 0.2, y0, y1, z - 0.2, z + 0.2);
+          for (let z = Math.max(a0, a1) - 2; z > Math.min(a0, a1); z -= 4) block(at - 0.04, at + 0.04, y0, y1, z - 0.04, z + 0.04, frameMat, { cast: false });
+          for (let y = y0 + 2.2; y < y1 - 0.4; y += 2.2) block(at - 0.04, at + 0.04, y - 0.04, y + 0.04, Math.min(a0, a1), Math.max(a0, a1), frameMat, { cast: false });
+        } else {
+          add(new THREE.PlaneGeometry(len, h), skyMat, [mid, (y0 + y1) / 2, at - 0.35], { cast: false, receive: false });
+          for (let x = a0; x <= a1; x += 4) block(x - 0.2, x + 0.2, y0, y1, at - 0.2, at + 0.2);
+          for (let x = a0 + 2; x < a1; x += 4) block(x - 0.04, x + 0.04, y0, y1, at - 0.04, at + 0.04, frameMat, { cast: false });
+          for (let y = y0 + 2.2; y < y1 - 0.4; y += 2.2) block(a0, a1, y - 0.04, y + 0.04, at - 0.04, at + 0.04, frameMat, { cast: false });
+        }
       };
 
-      // ── Ground hall ──
-      add(new THREE.PlaneGeometry(HALL_HALF_WIDTH * 2, GROUND_START - STAIR_START_Z), floorMat, [0, 0, (GROUND_START + STAIR_START_Z) / 2], { rotation: [-Math.PI / 2, 0, 0], cast: false });
-      const groundLen = GROUND_START - GROUND_END, groundMid = (GROUND_START + GROUND_END) / 2;
-      for (const side of [-1, 1]) {
-        add(new THREE.PlaneGeometry(groundLen, HALL_HEIGHT), wallMat, [side * HALL_HALF_WIDTH, HALL_HEIGHT / 2, groundMid], { rotation: [0, -side * Math.PI / 2, 0], cast: false });
-        add(new THREE.BoxGeometry(0.06, 0.16, groundLen), stoneMat, [side * (HALL_HALF_WIDTH - 0.03), 0.08, groundMid], { cast: false });
+      // ── Entrance hall: x -4..4, z 0..-16, 6 high ──
+      floor(-4, 4, 9, -16);
+      wallX(-4, 0, -16, 0, 6);
+      wallX(4, 0, -16, 0, 6, [-13, -15.2, 3.2]); // doorway to the corridor
+      ceiling(-4, 4, 0, -16, 6, [{ rect: [-0.9, 0.9, -2, -14] }]);
+      archedWindowWall(-4, 4, 0, 6, -16, 1.6, 1.0, 3.4);
+      // frosted glass front with sliding doors
+      block(-4, 4, 3.4, 6, -0.03, 0.03, glassMat, { cast: false });
+      block(-4, -2.2, 0, 3.4, -0.03, 0.03, glassMat, { cast: false });
+      block(2.2, 4, 0, 3.4, -0.03, 0.03, glassMat, { cast: false });
+      for (const x of [-4, -2.2, 2.2, 4]) block(x - 0.04, x + 0.04, 0, 6, -0.06, 0.06, frameMat, { cast: false });
+      block(-4, 4, 3.36, 3.44, -0.06, 0.06, frameMat, { cast: false });
+      const doors = [-1, 1].map(side => {
+        const door = new THREE.Group();
+        const pane = new THREE.Mesh(keep(new THREE.BoxGeometry(2.2, 3.4, 0.05)), glassMat);
+        pane.position.set(side * 1.1, 1.7, 0);
+        const bar = new THREE.Mesh(keep(new THREE.BoxGeometry(0.06, 3.4, 0.1)), frameMat);
+        bar.position.set(side * 0.03, 1.7, 0);
+        const handle = new THREE.Mesh(keep(new THREE.BoxGeometry(0.04, 1.1, 0.14)), frameMat);
+        handle.position.set(side * 0.22, 1.25, 0.08);
+        door.add(pane, bar, handle);
+        scene.add(door);
+        return { door, side };
+      });
+      // a short stair against the far left corner, as in the film, with a slim rail
+      for (let k = 0; k < 10; k++) {
+        const h = 0.19 * (k + 1);
+        block(-3.85, -1.9, 0, h, -11 - 0.4 * k - 0.4, -11 - 0.4 * k, stepMat);
       }
-      ceiling(GROUND_START, GROUND_END, 0, HALL_HEIGHT);
-      add(new THREE.PlaneGeometry(HALL_HALF_WIDTH * 2, HALL_HEIGHT), wallMat, [0, HALL_HEIGHT / 2, GROUND_START], { rotation: [0, Math.PI, 0], cast: false });
-      archWall(-5, 0, HALL_HEIGHT, 2.3, 3.8);
-      archWall(FIRST_PAINTING_Z - PAINTING_SPACING * 3.5, 0, HALL_HEIGHT, 2.3, 3.9);
-      archWall(GROUND_END, 0, HALL_HEIGHT, 2.3, 3.9);
-      const benchGeo = keep(new THREE.BoxGeometry(1.0, 0.42, 2.2));
-      add(benchGeo, stoneMat, [0, 0.21, FIRST_PAINTING_Z - PAINTING_SPACING * 1.5]);
+      block(-1.95, -1.9, 0.9, 1.0, -11.2, -15.2, frameMat, { cast: false });
+      for (const z of [-11.3, -13.2, -15.1]) block(-1.95, -1.9, 0, 1.0, z - 0.025, z + 0.025, frameMat, { cast: false });
+      block(-1.2, 1.2, 0, 0.42, -13.2, -14.4, stepMat); // bench
 
-      // ── Stair hall and first floor: one tall volume with a glass wall on the right ──
-      const tallLen = GROUND_END - END_Z, tallMid = (GROUND_END + END_Z) / 2;
-      add(new THREE.PlaneGeometry(tallLen, TALL_TOP), wallMat, [-HALL_HALF_WIDTH, TALL_TOP / 2, tallMid], { rotation: [0, Math.PI / 2, 0], cast: false });
-      add(new THREE.BoxGeometry(HALL_HALF_WIDTH * 2, TALL_TOP - HALL_HEIGHT, 0.7), wallMat, [0, (HALL_HEIGHT + TALL_TOP) / 2, GROUND_END - 0.35]);
-      ceiling(GROUND_END, END_Z, 0, TALL_TOP);
-      // glazing: full-height glass between piers, with a slim mullion grid
-      add(new THREE.PlaneGeometry(tallLen, TALL_TOP), skyMat, [HALL_HALF_WIDTH + 0.4, TALL_TOP / 2, tallMid], { rotation: [0, -Math.PI / 2, 0], cast: false, receive: false });
-      for (let z = GROUND_END; z >= END_Z; z -= 4.2) add(new THREE.BoxGeometry(0.5, TALL_TOP, 0.5), wallMat, [HALL_HALF_WIDTH + 0.1, TALL_TOP / 2, z]);
-      for (let z = GROUND_END - 2.1; z > END_Z; z -= 4.2) add(new THREE.BoxGeometry(0.08, TALL_TOP, 0.08), stoneMat, [HALL_HALF_WIDTH + 0.3, TALL_TOP / 2, z], { cast: false });
-      for (let y = 2.4; y < TALL_TOP - 0.5; y += 2.4) add(new THREE.BoxGeometry(0.08, 0.08, tallLen), stoneMat, [HALL_HALF_WIDTH + 0.3, y, tallMid], { cast: false });
-      // stairs: a wide flight rising to the first floor, each riser a shade darker so the steps read
-      const riserMat = keep(new THREE.MeshStandardMaterial({ color: 0xe6e2dd, roughness: 0.9 }));
-      const rise = UPPER_FLOOR / STEPS;
-      for (let k = 0; k < STEPS; k++) {
-        const h = rise * (k + 1);
-        const z = STAIR_START_Z - STEP_RUN * k;
-        add(new THREE.BoxGeometry(HALL_HALF_WIDTH * 2, h, STEP_RUN), floorMat, [0, h / 2, z - STEP_RUN / 2]);
-        add(new THREE.PlaneGeometry(HALL_HALF_WIDTH * 2, rise - 0.02), riserMat, [0, h - rise / 2, z + 0.005], { cast: false });
+      // ── Corridor: x 4..10, z -13..-15.2, 3.2 high ──
+      floor(4, 10, -13, -15.2);
+      wallZ(-13, 4, 10, 0, 3.2);
+      wallZ(-15.2, 4, 10, 0, 3.2);
+      block(4, 10, 3.2, 3.6, -13, -15.2);
+
+      // ── Great hall: x 10..44, z -9.1..-19.1, 7 high, oval skylights, benches down the middle ──
+      floor(10, 44, -9.1, -19.1);
+      wallX(10, -9.1, -19.1, 0, 7, [-13, -15.2, 3.2]);
+      wallX(44, -9.1, -19.1, 0, 7, [-12.6, -15.6, 4.2]);
+      wallZ(-9.1, 10, 44, 0, 7);
+      wallZ(-19.1, 10, 44, 0, 7);
+      ceiling(10, 44, -9.1, -19.1, 7, [17, 25, 33, 41].map(x => ({ oval: [x, -14.1, 1.9, 1.15] })));
+      for (const [x, z, w, d] of [[20, -14.1, 1.4, 1.4], [21.5, -13.1, 1.4, 1.0], [21.5, -15.1, 1.4, 1.0], [22.9, -14.1, 1.4, 1.4], [34, -14.1, 1.4, 1.4], [35.5, -13.3, 1.4, 1.0], [35.5, -14.9, 1.4, 1.0]]) {
+        block(x - w / 2, x + w / 2, 0, 0.45, z - d / 2, z + d / 2, stepMat);
       }
-      // first-floor slab and skirting
-      const upperLen = STAIR_END_Z - END_Z, upperMid = (STAIR_END_Z + END_Z) / 2;
-      add(new THREE.BoxGeometry(HALL_HALF_WIDTH * 2, 0.45, upperLen), floorMat, [0, UPPER_FLOOR - 0.225, upperMid]);
-      add(new THREE.BoxGeometry(0.06, 0.16, upperLen), stoneMat, [-(HALL_HALF_WIDTH - 0.03), UPPER_FLOOR + 0.08, upperMid], { cast: false });
-      archWall(UPPER_FIRST_Z - PAINTING_SPACING * 2.5, UPPER_FLOOR, UPPER_HEIGHT, 2.3, 3.6);
-      add(benchGeo, stoneMat, [0, UPPER_FLOOR + 0.21, UPPER_FIRST_Z - PAINTING_SPACING * 3.8]);
-      // end wall with a tall arched window full of soft sky
-      add(new THREE.ExtrudeGeometry(wallWithOpening(UPPER_HEIGHT, archedHole(1.6, 0.5, 3.5)), { depth: 0.5, bevelEnabled: false, curveSegments: 40 }), wallMat, [0, UPPER_FLOOR, END_Z]);
-      add(new THREE.PlaneGeometry(12, 12), skyMat, [0, UPPER_FLOOR + 3, END_Z - 3], { cast: false, receive: false });
-      for (let k = -1; k <= 1; k++) add(new THREE.BoxGeometry(0.05, 4.8, 0.05), stoneMat, [k * 0.8, UPPER_FLOOR + 2.9, END_Z + 0.25], { cast: false });
-      for (const y of [1.9, 3.3]) add(new THREE.BoxGeometry(3.2, 0.05, 0.05), stoneMat, [0, UPPER_FLOOR + y, END_Z + 0.25], { cast: false });
 
-      // ── Light ──
-      scene.add(new THREE.HemisphereLight(0xffffff, 0xe6e2de, 0.72));
-      const sun = new THREE.DirectionalLight(0xfff0e2, 3.1);
+      // ── Side hall: x 44..62, z -10.1..-18.1, 7 high; then the stair hall rising to the first floor ──
+      floor(44, 62, -10.1, -18.1);
+      wallZ(-10.1, 44, 62, 0, 7);
+      wallZ(-18.1, 44, 62, 0, 7);
+      ceiling(44, 62, -10.1, -18.1, 7);
+      for (const x of [47, 51, 55, 59]) block(x - 0.9, x + 0.9, 6.9, 6.96, -11.6, -11.3, lampMat, { cast: false, receive: false });
+      // stair hall and landing share a taller volume
+      const TOP = UPPER + 6;
+      wallZ(-10.1, 62, 78.4, 0, TOP);
+      wallZ(-18.1, 62, 70.4, 0, TOP);
+      block(44, 62, 7, TOP, -18.1, -10.1); // above the side hall's ceiling, closing the tall volume
+      ceiling(62, 78.4, -10.1, -18.1, TOP, [{ rect: [63, 77.4, -13.2, -15] }]);
+      const steps = 21, rise = UPPER / steps, run = 0.4;
+      for (let k = 0; k < steps; k++) {
+        const h = rise * (k + 1), x = 62 + run * k;
+        block(x, x + run, 0, h, -18.1, -10.1, floorMat);
+        add(new THREE.PlaneGeometry(8, rise - 0.02), stepMat, [x - 0.005, h - rise / 2, -14.1], { rotation: [0, -Math.PI / 2, 0], cast: false });
+      }
+      // tall window facing the top of the stairs
+      glazing('x', 78.4, -10.1, -18.1, UPPER, TOP);
+
+      // ── Glass hall (first floor): x 70.4..78.4, z -18.1..-50, glass on the left, paintings on the right ──
+      block(70.4, 78.4, UPPER - 0.4, UPPER, -50, -10.1, floorMat);
+      wallX(78.4, -18.1, -50, UPPER, TOP);
+      glazing('x', 70.4, -18.1, -50, UPPER, TOP, -1);
+      ceiling(70.4, 78.4, -18.1, -50, TOP, [{ rect: [73.2, 75.6, -20, -48] }]);
+      archedWindowWall(70.4, 78.4, UPPER, 6, -50, 1.6, 0.6, 3.6);
+
+      // ── Light: soft white daylight from above, no colour cast ──
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xd9d7d3, 1.0));
+      const sun = new THREE.DirectionalLight(0xffffff, 1.7);
+      const sunDirection = new THREE.Vector3(0.22, 1, 0.14).normalize();
       sun.castShadow = true;
       sun.shadow.mapSize.set(narrow ? 1024 : 2048, narrow ? 1024 : 2048);
-      Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 80 });
+      Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 80 });
       sun.shadow.bias = -0.0004;
-      sun.shadow.normalBias = 0.03;
-      sun.shadow.radius = 3;
+      sun.shadow.normalBias = 0.04;
+      sun.shadow.radius = 4;
       scene.add(sun, sun.target);
 
-      // dust drifting in the light
-      const dustCount = narrow ? 160 : 420;
+      const dustCount = narrow ? 120 : 300;
       const dustPositions = new Float32Array(dustCount * 3);
       for (let k = 0; k < dustCount; k++) {
-        dustPositions[k * 3] = (Math.random() - 0.5) * HALL_HALF_WIDTH * 1.8;
-        dustPositions[k * 3 + 1] = 0.4 + Math.random() * (HALL_HEIGHT - 1);
-        dustPositions[k * 3 + 2] = (Math.random() - 0.5) * 24;
+        dustPositions[k * 3] = (Math.random() - 0.5) * 8;
+        dustPositions[k * 3 + 1] = 0.4 + Math.random() * 5.5;
+        dustPositions[k * 3 + 2] = (Math.random() - 0.5) * 16;
       }
       const dustGeo = keep(new THREE.BufferGeometry());
       dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
-      const dustMat = keep(new THREE.PointsMaterial({ size: 0.035, map: canvasTexture(dotCanvas()), transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xfff6ea }));
-      const dust = new THREE.Points(dustGeo, dustMat);
+      const dust = new THREE.Points(dustGeo, keep(new THREE.PointsMaterial({ size: 0.03, map: canvasTexture(dotCanvas()), transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending })));
       scene.add(dust);
 
-      // ── Entrance title ──
-      const titleTex = canvasTexture(titleCanvas(artistName, fontFamily));
-      const titleWidth = 6.4, titleHeight = titleWidth * (720 / 2048);
-      for (let layer = 14; layer >= 0; layer--) {
-        // stacked layers give the letters depth; the deeper ones are tinted like shaded stone
-        const tint = layer === 0 ? 0xffffff : new THREE.Color(0x9d90a8).lerp(new THREE.Color(0xd9cfdc), layer / 14).getHex();
-        const material = keep(new THREE.MeshBasicMaterial({ map: titleTex, transparent: true, alphaTest: 0.35, color: tint, toneMapped: false }));
-        add(new THREE.PlaneGeometry(titleWidth, titleHeight), material, [0, titleHeight / 2 + 0.05, -0.4 - layer * 0.012], { cast: layer === 7, receive: false });
-      }
-
-      // ── Paintings ──
-      const placed = new Map(); // slot id -> where it hangs
-      for (const { place } of hung) {
-        const k = TOUR_SLOTS.filter(s => s.floor === place.floor).findIndex(s => s.id === place.id);
-        const upper = place.floor === 'upper';
-        placed.set(place.id, { z: (upper ? UPPER_FIRST_Z : FIRST_PAINTING_Z) - k * PAINTING_SPACING, side: place.side, baseY: upper ? UPPER_FLOOR : 0 });
-      }
+      // ── Paintings: plain canvases, shown exactly as their photographs ──
       const loader = new THREE.TextureLoader();
-      const glowTex = canvasTexture(radialCanvas('rgba(255,244,230,0.22)', 'rgba(255,244,230,0)'));
-      const glowMat = keep(new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
       const paintingMeshes = [];
-      await Promise.all(hung.map(async ({ artwork, place }) => {
-        const { z, side, baseY } = placed.get(place.id);
+      await Promise.all(hung.map(async ({ slot, artwork }) => {
+        const place = PLACES[slot];
         const group = new THREE.Group();
-        group.position.set(side * (HALL_HALF_WIDTH - 0.02), baseY + HANG_HEIGHT, z);
-        group.rotation.y = -side * Math.PI / 2;
+        group.position.set(...place.pos);
+        group.rotation.y = place.yaw;
         scene.add(group);
         let texture;
         try {
@@ -428,83 +414,36 @@ export default function GalleryTour({ slots, artistName }) {
         texture.anisotropy = maxAnisotropy;
         const image = texture.image;
         const aspect = image.width / image.height;
-        let height = 2.3, width = height * aspect;
-        if (width > 3.0) { width = 3.0; height = width / aspect; }
+        let height = 1.75, width = height * aspect;
+        if (width > 2.2) { width = 2.2; height = width / aspect; }
         const cutOut = artwork.round || hasTransparentCorners(image);
-        // unlit and untoned, so the painting shows exactly as its photograph
-        const art = new THREE.Mesh(
-          keep(cutOut ? (artwork.round ? new THREE.CircleGeometry(height / 2, 72) : new THREE.PlaneGeometry(width, height)) : new THREE.BoxGeometry(width, height, 0.045)),
-          keep(new THREE.MeshBasicMaterial({ map: texture, transparent: cutOut, alphaTest: cutOut ? 0.04 : 0, toneMapped: false })),
-        );
-        art.position.z = cutOut ? 0.025 : 0.06;
+        const faceMat = keep(new THREE.MeshBasicMaterial({ map: texture, transparent: cutOut, alphaTest: cutOut ? 0.04 : 0, toneMapped: false }));
+        const art = cutOut
+          ? new THREE.Mesh(keep(artwork.round ? new THREE.CircleGeometry(height / 2, 72) : new THREE.PlaneGeometry(width, height)), faceMat)
+          : new THREE.Mesh(keep(new THREE.BoxGeometry(width, height, 0.04)), [canvasEdgeMat, canvasEdgeMat, canvasEdgeMat, canvasEdgeMat, faceMat, canvasEdgeMat]);
+        art.position.z = cutOut ? 0.02 : 0.02 + 0.02;
         art.castShadow = true;
         if (cutOut) art.customDepthMaterial = keep(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: texture, alphaTest: 0.5 }));
         art.userData = { id: artwork.id };
         group.add(art);
         paintingMeshes.push(art);
-        if (!cutOut) {
-          // a slim gold frame
-          const f = 0.07, d = 0.09;
-          for (const [w, h, x, y] of [[width + 2 * f, f, 0, height / 2 + f / 2], [width + 2 * f, f, 0, -height / 2 - f / 2], [f, height, -width / 2 - f / 2, 0], [f, height, width / 2 + f / 2, 0]]) {
-            const bar = new THREE.Mesh(keep(new THREE.BoxGeometry(w, h, d)), goldMat);
-            bar.position.set(x, y, d / 2);
-            bar.castShadow = true;
-            group.add(bar);
-          }
-        }
-        // a warm wash of light on the wall, as if from a picture light
-        const glow = new THREE.Mesh(keep(new THREE.PlaneGeometry(width * 1.9 + 1.4, height * 1.7 + 1.2)), glowMat);
-        glow.position.set(0, 0.25, 0.012);
-        group.add(glow);
-        // title beside the painting, on the side the visitor approaches from
-        const labelTex = canvasTexture(labelCanvas(artwork, fontFamily, side > 0 ? 'right' : 'left'));
-        const label = new THREE.Mesh(keep(new THREE.PlaneGeometry(2.1, 2.1 * (640 / 1024))), keep(new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, depthWrite: false, toneMapped: false })));
-        label.position.set(side > 0 ? -(width / 2 + 1.55) : width / 2 + 1.55, -0.35, 0.015);
+        const label = new THREE.Mesh(keep(new THREE.PlaneGeometry(2.0, 0.5)), keep(new THREE.MeshBasicMaterial({ map: canvasTexture(labelCanvas(artwork, fontFamily)), transparent: true, depthWrite: false, toneMapped: false })));
+        label.position.set(0, -height / 2 - 0.42, 0.012);
         group.add(label);
       }));
       if (disposed) return;
 
       // ── Camera path ──
-      // start before the title, rise over it, pass the arch, then walk the hall looking ahead
-      // and turn to face each painting; between paintings the gaze returns down the hall
-      const V = (x, y, z) => new THREE.Vector3(x, y, z);
-      const keyPositions = [V(0, 1.8, 9), V(0, 3.3, 1.2), V(0, EYE_HEIGHT, -6.5)];
-      const keyTargets = [V(0, 1.45, -0.4), V(0, 2.1, -12), V(0, 2.0, -22)];
-      const stopKeys = [0]; // keyframe index of each stop
-      let previous = { z: -6.5, baseY: 0, first: true };
-      for (const tourStop of tourStops.slice(1)) {
-        if (tourStop.kind === 'painting') {
-          const { z, side, baseY } = placed.get(tourStop.slot);
-          const eye = baseY + EYE_HEIGHT;
-          if (!previous.first) {
-            keyPositions.push(V(0, eye, (previous.z + z) / 2 + 1.2));
-            keyTargets.push(V(side * 1.2, baseY + 2.0, z - 9));
-          }
-          keyPositions.push(V(-side * 1.15, eye, z + 1.7));
-          keyTargets.push(V(side * HALL_HALF_WIDTH, baseY + HANG_HEIGHT - 0.05, z - 0.15));
-          previous = { z, baseY };
-        } else if (tourStop.kind === 'stairs') {
-          // through the arch, up the flight, and out onto the first floor
-          keyPositions.push(V(0, EYE_HEIGHT, STAIR_START_Z + 4));
-          keyTargets.push(V(0, 3.4, STAIR_END_Z - 2));
-          keyPositions.push(V(0, EYE_HEIGHT + UPPER_FLOOR / 2, (STAIR_START_Z + STAIR_END_Z) / 2));
-          keyTargets.push(V(0, UPPER_FLOOR + 3.2, STAIR_END_Z - 10));
-          keyPositions.push(V(0, UPPER_FLOOR + EYE_HEIGHT, STAIR_END_Z - 1.5));
-          keyTargets.push(V(0, UPPER_FLOOR + 2.2, STAIR_END_Z - 16));
-          previous = { z: STAIR_END_Z - 1.5, baseY: UPPER_FLOOR };
-        } else {
-          const eye = previous.baseY + EYE_HEIGHT;
-          keyPositions.push(V(0, eye, (previous.z + END_Z) / 2 + 2));
-          keyTargets.push(V(0, previous.baseY + 3.0, END_Z));
-          keyPositions.push(V(0, eye + 0.2, END_Z + 9));
-          keyTargets.push(V(0, previous.baseY + 3.4, END_Z));
-        }
-        stopKeys.push(keyPositions.length - 1);
-      }
-      const positionCurve = new THREE.CatmullRomCurve3(keyPositions, false, 'centripetal');
-      const targetCurve = new THREE.CatmullRomCurve3(keyTargets, false, 'centripetal');
-      const segments = keyPositions.length - 1;
-      // scroll stops -> path parameter (a stop-to-stop move can span several keyframes)
+      const V = v => new THREE.Vector3(...v);
+      const positionCurve = new THREE.CatmullRomCurve3(PATH.map(k => V(k.pos)), false, 'centripetal');
+      const targetCurve = new THREE.CatmullRomCurve3(PATH.map(k => V(k.look)), false, 'centripetal');
+      const segments = PATH.length - 1;
+      // keyframe index of each stop, skipping bays with nothing hung (they fall out of tourStops too)
+      const stopKeys = PATH.map((key, i) => (key.stop ? i : -1)).filter((i, k) => {
+        if (i < 0) return false;
+        const marker = PATH[i].stop;
+        return !marker.bay || marker.bay.some(id => bySlot.has(id)) || k === 0;
+      });
       const stopToKey = s => {
         const i = Math.min(Math.floor(s), stopKeys.length - 2);
         const f = Math.min(1, s - i);
@@ -517,47 +456,24 @@ export default function GalleryTour({ slots, artistName }) {
         positionCurve.getPoint(t, camera.position);
         targetCurve.getPoint(t, lookPoint);
         camera.lookAt(lookPoint);
-        // a breath of handheld drift and the pointer's pull, for a cinematic feel
         camera.rotateY(sway.x);
         camera.rotateX(sway.y);
-        // keep the sun's shadow map and the dust around what the camera sees
-        const floorY = camera.position.y - EYE_HEIGHT;
-        sun.target.position.set(0, floorY, camera.position.z - 7);
-        sun.position.copy(sun.target.position).addScaledVector(sunDirection, 30);
-        dust.position.set(0, floorY, camera.position.z - 6);
+        // the doors slide apart as the visitor comes in
+        const open = smootherstep(clamp01((s - 0.02) / 0.3));
+        for (const { door, side } of doors) door.position.x = side * 2.15 * open;
+        // keep the light's shadow map and the dust around what the camera sees
+        const floorY = camera.position.y > UPPER ? UPPER : 0;
+        sun.target.position.set(camera.position.x, floorY, camera.position.z);
+        sun.position.copy(sun.target.position).addScaledVector(sunDirection, 35);
+        dust.position.set(camera.position.x, floorY, camera.position.z);
       };
 
-      // ── Post-processing ──
+      // ── Post-processing: a touch of glow on the windows, nothing else ──
       const composer = new EffectComposer(renderer);
       composer.addPass(new RenderPass(scene, camera));
-      const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), narrow ? 0.16 : 0.22, 0.55, 1.6);
+      const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), narrow ? 0.1 : 0.14, 0.5, 0.92);
       composer.addPass(bloom);
       composer.addPass(new OutputPass());
-      const grade = new ShaderPass({
-        uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uAspect: { value: 1 } },
-        vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-        fragmentShader: `
-          uniform sampler2D tDiffuse; uniform float uTime; uniform float uAspect; varying vec2 vUv;
-          float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-          void main() {
-            vec2 c = vUv - 0.5;
-            // faint pearl fringe toward the edges
-            float edge = dot(c, c);
-            vec3 col;
-            col.r = texture2D(tDiffuse, vUv + c * edge * 0.012).r;
-            col.g = texture2D(tDiffuse, vUv).g;
-            col.b = texture2D(tDiffuse, vUv - c * edge * 0.012).b;
-            // pastel grade: lift the shadows toward lavender and the highlights toward warm pink
-            float l = dot(col, vec3(0.299, 0.587, 0.114));
-            col = col * vec3(1.01, 0.995, 1.015);
-            col += vec3(0.008, 0.004, 0.012) * (1.0 - l);
-            // gentle vignette and film grain
-            col *= 1.0 - edge * 0.35;
-            col += (hash(vUv * vec2(uAspect, 1.0) * 900.0 + uTime) - 0.5) * 0.018;
-            gl_FragColor = vec4(col, 1.0);
-          }`,
-      });
-      composer.addPass(grade);
 
       // ── Loop ──
       let target = 0;
@@ -586,9 +502,8 @@ export default function GalleryTour({ slots, artistName }) {
         composer.setSize(w, h);
         bloom.setSize(w / 2, h / 2);
         camera.aspect = w / h;
-        camera.fov = camera.aspect < 1 ? 70 : 50;
+        camera.fov = camera.aspect < 1 ? 64 : 46;
         camera.updateProjectionMatrix();
-        grade.uniforms.uAspect.value = w / h;
       };
 
       const onPointer = event => {
@@ -617,7 +532,6 @@ export default function GalleryTour({ slots, artistName }) {
           positions[k * 3] += Math.cos(time * 0.3 + k * 1.7) * 0.0006;
         }
         dustGeo.attributes.position.needsUpdate = true;
-        grade.uniforms.uTime.value = time % 100;
         composer.render();
         const nearest = Math.round(current);
         if (nearest !== lastStop) { lastStop = nearest; setStop(nearest); }
@@ -659,7 +573,6 @@ export default function GalleryTour({ slots, artistName }) {
         renderer.domElement.removeEventListener('pointermove', onMove);
         renderer.domElement.removeEventListener('click', onClick);
         disposables.forEach(item => item.dispose?.());
-        beamMeshes.forEach(beams => beams.dispose());
         composer.dispose();
         renderer.dispose();
         renderer.domElement.remove();
@@ -677,8 +590,7 @@ export default function GalleryTour({ slots, artistName }) {
   if (hung.length === 0 || status === 'unsupported') return null;
 
   const currentStop = tourStops[Math.min(stop, stopCount - 1)];
-  const activePainting = currentStop.kind === 'painting' ? currentStop.artwork : null;
-  const paintingTotal = tourStops.filter(entry => entry.kind === 'painting').length;
+  const bay = currentStop.kind === 'bay' ? currentStop.paintings : [];
   const atEnd = stop >= stopCount - 1;
 
   function skipToCollection() {
@@ -688,14 +600,20 @@ export default function GalleryTour({ slots, artistName }) {
   return (
     <section
       ref={rootRef}
-      className="relative bg-[#f3e9ee]"
+      className="relative bg-[#f3f2f0]"
       style={{ height: `${stopCount * STOP_SCREEN_SHARE}svh` }}
       aria-label="Walk-through gallery of portfolio paintings"
     >
       <div className="sticky top-0 h-[100svh] overflow-hidden">
         <div ref={hostRef} className="absolute inset-0" style={{ cursor: hovering ? 'pointer' : 'default' }} />
 
-        <div className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-[#f3e9ee] transition-opacity duration-1000 ${status === 'ready' ? 'opacity-0' : 'opacity-100'}`}>
+        {/* Title card over the doors, as the film opens */}
+        <div className={`pointer-events-none absolute inset-x-0 top-[22%] flex flex-col items-center text-center transition-opacity duration-700 ${status === 'ready' && progress < 0.012 ? 'opacity-100' : 'opacity-0'}`}>
+          <p className="text-4xl font-light tracking-[0.2em] text-[#4a4a48] sm:text-6xl" style={{ fontFamily: 'var(--font-cormorant)' }}>{artistName.toUpperCase()}</p>
+          <p className="mt-3 text-[11px] uppercase tracking-[0.45em] text-[#ed7189]">Portfolio</p>
+        </div>
+
+        <div className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-[#f3f2f0] transition-opacity duration-1000 ${status === 'ready' ? 'opacity-0' : 'opacity-100'}`}>
           <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/60">Opening the gallery…</p>
         </div>
 
@@ -708,7 +626,7 @@ export default function GalleryTour({ slots, artistName }) {
         </button>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-4 sm:bottom-10">
-          {stop === 0 && status === 'ready' && (
+          {currentStop.kind === 'entrance' && status === 'ready' && (
             <div className="flex flex-col items-center gap-3 text-center">
               <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/70">Scroll to walk through the gallery</p>
               <span className="block h-9 w-5 rounded-full border border-[#075f8f]/40 p-1">
@@ -717,25 +635,29 @@ export default function GalleryTour({ slots, artistName }) {
             </div>
           )}
 
-          {currentStop.kind === 'stairs' && (
-            <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/70">Up to the first floor</p>
+          {currentStop.kind === 'view' && (
+            <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/70">{currentStop.text}</p>
           )}
 
-          {activePainting && (
-            <div key={activePainting.id} className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-4 rounded-2xl border border-white/60 bg-white/70 px-5 py-4 shadow-[0_12px_40px_rgba(6,58,91,.12)] backdrop-blur-md">
-              <div className="min-w-0">
-                <p className="text-[9px] uppercase tracking-[0.28em] text-[#ed7189]">
-                  {String(currentStop.number).padStart(2, '0')} / {String(paintingTotal).padStart(2, '0')}
-                </p>
-                <p className="truncate text-xl text-[#063a5b]" style={{ fontFamily: 'var(--font-cormorant)' }}>{activePainting.title}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => router.push(`/portfolio/${activePainting.id}`)}
-                className="shrink-0 rounded-full bg-[#075f8f] px-4 py-2.5 text-[10px] uppercase tracking-[0.18em] text-white transition hover:bg-[#ed7189]"
-              >
-                View →
-              </button>
+          {bay.length > 0 && (
+            <div key={bay[0].slot} className="pointer-events-auto flex w-full max-w-2xl flex-wrap justify-center gap-2">
+              {bay.map(({ slot, number, artwork }) => (
+                <div key={slot} className="flex min-w-0 flex-1 basis-56 items-center justify-between gap-3 rounded-2xl border border-white/60 bg-white/70 px-4 py-3 shadow-[0_12px_40px_rgba(6,58,91,.12)] backdrop-blur-md">
+                  <div className="min-w-0">
+                    <p className="text-[9px] uppercase tracking-[0.28em] text-[#ed7189]">
+                      {String(number).padStart(2, '0')} / {String(hung.length).padStart(2, '0')}
+                    </p>
+                    <p className="truncate text-lg text-[#063a5b]" style={{ fontFamily: 'var(--font-cormorant)' }}>{artwork.title}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/portfolio/${artwork.id}`)}
+                    className="shrink-0 rounded-full bg-[#075f8f] px-3.5 py-2 text-[10px] uppercase tracking-[0.18em] text-white transition hover:bg-[#ed7189]"
+                  >
+                    View →
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 

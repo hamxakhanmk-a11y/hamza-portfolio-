@@ -976,7 +976,7 @@ export default function AdminPage() {
         {/* ═══════════════ GALLERY TOUR ═══════════════ */}
         {activeTab === 'tour' && (() => {
           const tourMap = parseTourMap(siteText[TOUR_SETTING_KEY]);
-          const tourArtworks = artworks.filter(art => (art.section === 'portfolio' || art.section === 'shop') && art.show_on_website !== false && art.image_url);
+          const tourArtworks = [...artworks.filter(art => art.section === 'portfolio' || art.section === 'shop'), ...artworks.filter(art => art.section === 'commissions')].filter(art => art.show_on_website !== false && art.image_url);
           const resolved = new Map(resolveTourSlots(tourMap, tourArtworks).map(entry => [entry.slot, entry.artwork]));
           return (
             <div className="flex flex-col gap-7">
@@ -984,7 +984,7 @@ export default function AdminPage() {
                 <p className="mb-2 text-xs uppercase tracking-[0.25em] text-neutral-400">Portfolio Page</p>
                 <h2 className="text-4xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Gallery Tour</h2>
                 <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-500">
-                  The 3D gallery at the top of the Portfolio page has {TOUR_SLOTS.length} places on its walls, visited in this order: six along the ground hall, then six on the first floor. Each card shows where that place is.
+                  The 3D gallery at the top of the Portfolio page has {TOUR_SLOTS.length} places on its walls, the same as the reference film, visited in this order: the entrance hall, the great hall, the side hall, then the glass hall upstairs. Each card says where that place is.
                   Choose a painting for it, leave it on <strong>Automatic</strong> to fill it from your portfolio, or choose <strong>Empty wall</strong>.
                 </p>
               </div>
@@ -995,25 +995,9 @@ export default function AdminPage() {
                   const shown = resolved.get(slot.id);
                   return (
                     <div key={slot.id} className="overflow-hidden border border-neutral-200 bg-white">
-                      <div className="relative flex aspect-video items-center justify-center bg-neutral-50">
-                        {/* plan of both floors: entrance at the right, this place highlighted */}
-                        <svg viewBox="0 0 120 72" className="h-full w-full" aria-label={`Place ${slot.id}, ${slot.floor === 'upper' ? 'first floor' : 'ground floor'}, ${slot.side < 0 ? 'left' : 'right'} wall`}>
-                          {['upper', 'ground'].map((floor, row) => {
-                            const top = row === 0 ? 10 : 46;
-                            return (
-                              <g key={floor}>
-                                <text x="6" y={top - 3.5} fontSize="4.5" fill="#a3a3a3">{floor === 'upper' ? 'FIRST FLOOR' : 'GROUND FLOOR  ·  ENTRANCE →'}</text>
-                                <rect x="6" y={top} width="108" height="18" fill="#fff" stroke="#d4d4d4" />
-                                {TOUR_SLOTS.filter(other => other.floor === floor).map((other, i) => (
-                                  <rect key={other.id} x={102 - i * 17} y={other.side < 0 ? top + 17 : top - 2} width="6" height="3"
-                                    fill={other.id === slot.id ? '#ed7189' : '#d4d4d4'} />
-                                ))}
-                              </g>
-                            );
-                          })}
-                        </svg>
-                        <span className="absolute left-2 top-2 bg-neutral-900 px-2 py-1 text-xs text-white">{slot.id}</span>
-                        <span className="absolute right-2 top-2 bg-white/90 px-2 py-1 text-[9px] uppercase tracking-wider text-neutral-500">{slot.floor === 'upper' ? 'First floor' : 'Ground floor'} · {slot.side < 0 ? 'left' : 'right'} wall</span>
+                      <div className="flex items-start justify-between gap-3 border-b border-neutral-100 px-3 py-3">
+                        <span className="flex h-7 min-w-7 items-center justify-center bg-neutral-900 px-2 text-xs text-white">{slot.id}</span>
+                        <p className="flex-1 text-xs leading-relaxed text-neutral-600">{slot.where}</p>
                       </div>
                       <div className="flex items-center gap-3 p-3">
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-neutral-50">

@@ -14,12 +14,12 @@ function publicClient() {
   );
 }
 
-async function getPortfolioArtworks() {
+async function getArtworks(sections) {
   try {
     const { data } = await publicClient()
       .from('artworks')
       .select('*')
-      .in('section', ['portfolio', 'shop'])
+      .in('section', sections)
       .eq('show_on_website', true)
       .order('display_order', { ascending: true })
       .order('created_at', { ascending: false });
@@ -35,8 +35,9 @@ async function getTourMap() {
 }
 
 export default async function PortfolioPage() {
-  const [artworks, tourMap] = await Promise.all([getPortfolioArtworks(), getTourMap()]);
-  const tourSlots = resolveTourSlots(tourMap, artworks).map(({ slot, artwork }) => ({
+  const [artworks, commissions, tourMap] = await Promise.all([getArtworks(['portfolio', 'shop']), getArtworks(['commissions']), getTourMap()]);
+  // the tour hangs the portfolio first, then commissions, so its walls are full like the film's
+  const tourSlots = resolveTourSlots(tourMap, [...artworks, ...commissions]).map(({ slot, artwork }) => ({
     slot,
     artwork: artwork && {
       id: artwork.id,
