@@ -1,8 +1,30 @@
 const VERTEX = `
+uniform float time;
 varying vec2 artworkUv;
+varying float foldLight;
+varying float clothRegion;
+float foldSupport(vec2 p, vec2 center, vec2 size) {
+  vec2 d = abs((p - center) / size);
+  return (1.0 - smoothstep(0.55, 1.0, d.x)) *
+         (1.0 - smoothstep(0.55, 1.0, d.y));
+}
 void main() {
   artworkUv = uv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  vec2 p = vec2(uv.x * 1361.0, (1.0 - uv.y) * 644.0);
+  // Broad, feathered supports bend complete strokes, not isolated bright pixels.
+  float right = foldSupport(p, vec2(1203.0, 211.0), vec2(164.0, 77.0));
+  float bottom = foldSupport(p, vec2(935.0, 599.0), vec2(225.0, 66.0));
+  float left = foldSupport(p, vec2(47.0, 410.0), vec2(83.0, 82.0));
+  clothRegion = max(right, max(bottom, left));
+  float phase = time * 6.2831853 / 24.0;
+  float roll = p.x * 0.023 + p.y * 0.013 - phase;
+  float crossFold = p.x * 0.011 - p.y * 0.026 - phase;
+  vec3 bent = position;
+  bent.x += clothRegion * (sin(roll) * 7.0 + sin(crossFold) * 2.0);
+  bent.y += clothRegion * (cos(roll) * 6.0 + sin(crossFold) * 2.0);
+  bent.z += clothRegion * (sin(roll) * 22.0 + sin(crossFold) * 7.0);
+  foldLight = clothRegion * (cos(roll) * 0.065 + cos(crossFold) * 0.025);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(bent, 1.0);
 }`;
 
 const FRAGMENT = `
@@ -10,6 +32,8 @@ uniform sampler2D artwork;
 uniform sampler2D waterMask;
 uniform float time;
 varying vec2 artworkUv;
+varying float foldLight;
+varying float clothRegion;
 
 vec2 bubbleMotion(vec2 p, vec2 center, float radius, float phase) {
   vec2 delta = p - center;
@@ -27,7 +51,7 @@ void main() {
     sin(p.y * 0.032 - phase) + sin(p.x * 0.019 + phase * 0.6) * 0.45,
     cos(p.x * 0.027 - phase * 0.8) + sin(p.y * 0.021 + phase) * 0.4
   );
-  vec2 offset = current * water * 3.6;
+  vec2 offset = current * water * 3.6 * (1.0 - clothRegion);
   vec2 bubbles = vec2(0.0);
   bubbles += bubbleMotion(p, vec2(209.0,57.0), 15.0, phase + 0.2);
   bubbles += bubbleMotion(p, vec2(313.0,106.0), 17.0, phase + 0.8);
@@ -46,6 +70,7 @@ void main() {
   vec4 color = texture2D(artwork, clamp(movingUv, 0.0, 1.0));
   float sheen = sin(p.x * 0.038 + p.y * 0.023 - phase * 1.4) * 0.022 * water;
   color.rgb += vec3(0.6, 0.9, 1.0) * sheen;
+  color.rgb *= 1.0 + foldLight;
   gl_FragColor = color;
   #include <colorspace_fragment>
 }`;
@@ -198,7 +223,10 @@ export function createHeroWaterMotion(THREE, scene, src) {
     depthWrite: false,
     toneMapped: false,
   });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1361, 644), material);
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1361, 644, 272, 128),
+    material,
+  );
   mesh.position.set(1361 / 2, -644 / 2, -20);
   mesh.renderOrder = -2;
   mesh.visible = false;

@@ -29,7 +29,11 @@ heroWaterMotion uses the original artwork texture in the same Three.js renderer
 as the scarf. A luminance/color mask selects pale painted water curls and foam;
 paint-space outlines protect the fish and woman, and corner ornaments are
 excluded. Slow travelling ripples and a restrained moving sheen animate those
-water features over an 18-second cycle. The ten large blue-white bubbles around
+foam over an 18-second cycle. The thin spiral lines at the right, bottom, and
+left now move with the artwork's subdivided 3D surface: slow travelling folds
+bend each complete curl in three dimensions over a 24-second cycle. Feathered
+supports keep the surrounding painting continuous, and restrained fold lighting
+adds depth without replacing the painted strokes. The ten large blue-white bubbles around
 the fish's head have individually phased small drifts and size pulses; their
 coral appendages stay fixed. Small bright water bubbles also follow the current.
 
