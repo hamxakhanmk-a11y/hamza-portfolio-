@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useLayoutEffect, useRef } from 'react';
 import { siteConfig } from '@/data/config';
 import HeroMedia from '@/components/HeroMedia';
+import SwimmingArtwork from '@/components/SwimmingArtwork';
 
 export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   const rootRef = useRef(null);
@@ -273,6 +274,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           {heroImage ? (
             <HeroMedia ref={imageRef} src={heroImage} alt="" preload="auto" />
           ) : null}
+          {heroImage ? <SwimmingArtwork src={heroImage} imageRef={imageRef} /> : null}
           <div className="intro-media-shade" />
         </div>
 
