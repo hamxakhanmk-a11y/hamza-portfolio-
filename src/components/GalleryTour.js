@@ -8,21 +8,32 @@ import { TOUR_SLOTS } from '@/data/galleryTour';
 // so they stay perfectly still; the camera follows a smooth path with gentle pauses at each painting.
 
 // ── Layout (metres) ─────────────────────────────────────────────
+// Ground hall from the entrance to an arch, a double-height stair hall with a glass wall,
+// then the first-floor hall (glass on the right, paintings on the left) ending at a window.
 const HALL_HALF_WIDTH = 4;
-const HALL_HEIGHT = 7;
+const HALL_HEIGHT = 7; // ground hall
+const UPPER_FLOOR = 4.6; // first-floor level
+const UPPER_HEIGHT = 6.2; // first-floor room height
 const FIRST_PAINTING_Z = -14;
+const UPPER_FIRST_Z = -72;
 const PAINTING_SPACING = 6.5;
 const HANG_HEIGHT = 2.35;
 const EYE_HEIGHT = 1.75;
-const ROOM_LENGTH = PAINTING_SPACING * 4; // an arch every four paintings
+const GROUND_START = 12;
+const GROUND_END = -51; // arch into the stair hall
+const STAIR_START_Z = -55;
+const STEPS = 24;
+const STEP_RUN = 0.4;
+const STAIR_END_Z = STAIR_START_Z - STEPS * STEP_RUN;
+const END_Z = -113;
 const SKYLIGHT_HALF_WIDTH = 1.5;
 const BEAM_SPACING = 0.95;
 const STOP_SCREEN_SHARE = 72; // svh of scrolling per camera stop
 
-const WALL = 0xfbf8f6;
-const FLOOR = 0xf1ebe7;
-const STONE = 0xf8f4f1;
-const FOG = 0xf8f2f3;
+const WALL = 0xf5f3ef;
+const FLOOR = 0xefece8;
+const STONE = 0xf7f4f0;
+const FOG = 0xf6f3f1;
 
 function optimizedImage(url) {
   return `/_next/image?url=${encodeURIComponent(url)}&w=1080&q=75`;
@@ -35,26 +46,6 @@ const dwell = t => 0.3 * t + 0.7 * smootherstep(t);
 function cssFont(variable, fallback) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
   return value ? `${value}, ${fallback}` : fallback;
-}
-
-function noiseCanvas(size, base, spread, seed = 1) {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  const image = ctx.createImageData(size, size);
-  let s = seed;
-  const rand = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
-  for (let i = 0; i < size * size; i++) {
-    const n = base + (rand() - 0.5) * spread;
-    image.data[i * 4] = image.data[i * 4 + 1] = image.data[i * 4 + 2] = n;
-    image.data[i * 4 + 3] = 255;
-  }
-  ctx.putImageData(image, 0, 0);
-  // soften into a plaster-like grain
-  ctx.globalAlpha = 0.5;
-  ctx.filter = 'blur(1.2px)';
-  ctx.drawImage(canvas, 0, 0);
-  return canvas;
 }
 
 function hasTransparentCorners(image) {
@@ -175,8 +166,11 @@ export default function GalleryTour({ slots, artistName }) {
   const [hovering, setHovering] = useState(false);
   const [progress, setProgress] = useState(0);
   const hung = slots.filter(entry => entry.artwork).map(entry => ({ ...entry, place: TOUR_SLOTS.find(s => s.id === entry.slot) })).filter(entry => entry.place);
-  // camera stops: entrance title, one per painting, the window at the end
-  const stopCount = hung.length + 2;
+  // camera stops: entrance title, the ground-floor paintings, the stairs, the first-floor paintings, the window at the end
+  let number = 0;
+  const paintingStops = floor => hung.filter(entry => entry.place.floor === floor).sort((a, b) => a.place.id - b.place.id).map(entry => ({ kind: 'painting', number: ++number, ...entry }));
+  const tourStops = [{ kind: 'entrance' }, ...paintingStops('ground'), { kind: 'stairs' }, ...paintingStops('upper'), { kind: 'end' }];
+  const stopCount = tourStops.length;
 
   useEffect(() => {
     if (hung.length === 0) return undefined;
@@ -238,19 +232,12 @@ export default function GalleryTour({ slots, artistName }) {
       };
 
       // ── Materials ──
-      const plaster = canvasTexture(noiseCanvas(256, 236, 18, 7), [10, 3]);
-      const wallMat = keep(new THREE.MeshStandardMaterial({ color: WALL, map: plaster, roughness: 0.92 }));
-      const floorTex = canvasTexture(noiseCanvas(256, 232, 26, 3), [6, 30]);
-      const floorMat = keep(new THREE.MeshStandardMaterial({ color: FLOOR, map: floorTex, roughness: 0.42, metalness: 0.0 }));
-      const stoneMat = keep(new THREE.MeshStandardMaterial({ color: STONE, roughness: 0.75 }));
+      const wallMat = keep(new THREE.MeshStandardMaterial({ color: WALL, roughness: 0.95 }));
+      const floorMat = keep(new THREE.MeshStandardMaterial({ color: FLOOR, roughness: 0.38 }));
+      const stoneMat = keep(new THREE.MeshStandardMaterial({ color: STONE, roughness: 0.8 }));
       const goldMat = keep(new THREE.MeshStandardMaterial({ color: 0xc9a25e, metalness: 0.85, roughness: 0.32 }));
       const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xfffbf8, fog: false, toneMapped: false }));
 
-      const lastPaintingZ = FIRST_PAINTING_Z - (TOUR_SLOTS.length - 1) * PAINTING_SPACING;
-      const hallEnd = lastPaintingZ - 12;
-      const hallStart = 12;
-      const hallLength = hallStart - hallEnd;
-      const midZ = (hallStart + hallEnd) / 2;
       const add = (geometry, material, position, options = {}) => {
         const mesh = new THREE.Mesh(keep(geometry), material);
         mesh.position.set(...position);
@@ -260,117 +247,136 @@ export default function GalleryTour({ slots, artistName }) {
         scene.add(mesh);
         return mesh;
       };
+      const TALL_TOP = UPPER_FLOOR + UPPER_HEIGHT;
+      const sunDirection = new THREE.Vector3(0.55, 1, -0.32).normalize(); // towards the sun
 
-      // ── Room shell ──
-      add(new THREE.PlaneGeometry(HALL_HALF_WIDTH * 2, hallLength), floorMat, [0, 0, midZ], { rotation: [-Math.PI / 2, 0, 0], cast: false });
-      for (const side of [-1, 1]) {
-        add(new THREE.PlaneGeometry(hallLength, HALL_HEIGHT), wallMat, [side * HALL_HALF_WIDTH, HALL_HEIGHT / 2, midZ], { rotation: [0, -side * Math.PI / 2, 0], cast: false });
-        // skirting
-        add(new THREE.BoxGeometry(0.06, 0.16, hallLength), stoneMat, [side * (HALL_HALF_WIDTH - 0.03), 0.08, midZ], { cast: false });
-        // ceiling slabs either side of the skylight
-        const slabWidth = HALL_HALF_WIDTH - SKYLIGHT_HALF_WIDTH;
-        add(new THREE.BoxGeometry(slabWidth, 0.4, hallLength), stoneMat, [side * (SKYLIGHT_HALF_WIDTH + slabWidth / 2), HALL_HEIGHT + 0.2, midZ]);
-        // cornice
-        add(new THREE.BoxGeometry(0.3, 0.22, hallLength), stoneMat, [side * (HALL_HALF_WIDTH - 0.15), HALL_HEIGHT - 0.11, midZ], { cast: false });
-      }
-      // skylight beams: the sun falls between them in stripes
+      // ── Ceilings: slabs either side of a slatted skylight, cornices, and the sun shafts below ──
       const beamGeo = keep(new THREE.BoxGeometry(SKYLIGHT_HALF_WIDTH * 2, 0.4, 0.26));
-      const beams = new THREE.InstancedMesh(beamGeo, stoneMat, Math.ceil(hallLength / BEAM_SPACING));
+      const beamMeshes = [];
+      const shaftSource = canvasTexture(shaftCanvas());
       const matrix = new THREE.Matrix4();
-      for (let k = 0; k < beams.count; k++) {
-        matrix.makeTranslation(0, HALL_HEIGHT + 0.2, hallStart - k * BEAM_SPACING);
-        beams.setMatrixAt(k, matrix);
-      }
-      beams.castShadow = true;
-      beams.receiveShadow = true;
-      scene.add(beams);
-      add(new THREE.PlaneGeometry(SKYLIGHT_HALF_WIDTH * 2 + 1, hallLength), skyMat, [0, HALL_HEIGHT + 1.6, midZ], { rotation: [Math.PI / 2, 0, 0], cast: false, receive: false });
-      // back wall behind the entrance
-      add(new THREE.PlaneGeometry(HALL_HALF_WIDTH * 2, HALL_HEIGHT), wallMat, [0, HALL_HEIGHT / 2, hallStart], { rotation: [0, Math.PI, 0], cast: false });
-
-      // ── Columns ──
-      const shaftGeo = keep(new THREE.CylinderGeometry(0.27, 0.3, HALL_HEIGHT - 1.05, 28));
-      const baseGeo = keep(new THREE.BoxGeometry(0.78, 0.32, 0.78));
-      const capGeo = keep(new THREE.CylinderGeometry(0.42, 0.29, 0.32, 28));
-      const abacusGeo = keep(new THREE.BoxGeometry(0.86, 0.16, 0.86));
-      const column = (x, z) => {
-        add(shaftGeo, stoneMat, [x, 0.32 + (HALL_HEIGHT - 1.05) / 2, z]);
-        add(baseGeo, stoneMat, [x, 0.16, z]);
-        add(capGeo, stoneMat, [x, HALL_HEIGHT - 0.73 + 0.16, z]);
-        add(abacusGeo, stoneMat, [x, HALL_HEIGHT - 0.33, z]);
+      const ceiling = (zFrom, zTo, baseY, top) => {
+        const len = zFrom - zTo, mid = (zFrom + zTo) / 2, height = top - baseY;
+        const slabWidth = HALL_HALF_WIDTH - SKYLIGHT_HALF_WIDTH;
+        for (const side of [-1, 1]) {
+          add(new THREE.BoxGeometry(slabWidth, 0.4, len), stoneMat, [side * (SKYLIGHT_HALF_WIDTH + slabWidth / 2), top + 0.2, mid]);
+          add(new THREE.BoxGeometry(0.3, 0.22, len), stoneMat, [side * (HALL_HALF_WIDTH - 0.15), top - 0.11, mid], { cast: false });
+        }
+        const beams = new THREE.InstancedMesh(beamGeo, stoneMat, Math.ceil(len / BEAM_SPACING));
+        for (let k = 0; k < beams.count; k++) {
+          matrix.makeTranslation(0, top + 0.2, zFrom - BEAM_SPACING / 2 - k * BEAM_SPACING);
+          beams.setMatrixAt(k, matrix);
+        }
+        beams.castShadow = true;
+        beams.receiveShadow = true;
+        scene.add(beams);
+        beamMeshes.push(beams);
+        add(new THREE.PlaneGeometry(SKYLIGHT_HALF_WIDTH * 2 + 1, len), skyMat, [0, top + 1.6, mid], { rotation: [Math.PI / 2, 0, 0], cast: false, receive: false });
+        const shaftTex = keep(shaftSource.clone());
+        shaftTex.wrapS = THREE.RepeatWrapping;
+        shaftTex.repeat.set(len / (BEAM_SPACING * 8), 1);
+        const shaftMat = keep(new THREE.MeshBasicMaterial({ map: shaftTex, transparent: true, opacity: 0.025, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
+        for (const offset of [-0.6, 0.6]) {
+          const shaft = add(new THREE.PlaneGeometry(len, height * 1.15), shaftMat, [0, 0, mid], { cast: false, receive: false });
+          // lean the plane along the sun's direction from the skylight down to the floor
+          shaft.rotation.set(0, Math.PI / 2, 0);
+          shaft.rotateX(-Math.atan2(sunDirection.x, sunDirection.y));
+          shaft.position.set(offset - (sunDirection.x / sunDirection.y) * (height / 2), baseY + height / 2, mid);
+        }
       };
 
-      // ── Arched walls across the hall ──
-      const archWall = (z, openingHalfWidth, springHeight) => {
+      // ── Columns and arches ──
+      const column = (x, z, baseY, height) => {
+        const shaft = height - 1.05;
+        add(new THREE.CylinderGeometry(0.27, 0.3, shaft, 28), stoneMat, [x, baseY + 0.32 + shaft / 2, z]);
+        add(new THREE.BoxGeometry(0.78, 0.32, 0.78), stoneMat, [x, baseY + 0.16, z]);
+        add(new THREE.CylinderGeometry(0.42, 0.29, 0.32, 28), stoneMat, [x, baseY + height - 0.57, z]);
+        add(new THREE.BoxGeometry(0.86, 0.16, 0.86), stoneMat, [x, baseY + height - 0.33, z]);
+      };
+      const wallWithOpening = (height, hole) => {
         const shape = new THREE.Shape();
         shape.moveTo(-HALL_HALF_WIDTH, 0);
         shape.lineTo(HALL_HALF_WIDTH, 0);
-        shape.lineTo(HALL_HALF_WIDTH, HALL_HEIGHT);
-        shape.lineTo(-HALL_HALF_WIDTH, HALL_HEIGHT);
+        shape.lineTo(HALL_HALF_WIDTH, height);
+        shape.lineTo(-HALL_HALF_WIDTH, height);
         shape.lineTo(-HALL_HALF_WIDTH, 0);
-        const hole = new THREE.Path();
-        hole.moveTo(-openingHalfWidth, 0);
-        hole.lineTo(-openingHalfWidth, springHeight);
-        hole.absarc(0, springHeight, openingHalfWidth, Math.PI, 0, true);
-        hole.lineTo(openingHalfWidth, 0);
-        hole.lineTo(-openingHalfWidth, 0);
         shape.holes.push(hole);
-        const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.7, bevelEnabled: false, curveSegments: 40 });
-        add(geometry, wallMat, [0, 0, z - 0.35]);
-        column(-openingHalfWidth - 0.55, z + 0.75);
-        column(openingHalfWidth + 0.55, z + 0.75);
+        return shape;
       };
-      archWall(-5, 2.3, 3.8);
-      for (let z = FIRST_PAINTING_Z - PAINTING_SPACING * 1.5 - ROOM_LENGTH / 2 + PAINTING_SPACING * 2; z > lastPaintingZ; z -= ROOM_LENGTH) {
-        archWall(z, 2.3, 3.9);
-      }
+      const archedHole = (halfWidth, bottom, spring) => {
+        const hole = new THREE.Path();
+        hole.moveTo(-halfWidth, bottom);
+        hole.lineTo(-halfWidth, spring);
+        hole.absarc(0, spring, halfWidth, Math.PI, 0, true);
+        hole.lineTo(halfWidth, bottom);
+        hole.lineTo(-halfWidth, bottom);
+        return hole;
+      };
+      const archWall = (z, baseY, height, openingHalfWidth, springHeight) => {
+        const geometry = new THREE.ExtrudeGeometry(wallWithOpening(height, archedHole(openingHalfWidth, 0, springHeight)), { depth: 0.7, bevelEnabled: false, curveSegments: 40 });
+        add(geometry, wallMat, [0, baseY, z - 0.35]);
+        column(-openingHalfWidth - 0.55, z + 0.75, baseY, height);
+        column(openingHalfWidth + 0.55, z + 0.75, baseY, height);
+      };
 
-      // End wall with a tall arched window full of soft sky
-      const endShape = new THREE.Shape();
-      endShape.moveTo(-HALL_HALF_WIDTH, 0);
-      endShape.lineTo(HALL_HALF_WIDTH, 0);
-      endShape.lineTo(HALL_HALF_WIDTH, HALL_HEIGHT);
-      endShape.lineTo(-HALL_HALF_WIDTH, HALL_HEIGHT);
-      endShape.lineTo(-HALL_HALF_WIDTH, 0);
-      const windowHole = new THREE.Path();
-      windowHole.moveTo(-1.7, 0.6);
-      windowHole.lineTo(-1.7, 4.2);
-      windowHole.absarc(0, 4.2, 1.7, Math.PI, 0, true);
-      windowHole.lineTo(1.7, 0.6);
-      windowHole.lineTo(-1.7, 0.6);
-      endShape.holes.push(windowHole);
-      add(new THREE.ExtrudeGeometry(endShape, { depth: 0.5, bevelEnabled: false, curveSegments: 40 }), wallMat, [0, 0, hallEnd]);
-      add(new THREE.PlaneGeometry(12, 12), skyMat, [0, 4, hallEnd - 3], { cast: false, receive: false });
-      for (let k = -1; k <= 1; k++) add(new THREE.BoxGeometry(0.05, 5.4, 0.05), stoneMat, [k * 0.85, 3.3, hallEnd + 0.25], { cast: false });
-      for (const y of [2.2, 3.8]) add(new THREE.BoxGeometry(3.4, 0.05, 0.05), stoneMat, [0, y, hallEnd + 0.25], { cast: false });
-      // benches
+      // ── Ground hall ──
+      add(new THREE.PlaneGeometry(HALL_HALF_WIDTH * 2, GROUND_START - STAIR_START_Z), floorMat, [0, 0, (GROUND_START + STAIR_START_Z) / 2], { rotation: [-Math.PI / 2, 0, 0], cast: false });
+      const groundLen = GROUND_START - GROUND_END, groundMid = (GROUND_START + GROUND_END) / 2;
+      for (const side of [-1, 1]) {
+        add(new THREE.PlaneGeometry(groundLen, HALL_HEIGHT), wallMat, [side * HALL_HALF_WIDTH, HALL_HEIGHT / 2, groundMid], { rotation: [0, -side * Math.PI / 2, 0], cast: false });
+        add(new THREE.BoxGeometry(0.06, 0.16, groundLen), stoneMat, [side * (HALL_HALF_WIDTH - 0.03), 0.08, groundMid], { cast: false });
+      }
+      ceiling(GROUND_START, GROUND_END, 0, HALL_HEIGHT);
+      add(new THREE.PlaneGeometry(HALL_HALF_WIDTH * 2, HALL_HEIGHT), wallMat, [0, HALL_HEIGHT / 2, GROUND_START], { rotation: [0, Math.PI, 0], cast: false });
+      archWall(-5, 0, HALL_HEIGHT, 2.3, 3.8);
+      archWall(FIRST_PAINTING_Z - PAINTING_SPACING * 3.5, 0, HALL_HEIGHT, 2.3, 3.9);
+      archWall(GROUND_END, 0, HALL_HEIGHT, 2.3, 3.9);
       const benchGeo = keep(new THREE.BoxGeometry(1.0, 0.42, 2.2));
-      for (let z = FIRST_PAINTING_Z - PAINTING_SPACING * 2; z > lastPaintingZ; z -= ROOM_LENGTH) add(benchGeo, stoneMat, [0, 0.21, z]);
+      add(benchGeo, stoneMat, [0, 0.21, FIRST_PAINTING_Z - PAINTING_SPACING * 1.5]);
+
+      // ── Stair hall and first floor: one tall volume with a glass wall on the right ──
+      const tallLen = GROUND_END - END_Z, tallMid = (GROUND_END + END_Z) / 2;
+      add(new THREE.PlaneGeometry(tallLen, TALL_TOP), wallMat, [-HALL_HALF_WIDTH, TALL_TOP / 2, tallMid], { rotation: [0, Math.PI / 2, 0], cast: false });
+      add(new THREE.BoxGeometry(HALL_HALF_WIDTH * 2, TALL_TOP - HALL_HEIGHT, 0.7), wallMat, [0, (HALL_HEIGHT + TALL_TOP) / 2, GROUND_END - 0.35]);
+      ceiling(GROUND_END, END_Z, 0, TALL_TOP);
+      // glazing: full-height glass between piers, with a slim mullion grid
+      add(new THREE.PlaneGeometry(tallLen, TALL_TOP), skyMat, [HALL_HALF_WIDTH + 0.4, TALL_TOP / 2, tallMid], { rotation: [0, -Math.PI / 2, 0], cast: false, receive: false });
+      for (let z = GROUND_END; z >= END_Z; z -= 4.2) add(new THREE.BoxGeometry(0.5, TALL_TOP, 0.5), wallMat, [HALL_HALF_WIDTH + 0.1, TALL_TOP / 2, z]);
+      for (let z = GROUND_END - 2.1; z > END_Z; z -= 4.2) add(new THREE.BoxGeometry(0.08, TALL_TOP, 0.08), stoneMat, [HALL_HALF_WIDTH + 0.3, TALL_TOP / 2, z], { cast: false });
+      for (let y = 2.4; y < TALL_TOP - 0.5; y += 2.4) add(new THREE.BoxGeometry(0.08, 0.08, tallLen), stoneMat, [HALL_HALF_WIDTH + 0.3, y, tallMid], { cast: false });
+      // stairs: a wide flight rising to the first floor, each riser a shade darker so the steps read
+      const riserMat = keep(new THREE.MeshStandardMaterial({ color: 0xe6e2dd, roughness: 0.9 }));
+      const rise = UPPER_FLOOR / STEPS;
+      for (let k = 0; k < STEPS; k++) {
+        const h = rise * (k + 1);
+        const z = STAIR_START_Z - STEP_RUN * k;
+        add(new THREE.BoxGeometry(HALL_HALF_WIDTH * 2, h, STEP_RUN), floorMat, [0, h / 2, z - STEP_RUN / 2]);
+        add(new THREE.PlaneGeometry(HALL_HALF_WIDTH * 2, rise - 0.02), riserMat, [0, h - rise / 2, z + 0.005], { cast: false });
+      }
+      // first-floor slab and skirting
+      const upperLen = STAIR_END_Z - END_Z, upperMid = (STAIR_END_Z + END_Z) / 2;
+      add(new THREE.BoxGeometry(HALL_HALF_WIDTH * 2, 0.45, upperLen), floorMat, [0, UPPER_FLOOR - 0.225, upperMid]);
+      add(new THREE.BoxGeometry(0.06, 0.16, upperLen), stoneMat, [-(HALL_HALF_WIDTH - 0.03), UPPER_FLOOR + 0.08, upperMid], { cast: false });
+      archWall(UPPER_FIRST_Z - PAINTING_SPACING * 2.5, UPPER_FLOOR, UPPER_HEIGHT, 2.3, 3.6);
+      add(benchGeo, stoneMat, [0, UPPER_FLOOR + 0.21, UPPER_FIRST_Z - PAINTING_SPACING * 3.8]);
+      // end wall with a tall arched window full of soft sky
+      add(new THREE.ExtrudeGeometry(wallWithOpening(UPPER_HEIGHT, archedHole(1.6, 0.5, 3.5)), { depth: 0.5, bevelEnabled: false, curveSegments: 40 }), wallMat, [0, UPPER_FLOOR, END_Z]);
+      add(new THREE.PlaneGeometry(12, 12), skyMat, [0, UPPER_FLOOR + 3, END_Z - 3], { cast: false, receive: false });
+      for (let k = -1; k <= 1; k++) add(new THREE.BoxGeometry(0.05, 4.8, 0.05), stoneMat, [k * 0.8, UPPER_FLOOR + 2.9, END_Z + 0.25], { cast: false });
+      for (const y of [1.9, 3.3]) add(new THREE.BoxGeometry(3.2, 0.05, 0.05), stoneMat, [0, UPPER_FLOOR + y, END_Z + 0.25], { cast: false });
 
       // ── Light ──
-      scene.add(new THREE.HemisphereLight(0xffffff, 0xe9e1ec, 0.72));
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xe6e2de, 0.72));
       const sun = new THREE.DirectionalLight(0xfff0e2, 3.1);
-      const sunDirection = new THREE.Vector3(0.55, 1, -0.32).normalize(); // towards the sun
       sun.castShadow = true;
       sun.shadow.mapSize.set(narrow ? 1024 : 2048, narrow ? 1024 : 2048);
-      Object.assign(sun.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, near: 1, far: 70 });
+      Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 80 });
       sun.shadow.bias = -0.0004;
       sun.shadow.normalBias = 0.03;
       sun.shadow.radius = 3;
       scene.add(sun, sun.target);
 
-      // shafts of sunlight below the skylight, and dust drifting in them
-      const shaftTex = canvasTexture(shaftCanvas());
-      shaftTex.wrapS = THREE.RepeatWrapping;
-      shaftTex.repeat.set(hallLength / (BEAM_SPACING * 8), 1);
-      const shaftMat = keep(new THREE.MeshBasicMaterial({ map: shaftTex, transparent: true, opacity: 0.025, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
-      for (const offset of [-0.6, 0.6]) {
-        const shaft = add(new THREE.PlaneGeometry(hallLength, HALL_HEIGHT * 1.15), shaftMat, [0, 0, midZ], { cast: false, receive: false });
-        // lean the plane along the sun's direction from the skylight down to the floor
-        shaft.rotation.set(0, Math.PI / 2, 0);
-        shaft.rotateX(-Math.atan2(sunDirection.x, sunDirection.y));
-        shaft.position.set(offset - (sunDirection.x / sunDirection.y) * (HALL_HEIGHT / 2), HALL_HEIGHT / 2, midZ);
-      }
+      // dust drifting in the light
       const dustCount = narrow ? 160 : 420;
       const dustPositions = new Float32Array(dustCount * 3);
       for (let k = 0; k < dustCount; k++) {
@@ -395,20 +401,22 @@ export default function GalleryTour({ slots, artistName }) {
       }
 
       // ── Paintings ──
+      const placed = new Map(); // slot id -> where it hangs
+      for (const { place } of hung) {
+        const k = TOUR_SLOTS.filter(s => s.floor === place.floor).findIndex(s => s.id === place.id);
+        const upper = place.floor === 'upper';
+        placed.set(place.id, { z: (upper ? UPPER_FIRST_Z : FIRST_PAINTING_Z) - k * PAINTING_SPACING, side: place.side, baseY: upper ? UPPER_FLOOR : 0 });
+      }
       const loader = new THREE.TextureLoader();
       const glowTex = canvasTexture(radialCanvas('rgba(255,244,230,0.22)', 'rgba(255,244,230,0)'));
       const glowMat = keep(new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
       const paintingMeshes = [];
-      const stops = [];
       await Promise.all(hung.map(async ({ artwork, place }) => {
-        const index = place.id - 1;
-        const side = place.side;
-        const z = FIRST_PAINTING_Z - index * PAINTING_SPACING;
+        const { z, side, baseY } = placed.get(place.id);
         const group = new THREE.Group();
-        group.position.set(side * (HALL_HALF_WIDTH - 0.02), HANG_HEIGHT, z);
+        group.position.set(side * (HALL_HALF_WIDTH - 0.02), baseY + HANG_HEIGHT, z);
         group.rotation.y = -side * Math.PI / 2;
         scene.add(group);
-        stops[index] = { z, side, artwork };
         let texture;
         try {
           texture = keep(await loader.loadAsync(optimizedImage(artwork.image_url)));
@@ -423,14 +431,15 @@ export default function GalleryTour({ slots, artistName }) {
         let height = 2.3, width = height * aspect;
         if (width > 3.0) { width = 3.0; height = width / aspect; }
         const cutOut = artwork.round || hasTransparentCorners(image);
+        // unlit and untoned, so the painting shows exactly as its photograph
         const art = new THREE.Mesh(
           keep(cutOut ? (artwork.round ? new THREE.CircleGeometry(height / 2, 72) : new THREE.PlaneGeometry(width, height)) : new THREE.BoxGeometry(width, height, 0.045)),
-          keep(new THREE.MeshStandardMaterial({ map: texture, roughness: 0.82, transparent: cutOut, alphaTest: cutOut ? 0.04 : 0, side: THREE.FrontSide })),
+          keep(new THREE.MeshBasicMaterial({ map: texture, transparent: cutOut, alphaTest: cutOut ? 0.04 : 0, toneMapped: false })),
         );
         art.position.z = cutOut ? 0.025 : 0.06;
         art.castShadow = true;
         if (cutOut) art.customDepthMaterial = keep(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: texture, alphaTest: 0.5 }));
-        art.userData = { id: artwork.id, index };
+        art.userData = { id: artwork.id };
         group.add(art);
         paintingMeshes.push(art);
         if (!cutOut) {
@@ -458,26 +467,40 @@ export default function GalleryTour({ slots, artistName }) {
       // ── Camera path ──
       // start before the title, rise over it, pass the arch, then walk the hall looking ahead
       // and turn to face each painting; between paintings the gaze returns down the hall
-      const keyPositions = [new THREE.Vector3(0, 1.8, 9), new THREE.Vector3(0, 3.3, 1.2), new THREE.Vector3(0, EYE_HEIGHT, -6.5)];
-      const keyTargets = [new THREE.Vector3(0, 1.45, -0.4), new THREE.Vector3(0, 2.1, -12), new THREE.Vector3(0, 2.0, -22)];
+      const V = (x, y, z) => new THREE.Vector3(x, y, z);
+      const keyPositions = [V(0, 1.8, 9), V(0, 3.3, 1.2), V(0, EYE_HEIGHT, -6.5)];
+      const keyTargets = [V(0, 1.45, -0.4), V(0, 2.1, -12), V(0, 2.0, -22)];
       const stopKeys = [0]; // keyframe index of each stop
-      let previousZ = -6.5;
-      hung.map(entry => entry.place.id - 1).sort((a, b) => a - b).forEach((index, order) => {
-        const { z, side } = stops[index];
-        if (order > 0) {
-          keyPositions.push(new THREE.Vector3(0, EYE_HEIGHT, (previousZ + z) / 2 + 1.2));
-          keyTargets.push(new THREE.Vector3(side * 1.2, 2.0, z - 9));
+      let previous = { z: -6.5, baseY: 0, first: true };
+      for (const tourStop of tourStops.slice(1)) {
+        if (tourStop.kind === 'painting') {
+          const { z, side, baseY } = placed.get(tourStop.slot);
+          const eye = baseY + EYE_HEIGHT;
+          if (!previous.first) {
+            keyPositions.push(V(0, eye, (previous.z + z) / 2 + 1.2));
+            keyTargets.push(V(side * 1.2, baseY + 2.0, z - 9));
+          }
+          keyPositions.push(V(-side * 1.15, eye, z + 1.7));
+          keyTargets.push(V(side * HALL_HALF_WIDTH, baseY + HANG_HEIGHT - 0.05, z - 0.15));
+          previous = { z, baseY };
+        } else if (tourStop.kind === 'stairs') {
+          // through the arch, up the flight, and out onto the first floor
+          keyPositions.push(V(0, EYE_HEIGHT, STAIR_START_Z + 4));
+          keyTargets.push(V(0, 3.4, STAIR_END_Z - 2));
+          keyPositions.push(V(0, EYE_HEIGHT + UPPER_FLOOR / 2, (STAIR_START_Z + STAIR_END_Z) / 2));
+          keyTargets.push(V(0, UPPER_FLOOR + 3.2, STAIR_END_Z - 10));
+          keyPositions.push(V(0, UPPER_FLOOR + EYE_HEIGHT, STAIR_END_Z - 1.5));
+          keyTargets.push(V(0, UPPER_FLOOR + 2.2, STAIR_END_Z - 16));
+          previous = { z: STAIR_END_Z - 1.5, baseY: UPPER_FLOOR };
+        } else {
+          const eye = previous.baseY + EYE_HEIGHT;
+          keyPositions.push(V(0, eye, (previous.z + END_Z) / 2 + 2));
+          keyTargets.push(V(0, previous.baseY + 3.0, END_Z));
+          keyPositions.push(V(0, eye + 0.2, END_Z + 9));
+          keyTargets.push(V(0, previous.baseY + 3.4, END_Z));
         }
-        keyPositions.push(new THREE.Vector3(-side * 1.15, EYE_HEIGHT, z + 1.7));
-        keyTargets.push(new THREE.Vector3(side * HALL_HALF_WIDTH, HANG_HEIGHT - 0.05, z - 0.15));
         stopKeys.push(keyPositions.length - 1);
-        previousZ = z;
-      });
-      keyPositions.push(new THREE.Vector3(0, EYE_HEIGHT, (previousZ + hallEnd) / 2 + 2));
-      keyTargets.push(new THREE.Vector3(0, 3.0, hallEnd));
-      keyPositions.push(new THREE.Vector3(0, EYE_HEIGHT + 0.2, hallEnd + 9));
-      keyTargets.push(new THREE.Vector3(0, 3.4, hallEnd));
-      stopKeys.push(keyPositions.length - 1);
+      }
       const positionCurve = new THREE.CatmullRomCurve3(keyPositions, false, 'centripetal');
       const targetCurve = new THREE.CatmullRomCurve3(keyTargets, false, 'centripetal');
       const segments = keyPositions.length - 1;
@@ -497,10 +520,11 @@ export default function GalleryTour({ slots, artistName }) {
         // a breath of handheld drift and the pointer's pull, for a cinematic feel
         camera.rotateY(sway.x);
         camera.rotateX(sway.y);
-        // keep the sun's shadow map centred on what the camera sees
-        sun.target.position.set(0, 0, camera.position.z - 7);
+        // keep the sun's shadow map and the dust around what the camera sees
+        const floorY = camera.position.y - EYE_HEIGHT;
+        sun.target.position.set(0, floorY, camera.position.z - 7);
         sun.position.copy(sun.target.position).addScaledVector(sunDirection, 30);
-        dust.position.z = camera.position.z - 6;
+        dust.position.set(0, floorY, camera.position.z - 6);
       };
 
       // ── Post-processing ──
@@ -635,7 +659,7 @@ export default function GalleryTour({ slots, artistName }) {
         renderer.domElement.removeEventListener('pointermove', onMove);
         renderer.domElement.removeEventListener('click', onClick);
         disposables.forEach(item => item.dispose?.());
-        beams.dispose();
+        beamMeshes.forEach(beams => beams.dispose());
         composer.dispose();
         renderer.dispose();
         renderer.domElement.remove();
@@ -652,8 +676,9 @@ export default function GalleryTour({ slots, artistName }) {
 
   if (hung.length === 0 || status === 'unsupported') return null;
 
-  const ordered = [...hung].sort((a, b) => a.place.id - b.place.id);
-  const activePainting = stop >= 1 && stop <= ordered.length ? ordered[stop - 1].artwork : null;
+  const currentStop = tourStops[Math.min(stop, stopCount - 1)];
+  const activePainting = currentStop.kind === 'painting' ? currentStop.artwork : null;
+  const paintingTotal = tourStops.filter(entry => entry.kind === 'painting').length;
   const atEnd = stop >= stopCount - 1;
 
   function skipToCollection() {
@@ -692,11 +717,15 @@ export default function GalleryTour({ slots, artistName }) {
             </div>
           )}
 
+          {currentStop.kind === 'stairs' && (
+            <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/70">Up to the first floor</p>
+          )}
+
           {activePainting && (
             <div key={activePainting.id} className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-4 rounded-2xl border border-white/60 bg-white/70 px-5 py-4 shadow-[0_12px_40px_rgba(6,58,91,.12)] backdrop-blur-md">
               <div className="min-w-0">
                 <p className="text-[9px] uppercase tracking-[0.28em] text-[#ed7189]">
-                  {String(stop).padStart(2, '0')} / {String(ordered.length).padStart(2, '0')}
+                  {String(currentStop.number).padStart(2, '0')} / {String(paintingTotal).padStart(2, '0')}
                 </p>
                 <p className="truncate text-xl text-[#063a5b]" style={{ fontFamily: 'var(--font-cormorant)' }}>{activePainting.title}</p>
               </div>

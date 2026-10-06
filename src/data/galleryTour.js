@@ -1,6 +1,9 @@
-// Places on the walls of the 3D gallery walk, in the order the camera reaches them.
-// side: -1 left wall, 1 right wall.
-export const TOUR_SLOTS = Array.from({ length: 12 }, (_, i) => ({ id: i + 1, side: i % 2 === 0 ? -1 : 1 }));
+// Places on the walls of the 3D gallery walk, in the order the camera reaches them:
+// six along the ground hall (alternating walls), then six on the first floor's left wall,
+// opposite its glass. side: -1 left wall, 1 right wall.
+export const TOUR_SLOTS = Array.from({ length: 12 }, (_, i) => (
+  i < 6 ? { id: i + 1, side: i % 2 === 0 ? -1 : 1, floor: 'ground' } : { id: i + 1, side: -1, floor: 'upper' }
+));
 
 export const TOUR_SETTING_KEY = 'gallery_tour_slots';
 
