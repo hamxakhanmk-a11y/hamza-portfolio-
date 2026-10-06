@@ -21,9 +21,28 @@ water matching the surrounding brushwork, with small bubbles and pale water
 curls. Preserve the outer water, top wave curls, corner details, original framing,
 palette, and 1361:644 composition. Add no creatures, people, text, or new subject.
 
-## Animation
+## 3D Animation
 
-SwimmingArtwork renders stationary water and a separate translucent fish mesh.
-A travelling spine wave, tail rotation, independently phased fin strokes, and
-gentle buoyancy create a continuous in-place swim. The original artwork remains
-the fallback for reduced motion, unsupported WebGL, or failed layer loading.
+SwimmingArtwork now builds a true volumetric Three.js model with closed rounded
+body geometry, thick beveled fins, curved tail lobes, eyes, luminous appendages,
+and a sculpted rider. The previous foreground cutout is retained as an unused
+reference asset. The water image remains the stationary background.
+
+Physical materials, a scale bump texture, directional lighting, and shadows
+reveal the model's depth. The swim cycle takes 14 seconds. Small tail and fin
+rotations, a travelling body wave, and gentle buoyancy keep the movement subtle.
+Pointer movement adds a restrained change of viewing angle. Reduced motion
+freezes the swimming and pointer response; rendering pauses when offscreen or
+when the browser tab is hidden. The original artwork is the WebGL fallback.
+
+## Scale Texture Prompt
+
+Built-in image generation was used for fish-scales.webp, a tileable grayscale
+bump texture applied to the actual 3D body, not a replacement fish illustration.
+
+Generate a flat square orthographic macro texture of very fine overlapping
+rounded fish scales and delicate pearlescent ridges. Use regular staggered rows,
+softly domed scales, consistent size, and tiny etched details. Grayscale only:
+medium gray base, pale ridge highlights, darker recessed edges, low contrast,
+even illumination. Seamlessly tileable in both axes. No perspective, visible
+creature, silhouette, background, text, or border.
