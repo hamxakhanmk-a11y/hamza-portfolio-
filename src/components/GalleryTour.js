@@ -17,11 +17,11 @@ const HANG = 2.1; // painting centre height above its floor
 const STOP_SCREEN_SHARE = 70; // svh of scrolling per camera stop
 const WALL_T = 0.3;
 
-// warm off-white, not ash: cream walls, a slightly warmer floor, cream haze
-// the window wall's tone, everywhere; unlit materials so no wall comes out a different shade
-const WALL = 0xfaf4e8;
-const FLOOR = 0xf6f0e4;
-const FOG = 0xfaf4e8;
+// one cream everywhere: the tone sampled from the entrance hall's window wall (#fbf3e3) on every wall,
+// floor and ceiling; unlit materials, so the only shading is the painted light and shadow
+const WALL = 0xfbf3e3;
+const FLOOR = 0xfbf3e3;
+const FOG = 0xfbf3e3;
 
 // Where each wall place hangs: position of the canvas centre and the way it faces (rotation about y).
 const PLACES = {
@@ -199,11 +199,21 @@ export default function GalleryTour({ slots, artistName }) {
       // ── Materials: smooth, matte, off-white ──
       const wallMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false }));
       const floorMat = keep(new THREE.MeshBasicMaterial({ color: FLOOR, toneMapped: false }));
-      const ceilingMat = keep(new THREE.MeshBasicMaterial({ color: 0xf1ebdf, toneMapped: false })); // ceilings a shade deeper, for depth
-      const stepMat = keep(new THREE.MeshBasicMaterial({ color: 0xf3ece0, toneMapped: false }));
+      const ceilingMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false })); // the same cream; the shadow bands give the depth
+      const stepMat = keep(new THREE.MeshBasicMaterial({ color: 0xf6ecd9, toneMapped: false }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
       const glassMat = keep(new THREE.MeshBasicMaterial({ color: 0xfbf6ec, transparent: true, opacity: 0.5, toneMapped: false }));
-      const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xfdf1dc, fog: false, toneMapped: false })); // warm daylight in the glass
+      // a light, almost transparent blue sky seen through the open windows and skylights: deeper at the top,
+      // fading to white at the horizon
+      const skyCanvas = document.createElement('canvas');
+      skyCanvas.width = 4; skyCanvas.height = 256;
+      const skyCtx = skyCanvas.getContext('2d');
+      const skyGrad = skyCtx.createLinearGradient(0, 0, 0, 256);
+      skyGrad.addColorStop(0, '#b4d6f2');
+      skyGrad.addColorStop(0.55, '#d3e8f8');
+      skyGrad.addColorStop(1, '#eef6fc');
+      skyCtx.fillStyle = skyGrad; skyCtx.fillRect(0, 0, 4, 256);
+      const skyMat = keep(new THREE.MeshBasicMaterial({ map: canvasTexture(skyCanvas), fog: false, toneMapped: false }));
       const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
       const canvasEdgeMat = keep(new THREE.MeshBasicMaterial({ color: 0xf2ece2, toneMapped: false }));
 
@@ -250,7 +260,8 @@ export default function GalleryTour({ slots, artistName }) {
         // the shape's y runs along world z; rotating it flat drops the extrusion below y
         const slab = add(new THREE.ExtrudeGeometry(shape, { depth: 0.45, bevelEnabled: false, curveSegments: 48 }), ceilingMat, [0, y + 0.45, 0], { rotation: [Math.PI / 2, 0, 0] });
         slab.receiveShadow = false;
-        add(new THREE.PlaneGeometry(x1 - x0 + 4, Math.abs(z1 - z0) + 4), skyMat, [(x0 + x1) / 2, y + 2.2, (z0 + z1) / 2], { rotation: [Math.PI / 2, 0, 0], cast: false, receive: false });
+        // open to the sky: nothing in the hole but the blue above it
+        add(new THREE.PlaneGeometry(x1 - x0 + 4, Math.abs(z1 - z0) + 4), skyMat, [(x0 + x1) / 2, y + 2.6, (z0 + z1) / 2], { rotation: [Math.PI / 2, 0, 0], cast: false, receive: false });
       };
       const archedWindowWall = (x0, x1, y0, height, z, radius, sill, spring) => {
         const w = x1 - x0;
@@ -260,23 +271,18 @@ export default function GalleryTour({ slots, artistName }) {
         hole.moveTo(-radius, sill); hole.lineTo(-radius, spring); hole.absarc(0, spring, radius, Math.PI, 0, true); hole.lineTo(radius, sill); hole.lineTo(-radius, sill);
         shape.holes.push(hole);
         add(new THREE.ExtrudeGeometry(shape, { depth: WALL_T, bevelEnabled: false, curveSegments: 40 }), wallMat, [(x0 + x1) / 2, y0, z - WALL_T / 2]);
+        // the window is an open arch onto the sky: no glass and no bars
         add(new THREE.PlaneGeometry(w + 6, height + 6), skyMat, [(x0 + x1) / 2, y0 + height / 2, z - 3], { cast: false, receive: false });
-        for (let k = -1; k <= 1; k++) block((x0 + x1) / 2 + k * radius * 0.5 - 0.05, (x0 + x1) / 2 + k * radius * 0.5 + 0.05, y0 + sill, y0 + spring + radius * (k ? 0.86 : 1), z + 0.1, z + 0.18, frameMat, { cast: false });
-        for (const y of [spring - (spring - sill) * 0.35, spring + (spring - sill) * 0.2]) block((x0 + x1) / 2 - radius, (x0 + x1) / 2 + radius, y0 + y - 0.05, y0 + y + 0.05, z + 0.1, z + 0.18, frameMat, { cast: false });
       };
-      // a glass wall: bright glazing behind piers and a slim mullion grid
+      // an open wall onto the sky: slim piers every 4 m and nothing between them, no glass, no bars
       const glazing = (axis, at, a0, a1, y0, y1, outward = 1) => { // outward: which side of the wall is outside
         const len = Math.abs(a1 - a0), mid = (a0 + a1) / 2, h = y1 - y0;
         if (axis === 'x') {
           add(new THREE.PlaneGeometry(len, h), skyMat, [at + 0.35 * outward, (y0 + y1) / 2, mid], { rotation: [0, outward > 0 ? -Math.PI / 2 : Math.PI / 2, 0], cast: false, receive: false });
           for (let z = Math.max(a0, a1); z >= Math.min(a0, a1); z -= 4) block(at - 0.2, at + 0.2, y0, y1, z - 0.2, z + 0.2);
-          for (let z = Math.max(a0, a1) - 2; z > Math.min(a0, a1); z -= 4) block(at - 0.07, at + 0.07, y0, y1, z - 0.07, z + 0.07, frameMat, { cast: false });
-          for (let y = y0 + 2.2; y < y1 - 0.4; y += 2.2) block(at - 0.07, at + 0.07, y - 0.07, y + 0.07, Math.min(a0, a1), Math.max(a0, a1), frameMat, { cast: false });
         } else {
           add(new THREE.PlaneGeometry(len, h), skyMat, [mid, (y0 + y1) / 2, at - 0.35], { cast: false, receive: false });
           for (let x = a0; x <= a1; x += 4) block(x - 0.2, x + 0.2, y0, y1, at - 0.2, at + 0.2);
-          for (let x = a0 + 2; x < a1; x += 4) block(x - 0.07, x + 0.07, y0, y1, at - 0.07, at + 0.07, frameMat, { cast: false });
-          for (let y = y0 + 2.2; y < y1 - 0.4; y += 2.2) block(a0, a1, y - 0.07, y + 0.07, at - 0.07, at + 0.07, frameMat, { cast: false });
         }
       };
 
