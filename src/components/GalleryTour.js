@@ -164,7 +164,7 @@ export default function GalleryTour({ slots, artistName }) {
         setStatus('unsupported');
         return;
       }
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, narrow ? 1.25 : 1.75));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, narrow ? 1.5 : 2)); // finer sampling keeps thin edges steady while moving
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.0;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -200,7 +200,7 @@ export default function GalleryTour({ slots, artistName }) {
       const stepMat = keep(new THREE.MeshStandardMaterial({ color: 0xe8e5e1, roughness: 0.9 }));
       const frameMat = keep(new THREE.MeshStandardMaterial({ color: 0xc6c9cc, roughness: 0.6, metalness: 0.2 }));
       const glassMat = keep(new THREE.MeshStandardMaterial({ color: 0xf2f5f7, roughness: 0.2, transparent: true, opacity: 0.55 }));
-      const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, toneMapped: false }));
+      const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xf7f7f5, fog: false, toneMapped: false }));
       const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
       const canvasEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf2f0ec, roughness: 0.9 }));
 
@@ -214,8 +214,9 @@ export default function GalleryTour({ slots, artistName }) {
         return mesh;
       };
       // a solid box from its extents
+      // corners may come in either order: a negative size would build the box inside-out
       const block = (x0, x1, y0, y1, z0, z1, material = wallMat, options) =>
-        add(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), material, [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], options);
+        add(new THREE.BoxGeometry(Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)), material, [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], options);
       // a wall along x or z with a rectangular opening in it
       const wallX = (x, z0, z1, y0, y1, hole) => { // wall in the plane x = const, running along z
         if (!hole) return block(x - WALL_T / 2, x + WALL_T / 2, y0, y1, z0, z1);
@@ -377,7 +378,7 @@ export default function GalleryTour({ slots, artistName }) {
       const wallShadowTex = shadowTexture(0.62, 0.62, 22);
       const floorShadowTex = shadowTexture(0.6, 0.6, 26);
       const paintedShadow = (texture, width, height, position, rotation, opacity) => {
-        const mesh = add(new THREE.PlaneGeometry(width, height), keep(new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })), position, { rotation, cast: false, receive: false });
+        const mesh = add(new THREE.PlaneGeometry(width, height), keep(new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity, depthWrite: false })), position, { rotation, cast: false, receive: false });
         return mesh;
       };
       // under the benches
@@ -418,13 +419,13 @@ export default function GalleryTour({ slots, artistName }) {
         art.userData = { id: artwork.id };
         group.add(art);
         paintingMeshes.push(art);
-        const label = new THREE.Mesh(keep(new THREE.PlaneGeometry(2.0, 0.5)), keep(new THREE.MeshBasicMaterial({ map: canvasTexture(labelCanvas(artwork, fontFamily)), transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 })));
-        label.position.set(0, -height / 2 - 0.42, 0.012);
+        const label = new THREE.Mesh(keep(new THREE.PlaneGeometry(2.0, 0.5)), keep(new THREE.MeshBasicMaterial({ map: canvasTexture(labelCanvas(artwork, fontFamily)), transparent: true, depthWrite: false, toneMapped: false })));
+        label.position.set(0, -height / 2 - 0.42, 0.03); // a real gap from the wall instead of a depth trick
         label.renderOrder = 2; // see-through layers at nearly the same depth: fix their order so it never flips
         group.add(label);
         // the canvas's soft shadow on the wall, painted on so it can never flicker
-        const shade = new THREE.Mesh(keep(new THREE.PlaneGeometry(width * 1.6, height * 1.6)), keep(new THREE.MeshBasicMaterial({ map: wallShadowTex, transparent: true, opacity: cutOut ? 0.16 : 0.26, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })));
-        shade.position.set(0.03, -0.07, 0.006);
+        const shade = new THREE.Mesh(keep(new THREE.PlaneGeometry(width * 1.6, height * 1.6)), keep(new THREE.MeshBasicMaterial({ map: wallShadowTex, transparent: true, opacity: cutOut ? 0.16 : 0.26, depthWrite: false })));
+        shade.position.set(0.03, -0.07, 0.014); // behind the canvas (which starts at 0.02), clear of the wall
         shade.renderOrder = 1;
         group.add(shade);
       }));
