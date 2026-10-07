@@ -25,6 +25,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   const textPosition = stage => ({
     '--intro-text-x': `${heroText?.[stage]?.x ?? 50}%`,
     '--intro-text-y': `${heroText?.[stage]?.y ?? 50}%`,
+    '--intro-text-scale': heroText?.[stage]?.size ?? 1,
   });
 
   useLayoutEffect(() => {

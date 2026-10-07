@@ -210,25 +210,25 @@ body {
   transform: translate(-50%, -50%);
   text-align: center;
 }
-.intro-eyebrow { margin-bottom: 1.2rem; font-size: clamp(.63rem, .85vw, .82rem); letter-spacing: .38em; text-transform: uppercase; color: #ed7189; }
-.intro-letter-line { display: flex; justify-content: center; font-family: var(--font-cormorant), serif; font-size: clamp(3rem, 8vw, 8rem); line-height: .85; }
+.intro-eyebrow { margin-bottom: 1.2rem; font-size: calc(clamp(.63rem, .85vw, .82rem) * var(--intro-text-scale, 1)); letter-spacing: .38em; text-transform: uppercase; color: #ed7189; }
+.intro-letter-line { display: flex; justify-content: center; font-family: var(--font-cormorant), serif; font-size: calc(clamp(3rem, 8vw, 8rem) * var(--intro-text-scale, 1)); line-height: .85; }
 .intro-letter-line span { display: inline-block; opacity: 0; transform: translateY(50%) rotate(5deg); animation: intro-letter .65s cubic-bezier(.2,.8,.2,1) forwards; }
 
 .intro-art-scene { position: relative; width: 100%; height: 100%; background: transparent; }
 .intro-art-scene::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(3,29,49,.05), rgba(3,29,49,.02) 45%, rgba(3,29,49,.48)); }
 .intro-art-scene img, .intro-art-scene video { width: 100%; height: 100%; object-fit: cover; animation: intro-art-pan 4s ease-out both; }
 .intro-art-copy { width: min(38%, 430px); color: white; }
-.intro-art-copy p { margin-bottom: .7rem; color: #f5b2bd; font-size: .72rem; letter-spacing: .25em; text-transform: uppercase; }
-.intro-art-copy h2 { font-family: var(--font-cormorant), serif; font-size: clamp(2.2rem, 5vw, 5rem); line-height: .94; font-weight: 400; }
+.intro-art-copy p { margin-bottom: .7rem; color: #f5b2bd; font-size: calc(.72rem * var(--intro-text-scale, 1)); letter-spacing: .25em; text-transform: uppercase; }
+.intro-art-copy h2 { font-family: var(--font-cormorant), serif; font-size: calc(clamp(2.2rem, 5vw, 5rem) * var(--intro-text-scale, 1)); line-height: .94; font-weight: 400; }
 
-.intro-collection-words { display: flex; flex-wrap: wrap; justify-content: center; gap: .1em .4em; max-width: 900px; font-family: var(--font-cormorant), serif; font-size: clamp(2.7rem, 6vw, 6.7rem); line-height: .9; }
+.intro-collection-words { display: flex; flex-wrap: wrap; justify-content: center; gap: .1em .4em; max-width: 900px; font-family: var(--font-cormorant), serif; font-size: calc(clamp(2.7rem, 6vw, 6.7rem) * var(--intro-text-scale, 1)); line-height: .9; }
 .intro-collection-words span { animation: intro-word .8s cubic-bezier(.2,.8,.2,1) both; }
 .intro-collection-words span:nth-child(2) { color: #ed7189; animation-delay: .12s; }
 .intro-collection-words span:nth-child(3) { color: #27a8c7; animation-delay: .24s; }
 .intro-stage-statement {
   width: min(88vw, 1000px);
   max-width: none;
-  font-size: clamp(2.4rem, 5vw, 5.6rem);
+  font-size: calc(clamp(2.4rem, 5vw, 5.6rem) * var(--intro-text-scale, 1));
   line-height: .95;
   text-wrap: balance;
 }
@@ -242,8 +242,8 @@ body {
 .intro-enter-scene strong { max-width: 92vw; text-align: center; }
 
 .intro-enter-scene { position: relative; width: 100%; height: 100%; display: block; cursor: pointer; color: #063a5b; }
-.intro-enter-scene span { font-size: clamp(.75rem, 1vw, .95rem); letter-spacing: .35em; text-transform: uppercase; }
-.intro-enter-scene strong { font-family: var(--font-cormorant), serif; font-size: clamp(4rem, 9vw, 9rem); line-height: .9; font-weight: 400; }
+.intro-enter-scene span { font-size: calc(clamp(.75rem, 1vw, .95rem) * var(--intro-text-scale, 1)); letter-spacing: .35em; text-transform: uppercase; }
+.intro-enter-scene strong { font-family: var(--font-cormorant), serif; font-size: calc(clamp(4rem, 9vw, 9rem) * var(--intro-text-scale, 1)); line-height: .9; font-weight: 400; }
 .intro-enter-scene i { display: grid; place-items: center; width: 3.8rem; height: 3.8rem; margin-top: 1.4rem; border-radius: 50%; background: #ed7189; color: white; font-size: 1.65rem; font-style: normal; transition: transform .25s ease; }
 .intro-enter-scene:hover i { transform: translateX(.5rem); }
 
@@ -441,11 +441,11 @@ body {
   .intro-art-scene img, .intro-art-scene video { object-position: center; }
   .intro-art-scene::after { background: linear-gradient(0deg, rgba(3,29,49,.9), transparent 68%); }
   .intro-art-copy { left: clamp(30%, var(--intro-text-x, 50%), 70%); width: min(58vw, 20rem); text-align: center; }
-  .intro-art-copy h2 { font-size: clamp(2.3rem, 12vw, 4rem); }
-  .intro-letter-line { max-width: 94vw; font-size: clamp(2.2rem, 10.5vw, 3.25rem); white-space: nowrap; }
-  .intro-collection-words { flex-direction: column; font-size: clamp(3.2rem, 16vw, 5rem); }
-  .intro-stage-statement { width: min(92vw, 38rem); font-size: clamp(2.1rem, 10vw, 3.8rem); line-height: .98; }
-  .intro-enter-scene strong { font-size: clamp(4rem, 20vw, 6rem); }
+  .intro-art-copy h2 { font-size: calc(clamp(2.3rem, 12vw, 4rem) * min(var(--intro-text-scale, 1), 1.15)); }
+  .intro-letter-line { max-width: 94vw; font-size: calc(clamp(2.2rem, 10.5vw, 3.25rem) * min(var(--intro-text-scale, 1), 1.15)); white-space: nowrap; }
+  .intro-collection-words { flex-direction: column; font-size: calc(clamp(3.2rem, 16vw, 5rem) * min(var(--intro-text-scale, 1), 1.15)); }
+  .intro-stage-statement { width: min(92vw, 38rem); font-size: calc(clamp(2.1rem, 10vw, 3.8rem) * min(var(--intro-text-scale, 1), 1.15)); line-height: .98; }
+  .intro-enter-scene strong { font-size: calc(clamp(4rem, 20vw, 6rem) * min(var(--intro-text-scale, 1), 1.15)); }
   .intro-chapters { width: 100%; gap: .35rem; }
   .intro-chapters button { min-height: 3rem; border-radius: .55rem; font-size: .58rem; letter-spacing: .02em; }
   .intro-ruler { width: 100%; }

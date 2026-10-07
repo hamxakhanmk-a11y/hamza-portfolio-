@@ -23,6 +23,8 @@ async function getHeroImages() {
         'hero_stage_2_text_x', 'hero_stage_2_text_y',
         'hero_stage_3_text_x', 'hero_stage_3_text_y',
         'hero_stage_4_text_x', 'hero_stage_4_text_y',
+        'hero_stage_1_text_size', 'hero_stage_2_text_size',
+        'hero_stage_3_text_size', 'hero_stage_4_text_size',
       ]),
     ]);
     const images = {};
@@ -82,6 +84,11 @@ export default async function Hero() {
       y: Number(images.hero_stage_4_text_y || 50),
     },
   };
+
+  [1, 2, 3, 4].forEach(stage => {
+    const size = Number(images[`hero_stage_${stage}_text_size`]);
+    heroText[stage].size = Number.isFinite(size) && size > 0 ? size : 1;
+  });
 
   return <IntroExperience heroImage={images.hero || ''} cameraStages={cameraStages} heroText={heroText} />;
 }
