@@ -125,18 +125,6 @@ function labelCanvas(artwork, fontFamily) {
   return canvas;
 }
 
-function dotCanvas() {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 64;
-  const ctx = canvas.getContext('2d');
-  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  g.addColorStop(0, 'rgba(255,255,255,1)');
-  g.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 64, 64);
-  return canvas;
-}
-
 export default function GalleryTour({ slots, artistName }) {
   const rootRef = useRef(null);
   const hostRef = useRef(null);
@@ -160,12 +148,8 @@ export default function GalleryTour({ slots, artistName }) {
     let cleanup = () => {};
 
     (async () => {
-      const [THREE, { EffectComposer }, { RenderPass }, { UnrealBloomPass }, { OutputPass }, { RoomEnvironment }] = await Promise.all([
+      const [THREE, { RoomEnvironment }] = await Promise.all([
         import('three'),
-        import('three/addons/postprocessing/EffectComposer.js'),
-        import('three/addons/postprocessing/RenderPass.js'),
-        import('three/addons/postprocessing/UnrealBloomPass.js'),
-        import('three/addons/postprocessing/OutputPass.js'),
         import('three/addons/environments/RoomEnvironment.js'),
       ]);
       if (disposed || !hostRef.current) return;
@@ -327,9 +311,9 @@ export default function GalleryTour({ slots, artistName }) {
 
       // ── Corridor: x 4..10, z -13..-15.2, 3.2 high ──
       floor(4, 10, -13, -15.2);
-      wallZ(-13, 4, 10, 0, 3.2);
-      wallZ(-15.2, 4, 10, 0, 3.2);
-      block(4, 10, 3.2, 3.6, -13, -15.2);
+      wallZ(-13, 4.15, 9.85, 0, 3.2);
+      wallZ(-15.2, 4.15, 9.85, 0, 3.2);
+      block(4.15, 9.85, 3.2, 3.6, -13, -15.2);
 
       // ── Great hall: x 10..44, z -9.1..-19.1, 7 high, oval skylights, benches down the middle ──
       floor(10, 44, -9.1, -19.1);
@@ -376,23 +360,11 @@ export default function GalleryTour({ slots, artistName }) {
       const sunDirection = new THREE.Vector3(0.22, 1, 0.14).normalize();
       sun.castShadow = true;
       sun.shadow.mapSize.set(narrow ? 1024 : 2048, narrow ? 1024 : 2048);
-      Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 80 });
-      sun.shadow.bias = -0.0004;
-      sun.shadow.normalBias = 0.04;
-      sun.shadow.radius = 4;
+      Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 80 });
+      sun.shadow.bias = -0.0006;
+      sun.shadow.normalBias = 0.06;
+      sun.shadow.radius = 3;
       scene.add(sun, sun.target);
-
-      const dustCount = narrow ? 120 : 300;
-      const dustPositions = new Float32Array(dustCount * 3);
-      for (let k = 0; k < dustCount; k++) {
-        dustPositions[k * 3] = (Math.random() - 0.5) * 8;
-        dustPositions[k * 3 + 1] = 0.4 + Math.random() * 5.5;
-        dustPositions[k * 3 + 2] = (Math.random() - 0.5) * 16;
-      }
-      const dustGeo = keep(new THREE.BufferGeometry());
-      dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
-      const dust = new THREE.Points(dustGeo, keep(new THREE.PointsMaterial({ size: 0.03, map: canvasTexture(dotCanvas()), transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending })));
-      scene.add(dust);
 
       // ── Paintings: plain canvases, shown exactly as their photographs ──
       const loader = new THREE.TextureLoader();
@@ -461,19 +433,11 @@ export default function GalleryTour({ slots, artistName }) {
         // the doors slide apart as the visitor comes in
         const open = smootherstep(clamp01((s - 0.02) / 0.3));
         for (const { door, side } of doors) door.position.x = side * 2.15 * open;
-        // keep the light's shadow map and the dust around what the camera sees
+        // the shadow map follows the camera in 2 m steps: moving it every frame makes shadows shimmer
         const floorY = camera.position.y > UPPER ? UPPER : 0;
-        sun.target.position.set(camera.position.x, floorY, camera.position.z);
+        sun.target.position.set(Math.round(camera.position.x / 2) * 2, floorY, Math.round(camera.position.z / 2) * 2);
         sun.position.copy(sun.target.position).addScaledVector(sunDirection, 35);
-        dust.position.set(camera.position.x, floorY, camera.position.z);
       };
-
-      // ── Post-processing: a touch of glow on the windows, nothing else ──
-      const composer = new EffectComposer(renderer);
-      composer.addPass(new RenderPass(scene, camera));
-      const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), narrow ? 0.1 : 0.14, 0.5, 0.92);
-      composer.addPass(bloom);
-      composer.addPass(new OutputPass());
 
       // ── Loop ──
       let target = 0;
@@ -499,8 +463,6 @@ export default function GalleryTour({ slots, artistName }) {
         const w = host.clientWidth;
         const h = host.clientHeight;
         renderer.setSize(w, h);
-        composer.setSize(w, h);
-        bloom.setSize(w / 2, h / 2);
         camera.aspect = w / h;
         camera.fov = camera.aspect < 1 ? 64 : 46;
         camera.updateProjectionMatrix();
@@ -526,13 +488,7 @@ export default function GalleryTour({ slots, artistName }) {
         sway.x += (sway.tx + Math.sin(time * 0.31) * 0.004 * drift - sway.x) * Math.min(1, delta * 2);
         sway.y += (sway.ty + Math.sin(time * 0.23 + 1.3) * 0.003 * drift - sway.y) * Math.min(1, delta * 2);
         placeCamera(current);
-        const positions = dustGeo.attributes.position.array;
-        for (let k = 0; k < dustCount; k++) {
-          positions[k * 3 + 1] += Math.sin(time * 0.4 + k) * 0.0008;
-          positions[k * 3] += Math.cos(time * 0.3 + k * 1.7) * 0.0006;
-        }
-        dustGeo.attributes.position.needsUpdate = true;
-        composer.render();
+        renderer.render(scene, camera);
         const nearest = Math.round(current);
         if (nearest !== lastStop) { lastStop = nearest; setStop(nearest); }
       };
@@ -573,7 +529,6 @@ export default function GalleryTour({ slots, artistName }) {
         renderer.domElement.removeEventListener('pointermove', onMove);
         renderer.domElement.removeEventListener('click', onClick);
         disposables.forEach(item => item.dispose?.());
-        composer.dispose();
         renderer.dispose();
         renderer.domElement.remove();
       };
