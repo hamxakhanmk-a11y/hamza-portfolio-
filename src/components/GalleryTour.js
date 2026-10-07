@@ -18,9 +18,10 @@ const STOP_SCREEN_SHARE = 70; // svh of scrolling per camera stop
 const WALL_T = 0.3;
 
 // warm off-white, not ash: cream walls, a slightly warmer floor, cream haze
-const WALL = 0xfbf7ef;
-const FLOOR = 0xf4efe6;
-const FOG = 0xf9f5ee;
+// the window wall's tone, everywhere; unlit materials so no wall comes out a different shade
+const WALL = 0xfaf4e8;
+const FLOOR = 0xf6f0e4;
+const FOG = 0xfaf4e8;
 
 // Where each wall place hangs: position of the canvas centre and the way it faces (rotation about y).
 const PLACES = {
@@ -196,14 +197,15 @@ export default function GalleryTour({ slots, artistName }) {
       };
 
       // ── Materials: smooth, matte, off-white ──
-      const wallMat = keep(new THREE.MeshStandardMaterial({ color: WALL, roughness: 1 }));
-      const floorMat = keep(new THREE.MeshStandardMaterial({ color: FLOOR, roughness: 0.45 }));
-      const stepMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3ede3, roughness: 0.9 }));
-      const frameMat = keep(new THREE.MeshStandardMaterial({ color: 0xc6c9cc, roughness: 0.6, metalness: 0.2 }));
-      const glassMat = keep(new THREE.MeshStandardMaterial({ color: 0xf2f5f7, roughness: 0.2, transparent: true, opacity: 0.55 }));
-      const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xfdf3e3, fog: false, toneMapped: false })); // warm daylight in the glass
+      const wallMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false }));
+      const floorMat = keep(new THREE.MeshBasicMaterial({ color: FLOOR, toneMapped: false }));
+      const ceilingMat = keep(new THREE.MeshBasicMaterial({ color: 0xf1ebdf, toneMapped: false })); // ceilings a shade deeper, for depth
+      const stepMat = keep(new THREE.MeshBasicMaterial({ color: 0xf3ece0, toneMapped: false }));
+      const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
+      const glassMat = keep(new THREE.MeshBasicMaterial({ color: 0xfbf6ec, transparent: true, opacity: 0.5, toneMapped: false }));
+      const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xfdf1dc, fog: false, toneMapped: false })); // warm daylight in the glass
       const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
-      const canvasEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf5f1ea, roughness: 0.9 }));
+      const canvasEdgeMat = keep(new THREE.MeshBasicMaterial({ color: 0xf2ece2, toneMapped: false }));
 
       const add = (geometry, material, position, options = {}) => {
         const mesh = new THREE.Mesh(keep(geometry), material);
@@ -246,7 +248,7 @@ export default function GalleryTour({ slots, artistName }) {
           shape.holes.push(path);
         }
         // the shape's y runs along world z; rotating it flat drops the extrusion below y
-        const slab = add(new THREE.ExtrudeGeometry(shape, { depth: 0.45, bevelEnabled: false, curveSegments: 48 }), wallMat, [0, y + 0.45, 0], { rotation: [Math.PI / 2, 0, 0] });
+        const slab = add(new THREE.ExtrudeGeometry(shape, { depth: 0.45, bevelEnabled: false, curveSegments: 48 }), ceilingMat, [0, y + 0.45, 0], { rotation: [Math.PI / 2, 0, 0] });
         slab.receiveShadow = false;
         add(new THREE.PlaneGeometry(x1 - x0 + 4, Math.abs(z1 - z0) + 4), skyMat, [(x0 + x1) / 2, y + 2.2, (z0 + z1) / 2], { rotation: [Math.PI / 2, 0, 0], cast: false, receive: false });
       };
@@ -358,8 +360,8 @@ export default function GalleryTour({ slots, artistName }) {
 
       // ── Light: soft, even white daylight, no colour cast ──
       // bright, even light so the walls read as off-white, with a weak sun for soft shading
-      scene.add(new THREE.HemisphereLight(0xfffaf2, 0xf1eadf, 2.8));
-      const sun = new THREE.DirectionalLight(0xfff6e8, 0.45);
+      scene.add(new THREE.HemisphereLight(0xfffaf2, 0xf1eadf, 2.0));
+      const sun = new THREE.DirectionalLight(0xfff6e8, 0.3);
       sun.position.set(6, 30, 4);
       scene.add(sun);
       const fill = new THREE.DirectionalLight(0xfff6e8, 0.25);
@@ -383,6 +385,78 @@ export default function GalleryTour({ slots, artistName }) {
         const mesh = add(new THREE.PlaneGeometry(width, height), keep(new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity, depthWrite: false })), position, { rotation, cast: false, receive: false });
         return mesh;
       };
+      // a soft dark band fading out from one edge (for corners and the line under a ceiling)
+      const edgeTexture = (r, g, b, a0) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 8;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createLinearGradient(0, 0, 256, 0);
+        grad.addColorStop(0, `rgba(${r},${g},${b},${a0})`);
+        grad.addColorStop(0.45, `rgba(${r},${g},${b},${a0 * 0.3})`);
+        grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, 256, 8);
+        return canvasTexture(canvas);
+      };
+      const bandMat = keep(new THREE.MeshBasicMaterial({ map: edgeTexture(60, 45, 25, 0.3), transparent: true, depthWrite: false, toneMapped: false }));
+      // warm sunlight spilling in beside a window, additive so it lightens rather than tints
+      const spillMat = keep(new THREE.MeshBasicMaterial({ map: edgeTexture(255, 210, 130, 0.55), transparent: true, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
+      // strip: a plane whose dark/bright edge lies along the line a->b, fading out across the surface.
+      // normal is the surface's outward direction; across is the in-surface direction to fade along.
+      const strip = (material, a, b, across, normal, reach) => {
+        if (reach <= 0) return null;
+        const ax = new THREE.Vector3(...a), bx = new THREE.Vector3(...b);
+        const along = bx.clone().sub(ax); const len = along.length(); along.normalize();
+        const acrossV = new THREE.Vector3(...across).normalize();
+        const centre = ax.clone().add(bx).multiplyScalar(0.5).addScaledVector(acrossV, reach / 2).addScaledVector(new THREE.Vector3(...normal), 0.012);
+        const mesh = new THREE.Mesh(keep(new THREE.PlaneGeometry(reach, len)), material);
+        // plane's local +x = across (texture u runs from the edge outward), local +y = along
+        mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(acrossV, along, acrossV.clone().cross(along)));
+        mesh.position.copy(centre);
+        mesh.renderOrder = 1;
+        scene.add(mesh);
+        return mesh;
+      };
+      const X = [1, 0, 0], NX = [-1, 0, 0], Y = [0, 1, 0], NY = [0, -1, 0], Z = [0, 0, 1], NZ = [0, 0, -1];
+      // entrance hall: under the ceiling, the far corners, along the floor
+      strip(bandMat, [-3.99, 5.99, 0], [-3.99, 5.99, -16], NY, X, 1.1);
+      strip(bandMat, [3.99, 5.99, 0], [3.99, 5.99, -16], NY, NX, 1.1);
+      strip(bandMat, [-3.99, 0, -15.99], [-3.99, 6, -15.99], Z, X, 1.0);
+      strip(bandMat, [3.99, 0, -15.99], [3.99, 6, -15.99], Z, NX, 1.0);
+      strip(bandMat, [-3.99, 0, -15.99], [-3.99, 6, -15.99], X, Z, 1.0);
+      strip(bandMat, [3.99, 0, -15.99], [3.99, 6, -15.99], NX, Z, 1.0);
+      strip(bandMat, [-3.99, 0.01, 0], [-3.99, 0.01, -16], Y, X, 0.7);
+      strip(bandMat, [3.99, 0.01, 0], [3.99, 0.01, -16], Y, NX, 0.7);
+      // great hall
+      strip(bandMat, [10, 6.99, -9.11], [44, 6.99, -9.11], NY, NZ, 1.2);
+      strip(bandMat, [10, 6.99, -19.09], [44, 6.99, -19.09], NY, Z, 1.2);
+      strip(bandMat, [10.01, 0, -19.09], [10.01, 7, -19.09], X, Z, 1.0);
+      strip(bandMat, [43.99, 0, -19.09], [43.99, 7, -19.09], NX, Z, 1.0);
+      strip(bandMat, [10.01, 0, -9.11], [10.01, 7, -9.11], X, NZ, 1.0);
+      strip(bandMat, [43.99, 0, -9.11], [43.99, 7, -9.11], NX, NZ, 1.0);
+      strip(bandMat, [10.01, 0, -19.09], [10.01, 7, -19.09], Z, X, 1.0);
+      strip(bandMat, [43.99, 0, -19.09], [43.99, 7, -19.09], Z, NX, 1.0);
+      strip(bandMat, [10, 0.01, -19.09], [44, 0.01, -19.09], Y, Z, 0.7);
+      strip(bandMat, [10, 0.01, -9.11], [44, 0.01, -9.11], Y, NZ, 0.7);
+      // side hall
+      strip(bandMat, [44, 6.99, -10.11], [62, 6.99, -10.11], NY, NZ, 1.2);
+      strip(bandMat, [44, 6.99, -18.09], [62, 6.99, -18.09], NY, Z, 1.2);
+      strip(bandMat, [44, 0.01, -10.11], [62, 0.01, -10.11], Y, NZ, 0.7);
+      strip(bandMat, [44, 0.01, -18.09], [62, 0.01, -18.09], Y, Z, 0.7);
+      // glass hall (first floor): ceiling and floor lines on the painting wall, the far corners
+      strip(bandMat, [78.39, TOP - 0.01, -18.1], [78.39, TOP - 0.01, -50], NY, NX, 1.2);
+      strip(bandMat, [78.39, UPPER + 0.01, -18.1], [78.39, UPPER + 0.01, -50], Y, NX, 0.7);
+      strip(bandMat, [78.39, UPPER, -49.99], [78.39, TOP, -49.99], Z, NX, 1.0);
+      strip(bandMat, [70.41, UPPER, -49.99], [70.41, TOP, -49.99], Z, X, 1.0);
+      // warm sun spill beside the windows, on the floor and the nearby walls (no cast shadows)
+      strip(spillMat, [-1.6, 0.02, -15.98], [1.6, 0.02, -15.98], Y, Z, 3.2);
+      strip(spillMat, [-3.98, 0.9, -15.98], [-3.98, 4.6, -15.98], X, Z, 1.4);
+      strip(spillMat, [3.98, 0.9, -15.98], [3.98, 4.6, -15.98], NX, Z, 1.4);
+      strip(spillMat, [70.42, UPPER + 0.02, -18.1], [70.42, UPPER + 0.02, -50], Y, X, 3.4);
+      strip(spillMat, [72.8, UPPER + 0.02, -49.98], [76, UPPER + 0.02, -49.98], Y, Z, 3.0);
+      strip(spillMat, [78.38, UPPER + 0.6, -49.98], [78.38, UPPER + 4.2, -49.98], NX, Z, 1.6);
+      strip(spillMat, [70.42, UPPER + 0.6, -49.98], [70.42, UPPER + 4.2, -49.98], X, Z, 1.6);
+      strip(spillMat, [78.38, UPPER + 0.02, -10.12], [78.38, UPPER + 0.02, -18.08], Y, NX, 3.0);
+
       // under the benches
       for (const [x, z, w, d] of [[20, -14.1, 1.4, 1.4], [21.5, -13.1, 1.4, 1.0], [21.5, -15.1, 1.4, 1.0], [22.9, -14.1, 1.4, 1.4], [34, -14.1, 1.4, 1.4], [35.5, -13.3, 1.4, 1.0], [35.5, -14.9, 1.4, 1.0], [0, -13.8, 2.4, 1.2]]) {
         paintedShadow(floorShadowTex, w * 1.9, d * 1.9, [x, 0.012, z], [-Math.PI / 2, 0, 0], 0.28);
