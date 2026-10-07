@@ -22,7 +22,16 @@ export default function HomeMistTransition() {
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 100);
-      const texture = new THREE.TextureLoader().load('/cloud-flight/cloud-mist-v2.webp');
+      let textureReady = false;
+      let introStart = null;
+      let introFinished = window.scrollY > 80;
+      const texture = new THREE.TextureLoader().load('/cloud-flight/cloud-mist-v2.webp', () => {
+        textureReady = true;
+        wake();
+      }, undefined, () => {
+        introFinished = true;
+        wake();
+      });
       texture.colorSpace = THREE.SRGBColorSpace;
       const geometry = new THREE.PlaneGeometry(1, 1);
       const trailCount = 20;
@@ -118,8 +127,14 @@ export default function HomeMistTransition() {
         frame = 0;
         const progress = 1 - hero.getBoundingClientRect().bottom / window.innerHeight;
         hero.style.setProperty('--sky-departure', String(Math.max(0, Math.min(1, progress))));
-        const active = progress > 0 && progress < 4.1 && !document.hidden && !motion.matches && !contextLost;
-        canvas.style.opacity = active ? '1' : '0';
+        if (window.scrollY > 80 || motion.matches) introFinished = true;
+        if (!introFinished && textureReady && !document.hidden && introStart === null) introStart = now;
+        const introProgress = introStart === null ? 0 : Math.min(1, (now - introStart) / 1000);
+        if (introProgress === 1) introFinished = true;
+        const opening = !introFinished && textureReady;
+        const active = (opening || (progress > 0 && progress < 4.1)) && !document.hidden && !motion.matches && !contextLost;
+        canvas.style.opacity = active || !introFinished ? '1' : '0';
+        canvas.style.backgroundColor = !introFinished ? `rgba(173, 213, 232, ${0.7 * (1 - introProgress)})` : 'transparent';
         if (!active) { last = 0; return; }
         const delta = last ? Math.min((now - last) / 1000, 0.05) : 1 / 60;
         elapsed += delta;
@@ -134,18 +149,20 @@ export default function HomeMistTransition() {
           camera.updateProjectionMatrix();
         }
         const horizontal = Math.max(0.6, Math.min(1.8, camera.aspect));
-        const envelope = THREE.MathUtils.smoothstep(progress, 0, 0.35) *
-          (1 - THREE.MathUtils.smoothstep(progress, 3.1, 4.1));
+        const introEase = introProgress * introProgress * (3 - 2 * introProgress);
+        const flightProgress = opening ? introEase : progress;
+        const envelope = opening ? 1 - THREE.MathUtils.smoothstep(introProgress, 0.25, 1) :
+          THREE.MathUtils.smoothstep(progress, 0, 0.35) * (1 - THREE.MathUtils.smoothstep(progress, 3.1, 4.1));
         camera.position.set(
-          Math.sin(progress * 0.7) * horizontal * 0.35,
-          -progress * 0.9,
-          16 - progress * 17,
+          Math.sin(flightProgress * 0.7) * horizontal * 0.35,
+          -flightProgress * 0.9,
+          opening ? 9 - introEase * 20 : 16 - progress * 17,
         );
         banks.forEach(({ mesh, side, depth }) => {
           const distance = camera.position.z - mesh.position.z;
           const near = THREE.MathUtils.smoothstep(distance, 2, 7);
           const far = 1 - THREE.MathUtils.smoothstep(distance, 24, 48);
-          mesh.material.opacity = near * far * envelope * (0.38 + (depth % 3) * 0.05);
+          mesh.material.opacity = near * far * envelope * (opening ? 0.85 : 0.38 + (depth % 3) * 0.05);
           mesh.position.x = side * horizontal * (7.5 + Math.sin(elapsed * 0.06 + depth) * 0.3);
           const bankWidth = horizontal * 22;
           mesh.scale.set(bankWidth, bankWidth * 683 / 1024, 1);
