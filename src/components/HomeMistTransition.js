@@ -25,6 +25,17 @@ export default function HomeMistTransition() {
       const texture = new THREE.TextureLoader().load('/cloud-flight/cloud-mist-v2.webp');
       texture.colorSpace = THREE.SRGBColorSpace;
       const geometry = new THREE.PlaneGeometry(1, 1);
+      const trailCount = 20;
+      const trails = Array.from({ length: trailCount }, () => new THREE.Vector4());
+      const strengths = new Float32Array(trailCount);
+      const resolution = new THREE.Vector2(1, 1);
+      let trailIndex = 0;
+      let previousPointer = null;
+      const stirringUniforms = {
+        uCloudTrails: { value: trails },
+        uCloudStrengths: { value: strengths },
+        uCloudResolution: { value: resolution },
+      };
       const banks = [];
       for (let depth = 0; depth < 7; depth++) {
         for (const side of [-1, 1]) {
@@ -32,6 +43,33 @@ export default function HomeMistTransition() {
             map: texture, color: '#d8edfa', transparent: true,
             depthWrite: false, opacity: 0, toneMapped: false,
           });
+          // Distort the vapor locally in screen space, without steering the camera.
+          material.onBeforeCompile = (shader) => {
+            Object.assign(shader.uniforms, stirringUniforms);
+            shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
+              #include <common>
+              uniform vec4 uCloudTrails[20];
+              uniform float uCloudStrengths[20];
+              uniform vec2 uCloudResolution;
+            `).replace('#include <map_fragment>', `
+              #ifdef USE_MAP
+                vec2 screen = gl_FragCoord.xy / uCloudResolution.y;
+                vec2 displacement = vec2(0.0);
+                for (int i = 0; i < 20; i++) {
+                  vec2 offset = screen - uCloudTrails[i].xy;
+                  float influence = exp(-dot(offset, offset) / 0.018);
+                  vec2 curl = vec2(-offset.y, offset.x);
+                  float spin = uCloudTrails[i].z + uCloudTrails[i].w;
+                  displacement += influence * uCloudStrengths[i] *
+                    (uCloudTrails[i].zw * 0.6 + curl * spin * 4.0);
+                }
+                vec2 pixels = displacement * uCloudResolution.y;
+                vec2 stirredUv = vMapUv - dFdx(vMapUv) * pixels.x - dFdy(vMapUv) * pixels.y;
+                diffuseColor *= texture2D(map, clamp(stirredUv, 0.0, 1.0));
+              #endif
+            `);
+          };
+          material.customProgramCacheKey = () => 'cloud-stirring-v1';
           const mesh = new THREE.Mesh(geometry, material);
           mesh.position.set(0, -depth * 0.6 + side * 0.7, -depth * 9);
           mesh.rotation.z = side * (0.12 + (depth % 3) * 0.06);
@@ -41,32 +79,39 @@ export default function HomeMistTransition() {
       }
       let frame = 0, last = 0, elapsed = 0, width = 0, height = 0;
       let contextLost = false;
-      const look = new THREE.Vector2();
-      const targetLook = new THREE.Vector2();
       let touchOrigin = null;
+
+      function stir(x, y) {
+        const point = new THREE.Vector2(x / window.innerHeight, (window.innerHeight - y) / window.innerHeight);
+        if (previousPointer) {
+          const velocity = point.clone().sub(previousPointer);
+          if (velocity.lengthSq() > 0.000002) {
+            velocity.clampLength(0, 0.12);
+            trails[trailIndex].set(point.x, point.y, velocity.x, velocity.y);
+            strengths[trailIndex] = 1;
+            trailIndex = (trailIndex + 1) % trailCount;
+          }
+        }
+        previousPointer = point;
+        wake();
+      }
 
       function pointerMove(event) {
         if (event.pointerType === 'touch') return;
-        targetLook.set(
-          THREE.MathUtils.clamp(event.clientX / window.innerWidth * 2 - 1, -1, 1),
-          THREE.MathUtils.clamp(event.clientY / window.innerHeight * 2 - 1, -1, 1),
-        );
-        wake();
+        stir(event.clientX, event.clientY);
       }
-      function recenter() { targetLook.set(0, 0); touchOrigin = null; wake(); }
+      function recenter() { previousPointer = null; touchOrigin = null; }
       function pointerOut(event) { if (!event.relatedTarget) recenter(); }
       function touchStart(event) {
         if (event.touches.length !== 1 || event.target.closest?.('a, button, input, textarea, select, [role="dialog"]')) return;
         touchOrigin = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+        previousPointer = null;
+        stir(touchOrigin.x, touchOrigin.y);
       }
       function touchMove(event) {
         if (!touchOrigin || event.touches.length !== 1) return;
         const touch = event.touches[0];
-        targetLook.set(
-          THREE.MathUtils.clamp((touch.clientX - touchOrigin.x) / window.innerWidth * 3, -1, 1),
-          THREE.MathUtils.clamp((touch.clientY - touchOrigin.y) / window.innerHeight * 3, -1, 1),
-        );
-        wake();
+        stir(touch.clientX, touch.clientY);
       }
 
       function draw(now) {
@@ -79,13 +124,12 @@ export default function HomeMistTransition() {
         const delta = last ? Math.min((now - last) / 1000, 0.05) : 1 / 60;
         elapsed += delta;
         last = now;
-        // Frame-rate-independent easing lets the view trail the hand and settle.
-        look.x = THREE.MathUtils.damp(look.x, targetLook.x, 3.2, delta);
-        look.y = THREE.MathUtils.damp(look.y, targetLook.y, 3.2, delta);
+        for (let i = 0; i < trailCount; i++) strengths[i] *= Math.exp(-delta * 1.4);
         const w = canvas.clientWidth, h = canvas.clientHeight;
         if (w !== width || h !== height) {
           width = w; height = h;
           renderer.setSize(w, h, false);
+          renderer.getDrawingBufferSize(resolution);
           camera.aspect = w / h;
           camera.updateProjectionMatrix();
         }
@@ -93,11 +137,10 @@ export default function HomeMistTransition() {
         const envelope = THREE.MathUtils.smoothstep(progress, 0, 0.35) *
           (1 - THREE.MathUtils.smoothstep(progress, 3.1, 4.1));
         camera.position.set(
-          Math.sin(progress * 0.7) * horizontal * 0.35 + look.x * horizontal * 1.25,
-          -progress * 0.9 - look.y * 0.9,
+          Math.sin(progress * 0.7) * horizontal * 0.35,
+          -progress * 0.9,
           16 - progress * 17,
         );
-        camera.rotation.set(-look.y * 0.025, -look.x * 0.04, -look.x * 0.006);
         banks.forEach(({ mesh, side, depth }) => {
           const distance = camera.position.z - mesh.position.z;
           const near = THREE.MathUtils.smoothstep(distance, 2, 7);

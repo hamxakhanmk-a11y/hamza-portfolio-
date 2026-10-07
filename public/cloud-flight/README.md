@@ -5,8 +5,8 @@ perspective scene. Scrolling moves the camera forward and downward between them;
 near clouds expand past the screen edges and fade before crossing the camera.
 The gallery arrives after 210svh of cloud passage. Lenis smooths the homepage's
 wheel and touch motion. The hero camera follows a continuous GSAP timeline.
-Mouse movement and touch drags steer the camera with frame-rate-independent
-easing. The view settles after releasing a touch or leaving the window. Touch
+Mouse movement and touch drags stir the vapor locally, leaving soft curling
+displacement trails that dissipate smoothly. Input does not tilt or move the camera. Touch
 listeners are passive so normal scrolling and controls stay available.
 Reduced motion uses native scrolling and omits the cloud passage.
 
