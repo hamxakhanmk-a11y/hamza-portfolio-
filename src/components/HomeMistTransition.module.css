@@ -5,8 +5,12 @@
   height: 100%;
   z-index: 2;
   pointer-events: none;
-  opacity: 1;
-  background-color: rgb(173 213 232 / 70%);
+  opacity: 0;
+}
+
+.openingSky {
+  height: 100svh;
+  background: linear-gradient(180deg, #3d789a, #b5d8e8);
 }
 
 .pathway {
@@ -33,6 +37,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .openingSky { display: none; }
   .mist { display: none; }
   .pathway { display: none; }
   .journey :global(.intro-media) { opacity: 1; mask-image: none; }

@@ -3,12 +3,17 @@
 import { useEffect, useRef } from 'react';
 import styles from './HomeMistTransition.module.css';
 
+export function HomeSkyIntro() {
+  return <div className={styles.openingSky} data-home-sky aria-hidden="true" />;
+}
+
 export default function HomeMistTransition() {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const hero = document.querySelector('.intro-embedded');
+    const sky = document.querySelector('[data-home-sky]');
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (!hero || motion.matches) return;
     let disposed = false;
@@ -24,13 +29,12 @@ export default function HomeMistTransition() {
       const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
       camera.position.z = 1;
       let textureReady = false;
-      let introStart = null;
-      let introFinished = window.scrollY > 80;
       const texture = new THREE.TextureLoader().load('/cloud-flight/cloud-mist-v2.webp', () => {
         textureReady = true;
+        if (sky) sky.dataset.ready = 'true';
         wake();
       }, undefined, () => {
-        introFinished = true;
+        if (sky) sky.dataset.ready = 'true';
         wake();
       });
       texture.colorSpace = THREE.SRGBColorSpace;
@@ -97,10 +101,10 @@ export default function HomeMistTransition() {
                 vec2 stirredUv = (screen - displacement - center) / vec2(1.5, 1.0) + 0.5;
                 vec4 wisps = texture2D(map, clamp(stirredUv + vec2((broad - 0.5) * 0.12, (vapor - 0.5) * 0.18), 0.0, 1.0));
                 float surrounding = smoothstep(0.12, 0.48, abs(vMapUv.x - 0.5));
-                float density = smoothstep(0.32, 0.68, broad * 0.65 + vapor * 0.35);
-                float opacity = clamp(density * (0.45 + surrounding * 0.25) + wisps.a * 0.65, 0.0, 0.93);
+                float density = smoothstep(0.20, 0.62, broad * 0.65 + vapor * 0.35);
+                float opacity = clamp(density * (0.85 + surrounding * 0.12) + wisps.a * 0.3, 0.0, 0.96);
                 vec3 mistColor = mix(vec3(0.50, 0.70, 0.80), vec3(0.96, 0.98, 1.0), smoothstep(0.28, 0.65, vapor));
-                mistColor = mix(mistColor, wisps.rgb, wisps.a * 0.65);
+                mistColor = mix(mistColor, wisps.rgb, wisps.a * 0.35);
                 diffuseColor *= vec4(mistColor, opacity);
               #endif
             `);
@@ -150,14 +154,12 @@ export default function HomeMistTransition() {
         frame = 0;
         const progress = 1 - hero.getBoundingClientRect().bottom / window.innerHeight;
         hero.style.setProperty('--sky-departure', String(Math.max(0, Math.min(1, progress))));
-        if (window.scrollY > 80 || motion.matches) introFinished = true;
-        if (!introFinished && textureReady && !document.hidden && introStart === null) introStart = now;
-        const introProgress = introStart === null ? 0 : Math.min(1, (now - introStart) / 1000);
-        if (introProgress === 1) introFinished = true;
-        const opening = !introFinished && textureReady;
+        const skyHeight = sky?.offsetHeight || 1;
+        const introProgress = Math.max(0, Math.min(1, window.scrollY / skyHeight));
+        const opening = Boolean(sky && sky.getBoundingClientRect().bottom > 0);
         const active = (opening || (progress > 0 && progress < 4.1)) && !document.hidden && !motion.matches && !contextLost;
-        canvas.style.opacity = active || !introFinished ? '1' : '0';
-        canvas.style.backgroundColor = !introFinished ? `rgba(173, 213, 232, ${0.7 * (1 - introProgress)})` : 'transparent';
+        canvas.style.opacity = active && textureReady ? '1' : '0';
+        canvas.style.backgroundColor = 'transparent';
         if (!active) { last = 0; return; }
         const delta = last ? Math.min((now - last) / 1000, 0.05) : 1 / 60;
         elapsed += delta;
@@ -169,12 +171,11 @@ export default function HomeMistTransition() {
           renderer.setSize(w, h, false);
           renderer.getDrawingBufferSize(resolution);
         }
-        const introEase = introProgress * introProgress * (3 - 2 * introProgress);
-        const flightProgress = opening ? introEase : progress;
-        const envelope = opening ? 1 - THREE.MathUtils.smoothstep(introProgress, 0.25, 1) :
+        const flightProgress = opening ? introProgress : progress;
+        const envelope = opening ? 1 - THREE.MathUtils.smoothstep(introProgress, 0.45, 1) :
           THREE.MathUtils.smoothstep(progress, 0, 0.35) * (1 - THREE.MathUtils.smoothstep(progress, 3.1, 4.1));
         stirringUniforms.uCloudFlow.value = flightProgress * 1.2 + elapsed * 0.035;
-        material.opacity = envelope * (opening ? 1 : 0.8);
+        material.opacity = envelope;
         renderer.render(scene, camera);
         frame = requestAnimationFrame(draw);
       }

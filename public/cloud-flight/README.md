@@ -2,9 +2,12 @@
 
 HomeMistTransition renders one continuous full-viewport atmospheric mist field
 in Three.js, blending photographic wisps with domain-warped fractal vapor.
-There are no repeated rows of cloud sprites. Opening Home at the top plays a one-second automatic mist
-descending reveal once its texture is ready, then clears to the hero without adding scroll
-distance. Scrolling immediately cancels this reveal; reduced motion skips it.
+There are no repeated rows of cloud sprites. Home opens in a dedicated 100svh
+sky section, then Lenis automatically descends to the hero over 3.6 seconds once
+the texture is ready. Wheel, touch, and scrolling keys interrupt the automatic
+descent. Reduced motion omits the opening sky section and automatic scrolling.
+The procedural vapor has increased density throughout the viewport, with the
+photographic cloud blended more softly into the surrounding mist.
 Scrolling advects the continuous vapor upward, producing a downward journey
 without camera zoom or separated cloud bands.
 The gallery arrives after 210svh of cloud passage. Lenis smooths the homepage's
