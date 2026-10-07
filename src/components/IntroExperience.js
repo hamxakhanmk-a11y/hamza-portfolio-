@@ -28,11 +28,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   });
 
   useLayoutEffect(() => {
-    const rootElement = rootRef.current;
     let context;
-    let observers = [];
-    let sectionTrigger;
-    let stageTimeline;
     let cancelled = false;
 
     async function createScrollStory() {
@@ -41,10 +37,8 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
         import('gsap/ScrollTrigger'),
       ]);
       if (cancelled || !rootRef.current) return;
-
       const ScrollTrigger = scrollTriggerModule.ScrollTrigger || scrollTriggerModule.default;
       gsap.registerPlugin(ScrollTrigger);
-
       context = gsap.context(() => {
         const scenes = gsap.utils.toArray('.intro-scene');
         const detailCamera = (x, y, zoom) => ({
@@ -53,218 +47,43 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           yPercent: (y - 50) * (1 - zoom),
           transformOrigin: '50% 50%',
         });
-        const cameraStops = [
-          detailCamera(stage1X, stage1Y, stage1Zoom),
-          detailCamera(stage2X, stage2Y, stage2Zoom),
-          detailCamera(stage3X, stage3Y, stage3Zoom),
-          detailCamera(stage4X, stage4Y, stage4Zoom),
+        const stops = [
+          [stage1X, stage1Y, stage1Zoom],
+          [stage2X, stage2Y, stage2Zoom],
+          [stage3X, stage3Y, stage3Zoom],
+          [stage4X, stage4Y, stage4Zoom],
         ];
-        const cameraFocus = [
-          `${stage1X}% ${stage1Y}%`,
-          `${stage2X}% ${stage2Y}%`,
-          `${stage3X}% ${stage3Y}%`,
-          `${stage4X}% ${stage4Y}%`,
-        ];
-        let activeStage = 0;
-        let animating = false;
-        let settingStagePosition = false;
-
-        gsap.set(scenes, { autoAlpha: 0, scale: .985, yPercent: 2 });
-        gsap.set(scenes[0], { autoAlpha: 1, scale: 1, yPercent: 0 });
-        gsap.set(mediaRef.current, { ...cameraStops[0], force3D: true });
-        gsap.set(imageRef.current, { objectPosition: cameraFocus[0] });
-
+        gsap.set(scenes, { autoAlpha: 0, yPercent: 3 });
+        gsap.set(scenes[0], { autoAlpha: 1, yPercent: 0 });
+        gsap.set(mediaRef.current, detailCamera(...stops[0]));
+        gsap.set(imageRef.current, { objectPosition: `${stage1X}% ${stage1Y}%` });
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-        function scrollToStage(index) {
-          if (!sectionTrigger) return;
-          const rawPosition = sectionTrigger.start
-            + ((sectionTrigger.end - sectionTrigger.start) * index / (scenes.length - 1));
-          const stagePosition = index === 0
-            ? sectionTrigger.start + 1
-            : index === scenes.length - 1
-              ? sectionTrigger.end - 1
-              : rawPosition;
-          settingStagePosition = true;
-          window.scrollTo({ top: Math.round(stagePosition), behavior: 'auto' });
-          window.requestAnimationFrame(() => {
-            settingStagePosition = false;
-          });
-        }
-
-        function showStage(index, immediate = false) {
-          const previousStage = activeStage;
-          const camera = cameraStops[index];
-          activeStage = index;
-          stageTimeline?.kill();
-
-          if (immediate) {
-            animating = false;
-            gsap.set(mediaRef.current, { ...camera, force3D: true });
-            gsap.set(imageRef.current, { objectPosition: cameraFocus[index] });
-            scenes.forEach((scene, sceneIndex) => {
-              gsap.set(scene, {
-                autoAlpha: sceneIndex === index ? 1 : 0,
-                scale: sceneIndex === index ? 1 : .985,
-                yPercent: sceneIndex === index ? 0 : 2,
-              });
-            });
-            return;
-          }
-
-          animating = true;
-          scrollToStage(index);
-          stageTimeline = gsap.timeline({
-            defaults: { overwrite: 'auto' },
-            onComplete: () => { animating = false; },
-            onInterrupt: () => { animating = false; },
-          });
-
-          // One camera stop and one text scene share the same landing time.
-          stageTimeline
-            .to(scenes[previousStage], {
-              autoAlpha: 0,
-              scale: 1.02,
-              yPercent: -2,
-              duration: .22,
-              ease: 'power1.in',
-            }, 0)
-            .to(mediaRef.current, {
-              ...camera,
-              force3D: true,
-              duration: .82,
-              ease: 'power3.inOut',
-            }, 0)
-            .to(imageRef.current, {
-              objectPosition: cameraFocus[index],
-              duration: .82,
-              ease: 'power3.inOut',
-            }, 0)
-            .fromTo(scenes[index],
-              { autoAlpha: 0, scale: .985, yPercent: 2 },
-              {
-                autoAlpha: 1,
-                scale: 1,
-                yPercent: 0,
-                duration: .3,
-                ease: 'power2.out',
-              },
-              .52,
-            )
-            .to({}, { duration: .16 }, .82);
-        }
-
-        function setHeroInteraction(active) {
-          rootElement?.classList.toggle('intro-gesture-active', active);
-          observers.forEach(observer => active ? observer.enable() : observer.disable());
-        }
-
-        function leaveHero(direction) {
-          setHeroInteraction(false);
-          const heroHeight = rootRef.current?.offsetHeight || window.innerHeight * scenes.length;
-          const destination = direction > 0
-            ? (rootRef.current?.offsetTop || 0) + heroHeight
-            : Math.max(0, sectionTrigger.start - (rootRef.current?.firstElementChild?.clientHeight || window.innerHeight));
-          window.scrollTo({ top: destination, behavior: 'smooth' });
-        }
-
-        function changeStage(direction) {
-          if (animating) return;
-          const nextStage = activeStage + direction;
-          if (nextStage < 0 || nextStage >= scenes.length) {
-            leaveHero(direction);
-            return;
-          }
-          showStage(nextStage);
-        }
-
-        function isBypassGesture(self) {
-          const event = self?.event;
-          const target = event?.target;
-          if (target instanceof Element && target.closest('[data-hero-scroll-bypass]')) return true;
-
-          const touch = event?.touches?.[0] || event?.changedTouches?.[0];
-          const clientY = touch?.clientY ?? event?.clientY;
-          const bypass = document.querySelector('[data-hero-scroll-bypass]');
-          const bounds = bypass?.getBoundingClientRect();
-          return Number.isFinite(clientY)
-            && bounds
-            && clientY >= bounds.top
-            && clientY <= bounds.bottom;
-        }
-
-        function handleGesture(direction, self) {
-          if (direction > 0 && isBypassGesture(self)) {
-            leaveHero(1);
-            return;
-          }
-          changeStage(direction);
-        }
-
-        const wheelObserver = ScrollTrigger.observe({
-          target: window,
-          type: 'wheel',
-          preventDefault: true,
-          allowClicks: true,
-          tolerance: 10,
-          lockAxis: true,
-          onDown: self => handleGesture(1, self),
-          onUp: self => handleGesture(-1, self),
-        });
-
-        // A finger moving upward means the page should advance, while wheel
-        // direction is reported the other way around by Observer.
-        const touchObserver = ScrollTrigger.observe({
-          target: window,
-          type: 'touch',
-          preventDefault: true,
-          allowClicks: true,
-          tolerance: 10,
-          lockAxis: true,
-          onUp: self => handleGesture(1, self),
-          onDown: self => handleGesture(-1, self),
-        });
-        observers = [wheelObserver, touchObserver];
-        setHeroInteraction(false);
-
-        function activateHero(self) {
-          setHeroInteraction(true);
-          if (settingStagePosition || animating) return;
-          const nearestStage = Math.round(self.progress * (scenes.length - 1));
-          activeStage = Math.min(scenes.length - 1, Math.max(0, nearestStage));
-          showStage(activeStage, true);
-          scrollToStage(activeStage);
-        }
-
-        sectionTrigger = ScrollTrigger.create({
-          trigger: rootRef.current,
-          start: 'top top',
-          end: 'bottom bottom',
-          onEnter: activateHero,
-          onEnterBack: activateHero,
-          onLeave: () => {
-            if (!settingStagePosition) setHeroInteraction(false);
-          },
-          onLeaveBack: () => {
-            if (!settingStagePosition) setHeroInteraction(false);
+        // Camera and text follow continuous scroll distance with no stage snapping.
+        const timeline = gsap.timeline({
+          defaults: { ease: 'none' },
+          scrollTrigger: {
+            trigger: rootRef.current,
+            start: 'top top',
+            end: 'bottom bottom',
+            scrub: 0.45,
+            invalidateOnRefresh: true,
           },
         });
-
-        const insideHero = window.scrollY >= sectionTrigger.start && window.scrollY <= sectionTrigger.end;
-        if (insideHero) activateHero(sectionTrigger);
-        else setHeroInteraction(false);
+        stops.slice(1).forEach(([x, y, zoom], index) => {
+          const at = index + 0.2;
+          timeline
+            .to(mediaRef.current, { ...detailCamera(x, y, zoom), duration: 0.8 }, at)
+            .to(imageRef.current, { objectPosition: `${x}% ${y}%`, duration: 0.8 }, at)
+            .to(scenes[index], { autoAlpha: 0, yPercent: -3, duration: 0.25 }, at)
+            .to(scenes[index + 1], { autoAlpha: 1, yPercent: 0, duration: 0.35 }, at + 0.45);
+        });
+        timeline.to({}, { duration: 0.25 });
       }, rootRef);
     }
 
     createScrollStory();
-    return () => {
-      cancelled = true;
-      stageTimeline?.kill();
-      observers.forEach(observer => observer.kill());
-      rootElement?.classList.remove('intro-gesture-active');
-      sectionTrigger?.kill();
-      context?.revert();
-    };
+    return () => { cancelled = true; context?.revert(); };
   }, [stage1X, stage1Y, stage1Zoom, stage2X, stage2Y, stage2Zoom, stage3X, stage3Y, stage3Zoom, stage4X, stage4Y, stage4Zoom]);
 
   return (
