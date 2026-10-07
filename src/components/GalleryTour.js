@@ -198,7 +198,7 @@ export default function GalleryTour({ slots, artistName }) {
       const wallMat = keep(new THREE.MeshStandardMaterial({ color: WALL, roughness: 1 }));
       const floorMat = keep(new THREE.MeshStandardMaterial({ color: FLOOR, roughness: 0.45 }));
       const stepMat = keep(new THREE.MeshStandardMaterial({ color: 0xe8e5e1, roughness: 0.9 }));
-      const frameMat = keep(new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.5, metalness: 0.4 }));
+      const frameMat = keep(new THREE.MeshStandardMaterial({ color: 0xc6c9cc, roughness: 0.6, metalness: 0.2 }));
       const glassMat = keep(new THREE.MeshStandardMaterial({ color: 0xf2f5f7, roughness: 0.2, transparent: true, opacity: 0.55 }));
       const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, toneMapped: false }));
       const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
@@ -257,8 +257,8 @@ export default function GalleryTour({ slots, artistName }) {
         shape.holes.push(hole);
         add(new THREE.ExtrudeGeometry(shape, { depth: WALL_T, bevelEnabled: false, curveSegments: 40 }), wallMat, [(x0 + x1) / 2, y0, z - WALL_T / 2]);
         add(new THREE.PlaneGeometry(w + 6, height + 6), skyMat, [(x0 + x1) / 2, y0 + height / 2, z - 3], { cast: false, receive: false });
-        for (let k = -1; k <= 1; k++) block((x0 + x1) / 2 + k * radius * 0.5 - 0.025, (x0 + x1) / 2 + k * radius * 0.5 + 0.025, y0 + sill, y0 + spring + radius * (k ? 0.86 : 1), z + 0.1, z + 0.15, frameMat, { cast: false });
-        for (const y of [spring - (spring - sill) * 0.35, spring + (spring - sill) * 0.2]) block((x0 + x1) / 2 - radius, (x0 + x1) / 2 + radius, y0 + y - 0.025, y0 + y + 0.025, z + 0.1, z + 0.15, frameMat, { cast: false });
+        for (let k = -1; k <= 1; k++) block((x0 + x1) / 2 + k * radius * 0.5 - 0.05, (x0 + x1) / 2 + k * radius * 0.5 + 0.05, y0 + sill, y0 + spring + radius * (k ? 0.86 : 1), z + 0.1, z + 0.18, frameMat, { cast: false });
+        for (const y of [spring - (spring - sill) * 0.35, spring + (spring - sill) * 0.2]) block((x0 + x1) / 2 - radius, (x0 + x1) / 2 + radius, y0 + y - 0.05, y0 + y + 0.05, z + 0.1, z + 0.18, frameMat, { cast: false });
       };
       // a glass wall: bright glazing behind piers and a slim mullion grid
       const glazing = (axis, at, a0, a1, y0, y1, outward = 1) => { // outward: which side of the wall is outside
@@ -266,13 +266,13 @@ export default function GalleryTour({ slots, artistName }) {
         if (axis === 'x') {
           add(new THREE.PlaneGeometry(len, h), skyMat, [at + 0.35 * outward, (y0 + y1) / 2, mid], { rotation: [0, outward > 0 ? -Math.PI / 2 : Math.PI / 2, 0], cast: false, receive: false });
           for (let z = Math.max(a0, a1); z >= Math.min(a0, a1); z -= 4) block(at - 0.2, at + 0.2, y0, y1, z - 0.2, z + 0.2);
-          for (let z = Math.max(a0, a1) - 2; z > Math.min(a0, a1); z -= 4) block(at - 0.04, at + 0.04, y0, y1, z - 0.04, z + 0.04, frameMat, { cast: false });
-          for (let y = y0 + 2.2; y < y1 - 0.4; y += 2.2) block(at - 0.04, at + 0.04, y - 0.04, y + 0.04, Math.min(a0, a1), Math.max(a0, a1), frameMat, { cast: false });
+          for (let z = Math.max(a0, a1) - 2; z > Math.min(a0, a1); z -= 4) block(at - 0.07, at + 0.07, y0, y1, z - 0.07, z + 0.07, frameMat, { cast: false });
+          for (let y = y0 + 2.2; y < y1 - 0.4; y += 2.2) block(at - 0.07, at + 0.07, y - 0.07, y + 0.07, Math.min(a0, a1), Math.max(a0, a1), frameMat, { cast: false });
         } else {
           add(new THREE.PlaneGeometry(len, h), skyMat, [mid, (y0 + y1) / 2, at - 0.35], { cast: false, receive: false });
           for (let x = a0; x <= a1; x += 4) block(x - 0.2, x + 0.2, y0, y1, at - 0.2, at + 0.2);
-          for (let x = a0 + 2; x < a1; x += 4) block(x - 0.04, x + 0.04, y0, y1, at - 0.04, at + 0.04, frameMat, { cast: false });
-          for (let y = y0 + 2.2; y < y1 - 0.4; y += 2.2) block(a0, a1, y - 0.04, y + 0.04, at - 0.04, at + 0.04, frameMat, { cast: false });
+          for (let x = a0 + 2; x < a1; x += 4) block(x - 0.07, x + 0.07, y0, y1, at - 0.07, at + 0.07, frameMat, { cast: false });
+          for (let y = y0 + 2.2; y < y1 - 0.4; y += 2.2) block(a0, a1, y - 0.07, y + 0.07, at - 0.07, at + 0.07, frameMat, { cast: false });
         }
       };
 
@@ -286,13 +286,13 @@ export default function GalleryTour({ slots, artistName }) {
       block(-4, 4, 3.4, 6, -0.03, 0.03, glassMat, { cast: false });
       block(-4, -2.2, 0, 3.4, -0.03, 0.03, glassMat, { cast: false });
       block(2.2, 4, 0, 3.4, -0.03, 0.03, glassMat, { cast: false });
-      for (const x of [-4, -2.2, 2.2, 4]) block(x - 0.04, x + 0.04, 0, 6, -0.06, 0.06, frameMat, { cast: false });
-      block(-4, 4, 3.36, 3.44, -0.06, 0.06, frameMat, { cast: false });
+      for (const x of [-4, -2.2, 2.2, 4]) block(x - 0.07, x + 0.07, 0, 6, -0.07, 0.07, frameMat, { cast: false });
+      block(-4, 4, 3.33, 3.47, -0.07, 0.07, frameMat, { cast: false });
       const doors = [-1, 1].map(side => {
         const door = new THREE.Group();
         const pane = new THREE.Mesh(keep(new THREE.BoxGeometry(2.2, 3.4, 0.05)), glassMat);
         pane.position.set(side * 1.1, 1.7, 0);
-        const bar = new THREE.Mesh(keep(new THREE.BoxGeometry(0.06, 3.4, 0.1)), frameMat);
+        const bar = new THREE.Mesh(keep(new THREE.BoxGeometry(0.1, 3.4, 0.12)), frameMat);
         bar.position.set(side * 0.03, 1.7, 0);
         const handle = new THREE.Mesh(keep(new THREE.BoxGeometry(0.04, 1.1, 0.14)), frameMat);
         handle.position.set(side * 0.22, 1.25, 0.08);
@@ -305,8 +305,8 @@ export default function GalleryTour({ slots, artistName }) {
         const h = 0.19 * (k + 1);
         block(-3.85, -1.9, 0, h, -11 - 0.4 * k - 0.4, -11 - 0.4 * k, stepMat);
       }
-      block(-1.95, -1.9, 0.9, 1.0, -11.2, -15.2, frameMat, { cast: false });
-      for (const z of [-11.3, -13.2, -15.1]) block(-1.95, -1.9, 0, 1.0, z - 0.025, z + 0.025, frameMat, { cast: false });
+      block(-1.98, -1.88, 0.9, 1.0, -11.2, -15.2, frameMat, { cast: false });
+      for (const z of [-11.3, -13.2, -15.1]) block(-1.98, -1.88, 0, 1.0, z - 0.05, z + 0.05, frameMat, { cast: false });
       block(-1.2, 1.2, 0, 0.42, -13.2, -14.4, stepMat); // bench
 
       // ── Corridor: x 4..10, z -13..-15.2, 3.2 high ──
@@ -468,7 +468,6 @@ export default function GalleryTour({ slots, artistName }) {
       let visible = true;
       let frameId = 0;
       let lastTime = performance.now();
-      const clockStart = lastTime;
 
       const readScroll = () => {
         const root = rootRef.current;
@@ -501,13 +500,14 @@ export default function GalleryTour({ slots, artistName }) {
         const delta = Math.min((now - lastTime) / 1000, 0.05);
         lastTime = now;
         if (!visible) return;
-        const time = (now - clockStart) / 1000;
         // critically damped glide towards the scroll position
         current += (target - current) * (reducedMotion ? 1 : 1 - Math.exp(-delta * 2.4));
-        if (Math.abs(target - current) < 0.0004) current = target;
-        const drift = reducedMotion ? 0 : 1;
-        sway.x += (sway.tx + Math.sin(time * 0.31) * 0.004 * drift - sway.x) * Math.min(1, delta * 2);
-        sway.y += (sway.ty + Math.sin(time * 0.23 + 1.3) * 0.003 * drift - sway.y) * Math.min(1, delta * 2);
+        if (Math.abs(target - current) < 0.002) current = target; // settle fully: no long, barely-moving tail
+        // the pointer's gentle pull; it settles completely, so the picture is perfectly still at rest
+        sway.x += (sway.tx - sway.x) * Math.min(1, delta * 2);
+        sway.y += (sway.ty - sway.y) * Math.min(1, delta * 2);
+        if (Math.abs(sway.tx - sway.x) < 0.00005) sway.x = sway.tx;
+        if (Math.abs(sway.ty - sway.y) < 0.00005) sway.y = sway.ty;
         placeCamera(current);
         renderer.render(scene, camera);
         const nearest = Math.round(current);
