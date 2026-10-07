@@ -3,11 +3,36 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: 45;
+  z-index: 2;
   pointer-events: none;
   opacity: 0;
 }
 
+.pathway {
+  height: 85svh;
+  background: linear-gradient(180deg, #063a5b 0%, #397f9f 26%, #90bed3 60%, #edf7fb 100%);
+}
+
+.journey :global(.intro-media) {
+  opacity: calc(1 - var(--sky-departure, 0));
+  mask-image: linear-gradient(180deg, #000 45%, rgb(0 0 0 / clamp(0, calc(1 - var(--sky-departure, 0) * 6), 1)) 100%);
+}
+
+.journey :global(#gallery) {
+  background: linear-gradient(180deg, #edf7fb, #fff 70%);
+  /* Section reveal transforms otherwise trap its controls below the mist. */
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* The section background stays behind mist; its content stays fully readable. */
+.journey :global(#gallery) > div {
+  position: relative;
+  z-index: 3;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mist { display: none; }
+  .pathway { display: none; }
+  .journey :global(.intro-media) { opacity: 1; mask-image: none; }
 }

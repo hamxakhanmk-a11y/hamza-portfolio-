@@ -36,22 +36,28 @@ float cloud(vec2 p) {
 }
 void main() {
   vec2 p = vec2(vUv.x * aspect, vUv.y);
-  float seam = progress;
-  vec2 drift = vec2(time * 0.025 + progress * 0.22, -time * 0.012);
-  float broad = cloud(p * 3.0 + drift);
-  float detail = cloud(p * 7.0 - drift * 1.4 + broad * 1.5);
-  float distanceToSeam = abs(vUv.y - seam + (broad - 0.5) * 0.24);
-  float bank = 1.0 - smoothstep(0.05, 0.48, distanceToSeam);
-  float wisps = smoothstep(0.22, 0.72, detail + broad * 0.25);
-  float envelope = smoothstep(0.0, 0.13, progress) *
-                   (1.0 - smoothstep(0.9, 1.4, progress));
-  float density = bank * (0.55 + wisps * 0.65);
-  // An opaque core conceals the straight section edge beneath the drifting wisps.
-  float core = 1.0 - smoothstep(0.035, 0.15, abs(vUv.y - seam));
-  float alpha = max(min(0.97, density), core) * envelope;
-  vec3 blue = vec3(0.63, 0.79, 0.85);
-  vec3 white = vec3(0.97, 0.985, 0.98);
-  vec3 color = mix(blue, white, smoothstep(0.2, 0.85, broad + detail * 0.28));
+  vec2 drift = vec2(time * 0.018, -time * 0.009);
+  float farCloud = cloud(p * 3.2 + drift + vec2(0.0, -progress * 0.55));
+  float middleCloud = cloud(p * 4.8 - drift + vec2(3.7, -progress * 1.1));
+  float nearCloud = cloud(p * 7.0 + drift + vec2(8.4, -progress * 1.8));
+  // Banks rise past the viewer at different depths as the scroll descends.
+  float farBank = 1.0 - smoothstep(0.08, 0.65,
+    abs(vUv.y - (progress * 0.65 - 0.1) + (farCloud - 0.5) * 0.4));
+  float middleBank = 1.0 - smoothstep(0.06, 0.55,
+    abs(vUv.y - (progress * 1.0 - 0.65) + (middleCloud - 0.5) * 0.5));
+  float nearBank = 1.0 - smoothstep(0.02, 0.5,
+    abs(vUv.y - (progress * 1.4 - 1.8) + (nearCloud - 0.5) * 0.5));
+  float pathCenter = 0.5 + sin(vUv.y * 3.0 + progress * 0.5) * 0.09;
+  float sides = smoothstep(0.06, 0.42, abs(vUv.x - pathCenter));
+  float envelope = smoothstep(0.0, 0.3, progress) *
+                   (1.0 - smoothstep(1.9, 2.8, progress));
+  float density = farBank * smoothstep(0.28, 0.7, farCloud) * 0.55
+                + middleBank * smoothstep(0.3, 0.7, middleCloud) * 0.75
+                + nearBank * smoothstep(0.3, 0.68, nearCloud) * 0.85;
+  float alpha = min(0.68, density * (0.38 + sides * 0.72)) * envelope;
+  vec3 blue = vec3(0.34, 0.66, 0.83);
+  vec3 white = vec3(0.79, 0.91, 0.97);
+  vec3 color = mix(blue, white, smoothstep(0.2, 0.8, middleCloud));
   gl_FragColor = vec4(color, alpha);
   #include <colorspace_fragment>
 }`;
@@ -93,7 +99,8 @@ export default function HomeMistTransition() {
         frame = 0;
         const viewportHeight = window.innerHeight;
         const progress = 1 - hero.getBoundingClientRect().bottom / viewportHeight;
-        const active = progress > 0 && progress < 1.4 && !document.hidden && !motion.matches && !contextLost;
+        hero.style.setProperty('--sky-departure', String(Math.max(0, Math.min(1, progress))));
+        const active = progress > 0 && progress < 2.8 && !document.hidden && !motion.matches && !contextLost;
         canvas.style.opacity = active ? '1' : '0';
         if (!active) { last = 0; return; }
         elapsed += last ? Math.min((now - last) / 1000, 0.05) : 0;
@@ -134,11 +141,17 @@ export default function HomeMistTransition() {
         canvas.removeEventListener('webglcontextlost', lost);
         canvas.removeEventListener('webglcontextrestored', restored);
         geometry.dispose(); material.dispose(); renderer.dispose();
+        hero.style.removeProperty('--sky-departure');
       };
     }
     initialize().catch(() => { canvas.style.opacity = '0'; });
     return () => { disposed = true; cleanup?.(); };
   }, []);
 
-  return <canvas ref={canvasRef} className={styles.mist} aria-hidden="true" />;
+  return (
+    <>
+      <div className={styles.pathway} aria-hidden="true" />
+      <canvas ref={canvasRef} className={styles.mist} aria-hidden="true" />
+    </>
+  );
 }

@@ -6,11 +6,12 @@ import Contact from "@/components/Contact";
 import CommissionInquiry from "@/components/CommissionInquiry";
 import WaterSurface from "@/components/WaterSurface";
 import HomeMistTransition from "@/components/HomeMistTransition";
+import mistStyles from "@/components/HomeMistTransition.module.css";
 
 export default function Home() {
   return (
     <>
-      <main>
+      <main className={mistStyles.journey}>
         <WaterSurface />
         <Hero />
         <HomeMistTransition />
