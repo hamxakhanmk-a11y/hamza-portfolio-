@@ -80,7 +80,7 @@ export default function HomeMistTransition() {
           };
           material.customProgramCacheKey = () => 'cloud-stirring-v1';
           const mesh = new THREE.Mesh(geometry, material);
-          mesh.position.set(0, -depth * 0.6 + side * 0.7, -depth * 9);
+          mesh.position.set(0, -depth * 9 + side * 0.7, -depth * 3);
           mesh.rotation.z = side * (0.12 + (depth % 3) * 0.06);
           scene.add(mesh);
           banks.push({ mesh, side, depth });
@@ -154,9 +154,9 @@ export default function HomeMistTransition() {
         const envelope = opening ? 1 - THREE.MathUtils.smoothstep(introProgress, 0.25, 1) :
           THREE.MathUtils.smoothstep(progress, 0, 0.35) * (1 - THREE.MathUtils.smoothstep(progress, 3.1, 4.1));
         camera.position.set(
-          Math.sin(flightProgress * 0.7) * horizontal * 0.35,
-          -flightProgress * 0.9,
-          opening ? 9 - introEase * 20 : 16 - progress * 17,
+          0,
+          -flightProgress * 14,
+          opening ? 9 : 16,
         );
         banks.forEach(({ mesh, side, depth }) => {
           const distance = camera.position.z - mesh.position.z;

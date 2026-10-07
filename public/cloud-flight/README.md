@@ -2,10 +2,10 @@
 
 HomeMistTransition renders seven pairs of transparent mist banks in a Three.js
 perspective scene. Opening Home at the top plays a one-second automatic mist
-reveal once its texture is ready, then clears to the hero without adding scroll
+descending reveal once its texture is ready, then clears to the hero without adding scroll
 distance. Scrolling immediately cancels this reveal; reduced motion skips it.
-Scrolling moves the camera forward and downward between them;
-near clouds expand past the screen edges and fade before crossing the camera.
+Scrolling lowers the view through vertically stacked cloud banks at a fixed
+camera distance. Clouds pass upward rather than zooming toward the viewer.
 The gallery arrives after 210svh of cloud passage. Lenis smooths the homepage's
 wheel and touch motion. The hero camera follows a continuous GSAP timeline.
 Mouse movement and touch drags stir the vapor locally, leaving soft curling
