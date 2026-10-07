@@ -2,6 +2,7 @@ import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import "./globals.css";
 import SiteMotion from "@/components/SiteMotion";
 import Navbar from "@/components/Navbar";
+import PageScrollReset from "@/components/PageScrollReset";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -23,13 +24,15 @@ export default function RootLayout({ children }) {
   const storageOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL;
   return (
     <html lang="en" className={`${cormorant.variable} ${dmSans.variable}`}>
-      {storageOrigin && (
-        <head>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: "if ('scrollRestoration' in history) history.scrollRestoration = 'manual';" }} />
+        {storageOrigin && <>
           <link rel="preconnect" href={storageOrigin} crossOrigin="anonymous" />
           <link rel="dns-prefetch" href={storageOrigin} />
-        </head>
-      )}
+        </>}
+      </head>
       <body className="bg-white text-neutral-900 antialiased">
+        <PageScrollReset />
         <Navbar />
         <SiteMotion />
         {children}

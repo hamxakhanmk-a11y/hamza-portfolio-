@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 const links = [
   { label: 'Home', href: '/' },
@@ -20,7 +20,6 @@ export default function Navbar() {
   const [flowing, setFlowing] = useState(false);
   const [flowReady, setFlowReady] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
   const desktopNavRef = useRef(null);
   const mobileNavRef = useRef(null);
   const flowTimer = useRef(null);
@@ -88,21 +87,19 @@ export default function Navbar() {
     window.clearTimeout(flowTimer.current);
   }, []);
 
-  const changePage = (event, href) => {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    event.preventDefault();
-    if (href === currentHref && !pendingHref) return;
+  const changePage = (href) => {
+    if (href === pathname && !pendingHref) return;
 
     window.clearTimeout(flowTimer.current);
     setPendingHref(href);
+    setOpen(false);
     setFlowing(false);
 
     window.requestAnimationFrame(() => {
       setFlowing(true);
-      flowTimer.current = window.setTimeout(() => setFlowing(false), 1120);
+      flowTimer.current = window.setTimeout(() => setFlowing(false), 320);
     });
 
-    router.push(href);
   };
 
   if (pathname.startsWith('/admin')) return null;
@@ -155,7 +152,7 @@ export default function Navbar() {
             key={label}
             href={href}
             prefetch={true}
-            onClick={(event) => changePage(event, href)}
+            onNavigate={() => changePage(href)}
             aria-current={currentHref === href ? 'page' : undefined}
             className={`nav-flow-link px-4 py-2 text-xs tracking-[0.25em] uppercase ${currentHref === href ? 'nav-flow-link--active' : ''}`}
             style={{ color: currentHref === href || overlayHero ? '#fffaf2' : 'var(--color-ocean)' }}
@@ -177,7 +174,7 @@ export default function Navbar() {
               key={label}
               href={href}
               prefetch={true}
-              onClick={(event) => changePage(event, href)}
+              onNavigate={() => changePage(href)}
               aria-current={currentHref === href ? 'page' : undefined}
               className={`nav-flow-link w-full py-3 text-center text-xs uppercase tracking-[0.25em] ${currentHref === href ? 'nav-flow-link--active' : ''}`}
               style={{ color: currentHref === href ? '#fffaf2' : 'var(--color-ocean)' }}

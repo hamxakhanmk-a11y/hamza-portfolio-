@@ -339,9 +339,9 @@ body {
 .nav-flow-tabs--ready .nav-flow-indicator {
   opacity: 1;
   transition:
-    transform 1.08s cubic-bezier(.16, 1, .3, 1),
-    width .96s cubic-bezier(.16, 1, .3, 1),
-    height .96s cubic-bezier(.16, 1, .3, 1),
+    transform .3s cubic-bezier(.16, 1, .3, 1),
+    width .3s cubic-bezier(.16, 1, .3, 1),
+    height .3s cubic-bezier(.16, 1, .3, 1),
     opacity .24s ease;
 }
 
@@ -367,7 +367,7 @@ body {
 }
 
 .nav-flow-tabs.is-flowing > .nav-flow-indicator {
-  animation: nav-liquid-tab-morph 1.12s cubic-bezier(.16, 1, .3, 1);
+  animation: nav-liquid-tab-morph .32s cubic-bezier(.16, 1, .3, 1);
 }
 
 .nav-flow-link {
@@ -375,7 +375,7 @@ body {
   z-index: 1;
   border-radius: 999px;
   white-space: nowrap;
-  transition: transform .68s cubic-bezier(.16, 1, .3, 1), color .52s ease, opacity .3s ease;
+  transition: transform .25s cubic-bezier(.16, 1, .3, 1), color .2s ease, opacity .2s ease;
 }
 
 .nav-flow-link:not(.nav-flow-link--active) {
