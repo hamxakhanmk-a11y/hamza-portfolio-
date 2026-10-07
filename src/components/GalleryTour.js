@@ -168,8 +168,8 @@ export default function GalleryTour({ slots, artistName }) {
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.0;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFShadowMap;
+      // no shadow map: a moving shadow map is what makes dark shapes flicker; shadows are painted on instead
+      renderer.shadowMap.enabled = false;
       host.appendChild(renderer.domElement);
       renderer.domElement.style.display = 'block';
 
@@ -183,7 +183,7 @@ export default function GalleryTour({ slots, artistName }) {
       scene.environmentIntensity = 0.4;
       pmrem.dispose();
 
-      const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 160);
+      const camera = new THREE.PerspectiveCamera(50, 1, 0.3, 150); // a nearer near plane wastes depth precision on far walls
       const fontFamily = cssFont('--font-cormorant', 'Georgia, serif');
       await (document.fonts?.ready || Promise.resolve());
       const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -336,7 +336,7 @@ export default function GalleryTour({ slots, artistName }) {
       const TOP = UPPER + 6;
       wallZ(-10.1, 62, 78.4, 0, TOP);
       wallZ(-18.1, 62, 70.4, 0, TOP);
-      block(44, 62, 7, TOP, -18.1, -10.1); // above the side hall's ceiling, closing the tall volume
+      block(44, 62, 7.45, TOP, -18.1, -10.1); // above the side hall's ceiling slab, closing the tall volume
       ceiling(62, 78.4, -10.1, -18.1, TOP, [{ rect: [63, 77.4, -13.2, -15] }]);
       const steps = 21, rise = UPPER / steps, run = 0.4;
       for (let k = 0; k < steps; k++) {
@@ -354,17 +354,36 @@ export default function GalleryTour({ slots, artistName }) {
       ceiling(70.4, 78.4, -18.1, -50, TOP, [{ rect: [73.2, 75.6, -20, -48] }]);
       archedWindowWall(70.4, 78.4, UPPER, 6, -50, 1.6, 0.6, 3.6);
 
-      // ── Light: soft white daylight from above, no colour cast ──
-      scene.add(new THREE.HemisphereLight(0xffffff, 0xd9d7d3, 1.0));
-      const sun = new THREE.DirectionalLight(0xffffff, 1.7);
-      const sunDirection = new THREE.Vector3(0.22, 1, 0.14).normalize();
-      sun.castShadow = true;
-      sun.shadow.mapSize.set(narrow ? 1024 : 2048, narrow ? 1024 : 2048);
-      Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 80 });
-      sun.shadow.bias = -0.0006;
-      sun.shadow.normalBias = 0.06;
-      sun.shadow.radius = 3;
-      scene.add(sun, sun.target);
+      // ── Light: soft, even white daylight, no colour cast ──
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xdad8d4, 1.35));
+      const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+      sun.position.set(6, 30, 4);
+      scene.add(sun);
+      const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+      fill.position.set(-8, 12, -10);
+      scene.add(fill);
+
+      // painted shadows: soft dark gradients that sit still on the wall or floor
+      const shadowTexture = (w, h, blur) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        ctx.filter = `blur(${blur}px)`;
+        ctx.fillStyle = 'rgba(0,0,0,1)';
+        const px = 128 * (1 - w), py = 128 * (1 - h);
+        ctx.fillRect(px, py, 256 - 2 * px, 256 - 2 * py);
+        return canvasTexture(canvas);
+      };
+      const wallShadowTex = shadowTexture(0.62, 0.62, 22);
+      const floorShadowTex = shadowTexture(0.6, 0.6, 26);
+      const paintedShadow = (texture, width, height, position, rotation, opacity) => {
+        const mesh = add(new THREE.PlaneGeometry(width, height), keep(new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })), position, { rotation, cast: false, receive: false });
+        return mesh;
+      };
+      // under the benches
+      for (const [x, z, w, d] of [[20, -14.1, 1.4, 1.4], [21.5, -13.1, 1.4, 1.0], [21.5, -15.1, 1.4, 1.0], [22.9, -14.1, 1.4, 1.4], [34, -14.1, 1.4, 1.4], [35.5, -13.3, 1.4, 1.0], [35.5, -14.9, 1.4, 1.0], [0, -13.8, 2.4, 1.2]]) {
+        paintedShadow(floorShadowTex, w * 1.9, d * 1.9, [x, 0.012, z], [-Math.PI / 2, 0, 0], 0.28);
+      }
 
       // ── Paintings: plain canvases, shown exactly as their photographs ──
       const loader = new THREE.TextureLoader();
@@ -399,9 +418,15 @@ export default function GalleryTour({ slots, artistName }) {
         art.userData = { id: artwork.id };
         group.add(art);
         paintingMeshes.push(art);
-        const label = new THREE.Mesh(keep(new THREE.PlaneGeometry(2.0, 0.5)), keep(new THREE.MeshBasicMaterial({ map: canvasTexture(labelCanvas(artwork, fontFamily)), transparent: true, depthWrite: false, toneMapped: false })));
+        const label = new THREE.Mesh(keep(new THREE.PlaneGeometry(2.0, 0.5)), keep(new THREE.MeshBasicMaterial({ map: canvasTexture(labelCanvas(artwork, fontFamily)), transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 })));
         label.position.set(0, -height / 2 - 0.42, 0.012);
+        label.renderOrder = 2; // see-through layers at nearly the same depth: fix their order so it never flips
         group.add(label);
+        // the canvas's soft shadow on the wall, painted on so it can never flicker
+        const shade = new THREE.Mesh(keep(new THREE.PlaneGeometry(width * 1.6, height * 1.6)), keep(new THREE.MeshBasicMaterial({ map: wallShadowTex, transparent: true, opacity: cutOut ? 0.16 : 0.26, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })));
+        shade.position.set(0.03, -0.07, 0.006);
+        shade.renderOrder = 1;
+        group.add(shade);
       }));
       if (disposed) return;
 
@@ -433,10 +458,6 @@ export default function GalleryTour({ slots, artistName }) {
         // the doors slide apart as the visitor comes in
         const open = smootherstep(clamp01((s - 0.02) / 0.3));
         for (const { door, side } of doors) door.position.x = side * 2.15 * open;
-        // the shadow map follows the camera in 2 m steps: moving it every frame makes shadows shimmer
-        const floorY = camera.position.y > UPPER ? UPPER : 0;
-        sun.target.position.set(Math.round(camera.position.x / 2) * 2, floorY, Math.round(camera.position.z / 2) * 2);
-        sun.position.copy(sun.target.position).addScaledVector(sunDirection, 35);
       };
 
       // ── Loop ──
