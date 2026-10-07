@@ -17,9 +17,10 @@ const HANG = 2.1; // painting centre height above its floor
 const STOP_SCREEN_SHARE = 70; // svh of scrolling per camera stop
 const WALL_T = 0.3;
 
-const WALL = 0xf4f2ef;
-const FLOOR = 0xeeece8;
-const FOG = 0xf3f2f0;
+// warm off-white, not ash: cream walls, a slightly warmer floor, cream haze
+const WALL = 0xfbf7f0;
+const FLOOR = 0xf3eee5;
+const FOG = 0xf8f4ed;
 
 // Where each wall place hangs: position of the canvas centre and the way it faces (rotation about y).
 const PLACES = {
@@ -166,7 +167,7 @@ export default function GalleryTour({ slots, artistName }) {
       }
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, narrow ? 1.5 : 2)); // finer sampling keeps thin edges steady while moving
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.0;
+      renderer.toneMappingExposure = 1.1;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       // no shadow map: a moving shadow map is what makes dark shapes flicker; shadows are painted on instead
       renderer.shadowMap.enabled = false;
@@ -197,12 +198,12 @@ export default function GalleryTour({ slots, artistName }) {
       // ── Materials: smooth, matte, off-white ──
       const wallMat = keep(new THREE.MeshStandardMaterial({ color: WALL, roughness: 1 }));
       const floorMat = keep(new THREE.MeshStandardMaterial({ color: FLOOR, roughness: 0.45 }));
-      const stepMat = keep(new THREE.MeshStandardMaterial({ color: 0xe8e5e1, roughness: 0.9 }));
+      const stepMat = keep(new THREE.MeshStandardMaterial({ color: 0xefe9df, roughness: 0.9 }));
       const frameMat = keep(new THREE.MeshStandardMaterial({ color: 0xc6c9cc, roughness: 0.6, metalness: 0.2 }));
       const glassMat = keep(new THREE.MeshStandardMaterial({ color: 0xf2f5f7, roughness: 0.2, transparent: true, opacity: 0.55 }));
-      const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xf7f7f5, fog: false, toneMapped: false }));
+      const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xfdfaf3, fog: false, toneMapped: false }));
       const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
-      const canvasEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf2f0ec, roughness: 0.9 }));
+      const canvasEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf5f1ea, roughness: 0.9 }));
 
       const add = (geometry, material, position, options = {}) => {
         const mesh = new THREE.Mesh(keep(geometry), material);
@@ -356,11 +357,11 @@ export default function GalleryTour({ slots, artistName }) {
       archedWindowWall(70.4, 78.4, UPPER, 6, -50, 1.6, 0.6, 3.6);
 
       // ── Light: soft, even white daylight, no colour cast ──
-      scene.add(new THREE.HemisphereLight(0xffffff, 0xdad8d4, 1.35));
-      const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+      scene.add(new THREE.HemisphereLight(0xfffaf3, 0xe8e1d6, 1.5));
+      const sun = new THREE.DirectionalLight(0xfff7ec, 0.8);
       sun.position.set(6, 30, 4);
       scene.add(sun);
-      const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+      const fill = new THREE.DirectionalLight(0xfff7ec, 0.4);
       fill.position.set(-8, 12, -10);
       scene.add(fill);
 
@@ -577,7 +578,7 @@ export default function GalleryTour({ slots, artistName }) {
   return (
     <section
       ref={rootRef}
-      className="relative bg-[#f3f2f0]"
+      className="relative bg-[#f8f4ed]"
       style={{ height: `${stopCount * STOP_SCREEN_SHARE}svh` }}
       aria-label="Walk-through gallery of portfolio paintings"
     >
@@ -590,7 +591,7 @@ export default function GalleryTour({ slots, artistName }) {
           <p className="mt-3 text-[11px] uppercase tracking-[0.45em] text-[#ed7189]">Portfolio</p>
         </div>
 
-        <div className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-[#f3f2f0] transition-opacity duration-1000 ${status === 'ready' ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-[#f8f4ed] transition-opacity duration-1000 ${status === 'ready' ? 'opacity-0' : 'opacity-100'}`}>
           <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/60">Opening the gallery…</p>
         </div>
 
