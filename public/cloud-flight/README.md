@@ -1,11 +1,12 @@
 # Cloud Flight
 
-HomeMistTransition renders seven pairs of transparent mist banks in a Three.js
-perspective scene. Opening Home at the top plays a one-second automatic mist
+HomeMistTransition renders one continuous full-viewport atmospheric mist field
+in Three.js, blending photographic wisps with domain-warped fractal vapor.
+There are no repeated rows of cloud sprites. Opening Home at the top plays a one-second automatic mist
 descending reveal once its texture is ready, then clears to the hero without adding scroll
 distance. Scrolling immediately cancels this reveal; reduced motion skips it.
-Scrolling lowers the view through vertically stacked cloud banks at a fixed
-camera distance. Clouds pass upward rather than zooming toward the viewer.
+Scrolling advects the continuous vapor upward, producing a downward journey
+without camera zoom or separated cloud bands.
 The gallery arrives after 210svh of cloud passage. Lenis smooths the homepage's
 wheel and touch motion. The hero camera follows a continuous GSAP timeline.
 Mouse movement and touch drags stir the vapor locally, leaving soft curling

@@ -21,7 +21,8 @@ export default function HomeMistTransition() {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 100);
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+      camera.position.z = 1;
       let textureReady = false;
       let introStart = null;
       let introFinished = window.scrollY > 80;
@@ -44,10 +45,8 @@ export default function HomeMistTransition() {
         uCloudTrails: { value: trails },
         uCloudStrengths: { value: strengths },
         uCloudResolution: { value: resolution },
+        uCloudFlow: { value: 0 },
       };
-      const banks = [];
-      for (let depth = 0; depth < 7; depth++) {
-        for (const side of [-1, 1]) {
           const material = new THREE.MeshBasicMaterial({
             map: texture, color: '#d8edfa', transparent: true,
             depthWrite: false, opacity: 0, toneMapped: false,
@@ -60,6 +59,25 @@ export default function HomeMistTransition() {
               uniform vec4 uCloudTrails[20];
               uniform float uCloudStrengths[20];
               uniform vec2 uCloudResolution;
+              uniform float uCloudFlow;
+              float cloudHash(vec2 p) {
+                return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+              }
+              float cloudNoise(vec2 p) {
+                vec2 cell = floor(p), f = fract(p);
+                f = f * f * (3.0 - 2.0 * f);
+                return mix(mix(cloudHash(cell), cloudHash(cell + vec2(1.0, 0.0)), f.x),
+                  mix(cloudHash(cell + vec2(0.0, 1.0)), cloudHash(cell + vec2(1.0)), f.x), f.y);
+              }
+              float cloudFbm(vec2 p) {
+                float value = 0.0, amplitude = 0.5;
+                for (int octave = 0; octave < 4; octave++) {
+                  value += amplitude * cloudNoise(p);
+                  p = mat2(1.6, -1.2, 1.2, 1.6) * p + 3.7;
+                  amplitude *= 0.5;
+                }
+                return value;
+              }
             `).replace('#include <map_fragment>', `
               #ifdef USE_MAP
                 vec2 screen = gl_FragCoord.xy / uCloudResolution.y;
@@ -72,20 +90,25 @@ export default function HomeMistTransition() {
                   displacement += influence * uCloudStrengths[i] *
                     (uCloudTrails[i].zw * 0.6 + curl * spin * 4.0);
                 }
-                vec2 pixels = displacement * uCloudResolution.y;
-                vec2 stirredUv = vMapUv - dFdx(vMapUv) * pixels.x - dFdy(vMapUv) * pixels.y;
-                diffuseColor *= texture2D(map, clamp(stirredUv, 0.0, 1.0));
+                vec2 field = (screen - displacement) * 3.0 - vec2(0.0, uCloudFlow);
+                float broad = cloudFbm(field);
+                float vapor = cloudFbm(field * 2.2 + vec2(broad * 1.8, broad));
+                vec2 center = vec2(uCloudResolution.x / uCloudResolution.y * 0.5, 0.5);
+                vec2 stirredUv = (screen - displacement - center) / vec2(1.5, 1.0) + 0.5;
+                vec4 wisps = texture2D(map, clamp(stirredUv + vec2((broad - 0.5) * 0.12, (vapor - 0.5) * 0.18), 0.0, 1.0));
+                float surrounding = smoothstep(0.12, 0.48, abs(vMapUv.x - 0.5));
+                float density = smoothstep(0.32, 0.68, broad * 0.65 + vapor * 0.35);
+                float opacity = clamp(density * (0.45 + surrounding * 0.25) + wisps.a * 0.65, 0.0, 0.93);
+                vec3 mistColor = mix(vec3(0.50, 0.70, 0.80), vec3(0.96, 0.98, 1.0), smoothstep(0.28, 0.65, vapor));
+                mistColor = mix(mistColor, wisps.rgb, wisps.a * 0.65);
+                diffuseColor *= vec4(mistColor, opacity);
               #endif
             `);
           };
-          material.customProgramCacheKey = () => 'cloud-stirring-v1';
+          material.customProgramCacheKey = () => 'continuous-cloud-mist-v2';
           const mesh = new THREE.Mesh(geometry, material);
-          mesh.position.set(0, -depth * 9 + side * 0.7, -depth * 3);
-          mesh.rotation.z = side * (0.12 + (depth % 3) * 0.06);
+          mesh.scale.set(2, 2, 1);
           scene.add(mesh);
-          banks.push({ mesh, side, depth });
-        }
-      }
       let frame = 0, last = 0, elapsed = 0, width = 0, height = 0;
       let contextLost = false;
       let touchOrigin = null;
@@ -145,28 +168,13 @@ export default function HomeMistTransition() {
           width = w; height = h;
           renderer.setSize(w, h, false);
           renderer.getDrawingBufferSize(resolution);
-          camera.aspect = w / h;
-          camera.updateProjectionMatrix();
         }
-        const horizontal = Math.max(0.6, Math.min(1.8, camera.aspect));
         const introEase = introProgress * introProgress * (3 - 2 * introProgress);
         const flightProgress = opening ? introEase : progress;
         const envelope = opening ? 1 - THREE.MathUtils.smoothstep(introProgress, 0.25, 1) :
           THREE.MathUtils.smoothstep(progress, 0, 0.35) * (1 - THREE.MathUtils.smoothstep(progress, 3.1, 4.1));
-        camera.position.set(
-          0,
-          -flightProgress * 14,
-          opening ? 9 : 16,
-        );
-        banks.forEach(({ mesh, side, depth }) => {
-          const distance = camera.position.z - mesh.position.z;
-          const near = THREE.MathUtils.smoothstep(distance, 2, 7);
-          const far = 1 - THREE.MathUtils.smoothstep(distance, 24, 48);
-          mesh.material.opacity = near * far * envelope * (opening ? 0.85 : 0.38 + (depth % 3) * 0.05);
-          mesh.position.x = side * horizontal * (7.5 + Math.sin(elapsed * 0.06 + depth) * 0.3);
-          const bankWidth = horizontal * 22;
-          mesh.scale.set(bankWidth, bankWidth * 683 / 1024, 1);
-        });
+        stirringUniforms.uCloudFlow.value = flightProgress * 1.2 + elapsed * 0.035;
+        material.opacity = envelope * (opening ? 1 : 0.8);
         renderer.render(scene, camera);
         frame = requestAnimationFrame(draw);
       }
@@ -207,7 +215,7 @@ export default function HomeMistTransition() {
         canvas.removeEventListener('webglcontextlost', lost);
         canvas.removeEventListener('webglcontextrestored', restored);
         geometry.dispose(); texture.dispose();
-        banks.forEach(({ mesh }) => mesh.material.dispose());
+        material.dispose();
         renderer.dispose();
         hero.style.removeProperty('--sky-departure');
       };
