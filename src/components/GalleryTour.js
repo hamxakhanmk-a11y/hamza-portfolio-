@@ -18,9 +18,9 @@ const STOP_SCREEN_SHARE = 70; // svh of scrolling per camera stop
 const WALL_T = 0.3;
 
 // warm off-white, not ash: cream walls, a slightly warmer floor, cream haze
-const WALL = 0xfbf7f0;
-const FLOOR = 0xf3eee5;
-const FOG = 0xf8f4ed;
+const WALL = 0xfbf7ef;
+const FLOOR = 0xf4efe6;
+const FOG = 0xf9f5ee;
 
 // Where each wall place hangs: position of the canvas centre and the way it faces (rotation about y).
 const PLACES = {
@@ -166,8 +166,8 @@ export default function GalleryTour({ slots, artistName }) {
         return;
       }
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, narrow ? 1.5 : 2)); // finer sampling keeps thin edges steady while moving
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.1;
+      // no filmic tone curve: it drags a lit white wall down to grey; colours render as painted
+      renderer.toneMapping = THREE.NoToneMapping;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       // no shadow map: a moving shadow map is what makes dark shapes flicker; shadows are painted on instead
       renderer.shadowMap.enabled = false;
@@ -181,7 +181,7 @@ export default function GalleryTour({ slots, artistName }) {
       scene.fog = new THREE.Fog(FOG, 30, 110);
       const pmrem = new THREE.PMREMGenerator(renderer);
       scene.environment = keep(pmrem.fromScene(new RoomEnvironment(), 0.04).texture);
-      scene.environmentIntensity = 0.4;
+      scene.environmentIntensity = 0.2;
       pmrem.dispose();
 
       const camera = new THREE.PerspectiveCamera(50, 1, 0.3, 150); // a nearer near plane wastes depth precision on far walls
@@ -198,10 +198,10 @@ export default function GalleryTour({ slots, artistName }) {
       // ── Materials: smooth, matte, off-white ──
       const wallMat = keep(new THREE.MeshStandardMaterial({ color: WALL, roughness: 1 }));
       const floorMat = keep(new THREE.MeshStandardMaterial({ color: FLOOR, roughness: 0.45 }));
-      const stepMat = keep(new THREE.MeshStandardMaterial({ color: 0xefe9df, roughness: 0.9 }));
+      const stepMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3ede3, roughness: 0.9 }));
       const frameMat = keep(new THREE.MeshStandardMaterial({ color: 0xc6c9cc, roughness: 0.6, metalness: 0.2 }));
       const glassMat = keep(new THREE.MeshStandardMaterial({ color: 0xf2f5f7, roughness: 0.2, transparent: true, opacity: 0.55 }));
-      const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xfdfaf3, fog: false, toneMapped: false }));
+      const skyMat = keep(new THREE.MeshBasicMaterial({ color: 0xfdf3e3, fog: false, toneMapped: false })); // warm daylight in the glass
       const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
       const canvasEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf5f1ea, roughness: 0.9 }));
 
@@ -357,11 +357,12 @@ export default function GalleryTour({ slots, artistName }) {
       archedWindowWall(70.4, 78.4, UPPER, 6, -50, 1.6, 0.6, 3.6);
 
       // ── Light: soft, even white daylight, no colour cast ──
-      scene.add(new THREE.HemisphereLight(0xfffaf3, 0xe8e1d6, 1.5));
-      const sun = new THREE.DirectionalLight(0xfff7ec, 0.8);
+      // bright, even light so the walls read as off-white, with a weak sun for soft shading
+      scene.add(new THREE.HemisphereLight(0xfffaf2, 0xf1eadf, 2.8));
+      const sun = new THREE.DirectionalLight(0xfff6e8, 0.45);
       sun.position.set(6, 30, 4);
       scene.add(sun);
-      const fill = new THREE.DirectionalLight(0xfff7ec, 0.4);
+      const fill = new THREE.DirectionalLight(0xfff6e8, 0.25);
       fill.position.set(-8, 12, -10);
       scene.add(fill);
 
