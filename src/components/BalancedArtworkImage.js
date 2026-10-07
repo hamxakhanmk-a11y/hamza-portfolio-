@@ -2,12 +2,15 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
+import { getRestoredArtworkImage } from '@/data/artworkImageRestoration';
 
 export default function BalancedArtworkImage({ src, alt, round = false, eager = false, sizes = '(max-width: 640px) 88vw, (max-width: 1024px) 44vw, 30vw' }) {
   const [size, setSize] = useState({ width: '82%', height: '82%' });
+  const restoration = getRestoredArtworkImage(src);
+  const circular = round || Boolean(restoration);
 
   function balanceImage(event) {
-    if (round) {
+    if (circular) {
       setSize({ width: '82%', height: '82%' });
       return;
     }
@@ -32,7 +35,7 @@ export default function BalancedArtworkImage({ src, alt, round = false, eager = 
 
   return (
     <Image
-      src={src}
+      src={restoration?.src || src}
       alt={alt}
       width={900}
       height={900}
@@ -40,10 +43,11 @@ export default function BalancedArtworkImage({ src, alt, round = false, eager = 
       loading={eager ? 'eager' : 'lazy'}
       fetchPriority={eager ? 'high' : 'auto'}
       onLoad={balanceImage}
-      className={`living-image block transition-[width,height] duration-300 ${round ? 'rounded-full object-cover' : 'object-contain'}`}
+      className={`living-image block transition-[width,height] duration-300 ${circular ? 'object-cover' : 'object-contain'}`}
       style={{
         ...size,
-        clipPath: round ? 'circle(49.5% at 50% 50%)' : 'none',
+        clipPath: restoration?.clipPath || (round ? 'circle(49.5% at 50% 50%)' : 'none'),
+        scale: restoration?.scale,
         filter: 'drop-shadow(0 18px 14px rgba(0,0,0,.16))',
       }}
     />
