@@ -9,8 +9,21 @@
 }
 
 .openingSky {
+  position: relative;
+  z-index: 1;
   height: 100svh;
   background: linear-gradient(180deg, #3d789a, #b5d8e8);
+}
+
+.openingSky::after {
+  content: '';
+  position: absolute;
+  top: calc(100% - 1px);
+  inset-inline: 0;
+  height: 45svh;
+  background: linear-gradient(180deg, #b5d8e8, rgb(181 216 232 / 80%) 25%, transparent);
+  opacity: var(--sky-bridge-opacity, 1);
+  pointer-events: none;
 }
 
 .pathway {

@@ -21,12 +21,11 @@ export default function HomeSmoothScroll() {
       if (disposed || motion.matches || instance) return;
       const ScrollTrigger = scrollModule.ScrollTrigger || scrollModule.default;
       instance = new Lenis({
-        lerp: 0.065,
+        lerp: 0.12,
         smoothWheel: true,
-        wheelMultiplier: 0.7,
-        syncTouch: true,
-        syncTouchLerp: 0.065,
-        touchMultiplier: 0.85,
+        wheelMultiplier: 1,
+        syncTouch: false,
+        touchMultiplier: 1,
         anchors: true,
         prevent: (element) => Boolean(element.closest('[role="dialog"], [data-lenis-prevent]')),
       });

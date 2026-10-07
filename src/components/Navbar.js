@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { siteConfig } from '@/data/config';
 
 const links = [
   { label: 'Home', href: '/' },
@@ -38,7 +37,7 @@ export default function Navbar() {
       }
 
       const gallery = document.getElementById('gallery');
-      const navHeight = 132;
+      const navHeight = 52;
       setScrolled(Boolean(gallery && gallery.getBoundingClientRect().top <= navHeight));
     };
 
@@ -118,17 +117,13 @@ export default function Navbar() {
         scrolled || !overlayHero ? 'shadow-sm' : ''
       }`}
     >
-      {/* Top row — artist name */}
-      <div data-hero-scroll-bypass className={`relative flex min-h-16 items-center justify-between border-b px-4 py-3 sm:px-6 md:justify-center ${
-        overlayHero ? 'border-white/20' : 'border-neutral-100'
-      }`}>
+      <div data-hero-scroll-bypass className="relative flex min-h-12 items-center justify-between px-4 sm:px-6 md:hidden">
         <Link
           href="/"
           prefetch={true}
-          className="max-w-[calc(100%-4rem)] truncate text-lg uppercase tracking-[0.18em] transition-colors duration-300 sm:text-xl sm:tracking-[0.3em] md:text-2xl"
-          style={{ fontFamily: 'var(--font-cormorant)', color: overlayHero ? '#fffaf2' : 'var(--color-ocean)' }}
+          className="text-xs uppercase tracking-[0.15em]"
         >
-          {siteConfig.artistName}
+          Home
         </Link>
 
         {/* Mobile hamburger */}
@@ -138,6 +133,7 @@ export default function Navbar() {
           }`}
           onClick={() => setOpen(!open)}
           aria-label="Toggle menu"
+          aria-expanded={open}
         >
           <span className={`block h-px w-6 transition-all duration-300 ${overlayHero ? 'bg-white' : 'bg-neutral-700'}`}
             style={{ transform: open ? 'rotate(45deg) translate(4px, 4px)' : 'none' }} />
@@ -148,7 +144,7 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* Bottom row — nav links (desktop) */}
+      {/* Single-row desktop navigation. */}
       <nav
         ref={desktopNavRef}
         className={`nav-flow-tabs hidden md:flex justify-center gap-4 py-1.5 px-6 ${flowReady ? 'nav-flow-tabs--ready' : ''} ${flowing ? 'is-flowing' : ''}`}
@@ -173,7 +169,7 @@ export default function Navbar() {
       {open && (
         <nav
           ref={mobileNavRef}
-          className={`nav-flow-tabs nav-flow-tabs--mobile flex max-h-[calc(100svh-4rem)] flex-col items-center gap-1 overflow-y-auto border-t border-[#27a8c7]/15 bg-[#fffaf2] py-3 md:hidden ${flowReady ? 'nav-flow-tabs--ready' : ''} ${flowing ? 'is-flowing' : ''}`}
+          className={`nav-flow-tabs nav-flow-tabs--mobile flex max-h-[calc(100svh-3rem)] flex-col items-center gap-1 overflow-x-hidden overflow-y-auto border-t border-[#27a8c7]/15 bg-[#fffaf2] py-3 md:hidden ${flowReady ? 'nav-flow-tabs--ready' : ''} ${flowing ? 'is-flowing' : ''}`}
         >
           <span className="nav-flow-indicator" aria-hidden="true" />
           {links.map(({ label, href }) => (

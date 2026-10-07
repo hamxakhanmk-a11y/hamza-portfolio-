@@ -156,6 +156,7 @@ export default function HomeMistTransition() {
         hero.style.setProperty('--sky-departure', String(Math.max(0, Math.min(1, progress))));
         const skyHeight = sky?.offsetHeight || 1;
         const introProgress = Math.max(0, Math.min(1, window.scrollY / skyHeight));
+        sky?.style.setProperty('--sky-bridge-opacity', String(1 - THREE.MathUtils.smoothstep(introProgress, 0.72, 1)));
         const opening = Boolean(sky && sky.getBoundingClientRect().bottom > 0);
         const active = (opening || (progress > 0 && progress < 4.1)) && !document.hidden && !motion.matches && !contextLost;
         canvas.style.opacity = active && textureReady ? '1' : '0';
@@ -219,6 +220,7 @@ export default function HomeMistTransition() {
         material.dispose();
         renderer.dispose();
         hero.style.removeProperty('--sky-departure');
+        sky?.style.removeProperty('--sky-bridge-opacity');
       };
     }
     initialize().catch(() => { canvas.style.opacity = '0'; });

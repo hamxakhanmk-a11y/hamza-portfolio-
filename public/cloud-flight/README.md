@@ -8,6 +8,9 @@ the texture is ready. Wheel, touch, and scrolling keys interrupt the automatic
 descent. Reduced motion omits the opening sky section and automatic scrolling.
 The procedural vapor has increased density throughout the viewport, with the
 photographic cloud blended more softly into the surrounding mist.
+The sky-to-hero boundary has a 45svh feathered color bridge that clears on
+landing. Wheel input uses normal distance with faster easing; touch scrolling
+is native. The navigation uses a compact single row without the artist-name row.
 Scrolling advects the continuous vapor upward, producing a downward journey
 without camera zoom or separated cloud bands.
 The gallery arrives after 210svh of cloud passage. Lenis smooths the homepage's
