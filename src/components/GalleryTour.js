@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TOUR_SLOTS } from '@/data/galleryTour';
+import { gallerySkyVertex, gallerySkyFragment } from '@/data/gallerySky';
 
 // A white 3D gallery the visitor glides through by scrolling, laid out like the reference film:
 // frosted glass doors open onto the entrance hall (arched window at the end, a stair beside it),
@@ -17,11 +18,10 @@ const HANG = 2.1; // painting centre height above its floor
 const STOP_SCREEN_SHARE = 70; // svh of scrolling per camera stop
 const WALL_T = 0.3;
 
-// one cream everywhere: the tone sampled from the entrance hall's window wall (#fbf3e3) on every wall,
-// floor and ceiling; unlit materials, so the only shading is the painted light and shadow
-const WALL = 0xfbf3e3;
-const FLOOR = 0xfbf3e3;
-const FOG = 0xfbf3e3;
+// Bright off-white throughout; stable contact shadows define the architecture.
+const WALL = 0xfffff8;
+const FLOOR = 0xfafaf3;
+const FOG = 0xfffff8;
 
 // Where each wall place hangs: position of the canvas centre and the way it faces (rotation about y).
 const PLACES = {
@@ -199,21 +199,18 @@ export default function GalleryTour({ slots, artistName }) {
       // ── Materials: smooth, matte, off-white ──
       const wallMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false }));
       const floorMat = keep(new THREE.MeshBasicMaterial({ color: FLOOR, toneMapped: false }));
-      const ceilingMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false })); // the same cream; the shadow bands give the depth
-      const stepMat = keep(new THREE.MeshBasicMaterial({ color: 0xf6ecd9, toneMapped: false }));
+      const ceilingMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false }));
+      const stepMat = keep(new THREE.MeshBasicMaterial({ color: 0xf2f2eb, toneMapped: false }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
-      const glassMat = keep(new THREE.MeshBasicMaterial({ color: 0xfbf6ec, transparent: true, opacity: 0.5, toneMapped: false }));
-      // a light, almost transparent blue sky seen through the open windows and skylights: deeper at the top,
-      // fading to white at the horizon
-      const skyCanvas = document.createElement('canvas');
-      skyCanvas.width = 4; skyCanvas.height = 256;
-      const skyCtx = skyCanvas.getContext('2d');
-      const skyGrad = skyCtx.createLinearGradient(0, 0, 0, 256);
-      skyGrad.addColorStop(0, '#b4d6f2');
-      skyGrad.addColorStop(0.55, '#d3e8f8');
-      skyGrad.addColorStop(1, '#eef6fc');
-      skyCtx.fillStyle = skyGrad; skyCtx.fillRect(0, 0, 4, 256);
-      const skyMat = keep(new THREE.MeshBasicMaterial({ map: canvasTexture(skyCanvas), fog: false, toneMapped: false }));
+      const glassMat = keep(new THREE.MeshBasicMaterial({ color: WALL, transparent: true, opacity: 0.35, toneMapped: false }));
+      // Soft cloud density drifts independently of the visitor's camera.
+      const skyMat = keep(new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 } },
+        vertexShader: gallerySkyVertex,
+        fragmentShader: gallerySkyFragment,
+        fog: false,
+        toneMapped: false,
+      }));
       const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
       const canvasEdgeMat = keep(new THREE.MeshBasicMaterial({ color: 0xf2ece2, toneMapped: false }));
 
@@ -403,9 +400,9 @@ export default function GalleryTour({ slots, artistName }) {
         ctx.fillStyle = grad; ctx.fillRect(0, 0, 256, 8);
         return canvasTexture(canvas);
       };
-      const bandMat = keep(new THREE.MeshBasicMaterial({ map: edgeTexture(60, 45, 25, 0.3), transparent: true, depthWrite: false, toneMapped: false }));
+      const bandMat = keep(new THREE.MeshBasicMaterial({ map: edgeTexture(48, 55, 64, 0.23), transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
       // warm sunlight spilling in beside a window, additive so it lightens rather than tints
-      const spillMat = keep(new THREE.MeshBasicMaterial({ map: edgeTexture(255, 210, 130, 0.55), transparent: true, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
+      const spillMat = keep(new THREE.MeshBasicMaterial({ map: edgeTexture(235, 244, 255, 0.12), transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
       // strip: a plane whose dark/bright edge lies along the line a->b, fading out across the surface.
       // normal is the surface's outward direction; across is the in-surface direction to fade along.
       const strip = (material, a, b, across, normal, reach) => {
@@ -423,36 +420,47 @@ export default function GalleryTour({ slots, artistName }) {
         return mesh;
       };
       const X = [1, 0, 0], NX = [-1, 0, 0], Y = [0, 1, 0], NY = [0, -1, 0], Z = [0, 0, 1], NZ = [0, 0, -1];
+      // Floor contact and doorway recesses, in addition to the wall corner shading.
+      strip(bandMat, [-3.82, 0.025, 0], [-3.82, 0.025, -16], X, Y, 0.65);
+      strip(bandMat, [3.82, 0.025, 0], [3.82, 0.025, -16], NX, Y, 0.65);
+      strip(bandMat, [10, 0.025, -9.28], [44, 0.025, -9.28], NZ, Y, 0.65);
+      strip(bandMat, [10, 0.025, -18.92], [44, 0.025, -18.92], Z, Y, 0.65);
+      strip(bandMat, [4.18, 3.18, -13], [9.82, 3.18, -13], NY, NZ, 0.45);
+      strip(bandMat, [4.18, 3.18, -15.2], [9.82, 3.18, -15.2], NY, Z, 0.45);
+      for (let k = 0; k < 21; k++) {
+        const x = 62 + run * k;
+        strip(bandMat, [x + 0.025, rise * (k + 1) + 0.015, -17.92], [x + 0.025, rise * (k + 1) + 0.015, -10.28], X, Y, 0.13);
+      }
       // entrance hall: under the ceiling, the far corners, along the floor
-      strip(bandMat, [-3.99, 5.99, 0], [-3.99, 5.99, -16], NY, X, 1.1);
-      strip(bandMat, [3.99, 5.99, 0], [3.99, 5.99, -16], NY, NX, 1.1);
-      strip(bandMat, [-3.99, 0, -15.99], [-3.99, 6, -15.99], Z, X, 1.0);
-      strip(bandMat, [3.99, 0, -15.99], [3.99, 6, -15.99], Z, NX, 1.0);
-      strip(bandMat, [-3.99, 0, -15.99], [-3.99, 6, -15.99], X, Z, 1.0);
-      strip(bandMat, [3.99, 0, -15.99], [3.99, 6, -15.99], NX, Z, 1.0);
-      strip(bandMat, [-3.99, 0.01, 0], [-3.99, 0.01, -16], Y, X, 0.7);
-      strip(bandMat, [3.99, 0.01, 0], [3.99, 0.01, -16], Y, NX, 0.7);
+      strip(bandMat, [-3.84, 5.99, 0], [-3.84, 5.99, -16], NY, X, 1.1);
+      strip(bandMat, [3.84, 5.99, 0], [3.84, 5.99, -16], NY, NX, 1.1);
+      strip(bandMat, [-3.84, 0, -15.84], [-3.84, 6, -15.84], Z, X, 1.0);
+      strip(bandMat, [3.84, 0, -15.84], [3.84, 6, -15.84], Z, NX, 1.0);
+      strip(bandMat, [-3.84, 0, -15.84], [-3.84, 6, -15.84], X, Z, 1.0);
+      strip(bandMat, [3.84, 0, -15.84], [3.84, 6, -15.84], NX, Z, 1.0);
+      strip(bandMat, [-3.84, 0.01, 0], [-3.84, 0.01, -16], Y, X, 0.7);
+      strip(bandMat, [3.84, 0.01, 0], [3.84, 0.01, -16], Y, NX, 0.7);
       // great hall
-      strip(bandMat, [10, 6.99, -9.11], [44, 6.99, -9.11], NY, NZ, 1.2);
-      strip(bandMat, [10, 6.99, -19.09], [44, 6.99, -19.09], NY, Z, 1.2);
-      strip(bandMat, [10.01, 0, -19.09], [10.01, 7, -19.09], X, Z, 1.0);
-      strip(bandMat, [43.99, 0, -19.09], [43.99, 7, -19.09], NX, Z, 1.0);
-      strip(bandMat, [10.01, 0, -9.11], [10.01, 7, -9.11], X, NZ, 1.0);
-      strip(bandMat, [43.99, 0, -9.11], [43.99, 7, -9.11], NX, NZ, 1.0);
-      strip(bandMat, [10.01, 0, -19.09], [10.01, 7, -19.09], Z, X, 1.0);
-      strip(bandMat, [43.99, 0, -19.09], [43.99, 7, -19.09], Z, NX, 1.0);
-      strip(bandMat, [10, 0.01, -19.09], [44, 0.01, -19.09], Y, Z, 0.7);
-      strip(bandMat, [10, 0.01, -9.11], [44, 0.01, -9.11], Y, NZ, 0.7);
+      strip(bandMat, [10, 6.99, -9.26], [44, 6.99, -9.26], NY, NZ, 1.2);
+      strip(bandMat, [10, 6.99, -18.94], [44, 6.99, -18.94], NY, Z, 1.2);
+      strip(bandMat, [10.16, 0, -18.94], [10.16, 7, -18.94], X, Z, 1.0);
+      strip(bandMat, [43.84, 0, -18.94], [43.84, 7, -18.94], NX, Z, 1.0);
+      strip(bandMat, [10.16, 0, -9.26], [10.16, 7, -9.26], X, NZ, 1.0);
+      strip(bandMat, [43.84, 0, -9.26], [43.84, 7, -9.26], NX, NZ, 1.0);
+      strip(bandMat, [10.16, 0, -18.94], [10.16, 7, -18.94], Z, X, 1.0);
+      strip(bandMat, [43.84, 0, -18.94], [43.84, 7, -18.94], Z, NX, 1.0);
+      strip(bandMat, [10, 0.01, -18.94], [44, 0.01, -18.94], Y, Z, 0.7);
+      strip(bandMat, [10, 0.01, -9.26], [44, 0.01, -9.26], Y, NZ, 0.7);
       // side hall
-      strip(bandMat, [44, 6.99, -10.11], [62, 6.99, -10.11], NY, NZ, 1.2);
-      strip(bandMat, [44, 6.99, -18.09], [62, 6.99, -18.09], NY, Z, 1.2);
-      strip(bandMat, [44, 0.01, -10.11], [62, 0.01, -10.11], Y, NZ, 0.7);
-      strip(bandMat, [44, 0.01, -18.09], [62, 0.01, -18.09], Y, Z, 0.7);
+      strip(bandMat, [44, 6.99, -10.26], [62, 6.99, -10.26], NY, NZ, 1.2);
+      strip(bandMat, [44, 6.99, -17.94], [62, 6.99, -17.94], NY, Z, 1.2);
+      strip(bandMat, [44, 0.01, -10.26], [62, 0.01, -10.26], Y, NZ, 0.7);
+      strip(bandMat, [44, 0.01, -17.94], [62, 0.01, -17.94], Y, Z, 0.7);
       // glass hall (first floor): ceiling and floor lines on the painting wall, the far corners
-      strip(bandMat, [78.39, TOP - 0.01, -18.1], [78.39, TOP - 0.01, -50], NY, NX, 1.2);
-      strip(bandMat, [78.39, UPPER + 0.01, -18.1], [78.39, UPPER + 0.01, -50], Y, NX, 0.7);
-      strip(bandMat, [78.39, UPPER, -49.99], [78.39, TOP, -49.99], Z, NX, 1.0);
-      strip(bandMat, [70.41, UPPER, -49.99], [70.41, TOP, -49.99], Z, X, 1.0);
+      strip(bandMat, [78.24, TOP - 0.01, -18.1], [78.24, TOP - 0.01, -50], NY, NX, 1.2);
+      strip(bandMat, [78.24, UPPER + 0.01, -18.1], [78.24, UPPER + 0.01, -50], Y, NX, 0.7);
+      strip(bandMat, [78.24, UPPER, -49.84], [78.24, TOP, -49.84], Z, NX, 1.0);
+      strip(bandMat, [70.61, UPPER, -49.84], [70.61, TOP, -49.84], Z, X, 1.0);
       // warm sun spill beside the windows, on the floor and the nearby walls (no cast shadows)
       strip(spillMat, [-1.6, 0.02, -15.98], [1.6, 0.02, -15.98], Y, Z, 3.2);
       strip(spillMat, [-3.98, 0.9, -15.98], [-3.98, 4.6, -15.98], X, Z, 1.4);
@@ -583,6 +591,7 @@ export default function GalleryTour({ slots, artistName }) {
         const delta = Math.min((now - lastTime) / 1000, 0.05);
         lastTime = now;
         if (!visible) return;
+        if (!reducedMotion) skyMat.uniforms.uTime.value += delta;
         // critically damped glide towards the scroll position
         current += (target - current) * (reducedMotion ? 1 : 1 - Math.exp(-delta * 2.4));
         if (Math.abs(target - current) < 0.002) current = target; // settle fully: no long, barely-moving tail
