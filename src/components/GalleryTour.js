@@ -207,6 +207,8 @@ export default function GalleryTour({ slots, artistName }) {
       const floorMat = brightSurface(FLOOR);
       const ceilingMat = brightSurface(WALL);
       const stepMat = brightSurface(0xf7f7f0);
+      const columnMat = keep(new THREE.MeshLambertMaterial({ color: 0xcacbc6, emissive: 0xfffff8, emissiveIntensity: 0.35, toneMapped: false }));
+      const artworkEdgeMat = keep(new THREE.MeshLambertMaterial({ color: 0xe3e1d9, toneMapped: false }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
       const glassMat = keep(new THREE.MeshBasicMaterial({ color: WALL, transparent: true, opacity: 0.35, toneMapped: false }));
       // Soft cloud density drifts independently of the visitor's camera.
@@ -297,7 +299,7 @@ export default function GalleryTour({ slots, artistName }) {
           const start = Math.min(a0, a1), end = Math.max(a0, a1);
           const columns = end - start <= 8.1 ? [start, end] : Array.from({ length: Math.floor((end - start) / 4) + 1 }, (_, i) => start + i * 4);
           for (const z of columns) {
-            add(new THREE.CylinderGeometry(0.2, 0.25, h, 12), wallMat, [at, (y0 + y1) / 2, z]);
+            add(new THREE.CylinderGeometry(0.23, 0.26, h, 48), columnMat, [at, (y0 + y1) / 2, z]);
             block(at - 0.32, at + 0.32, y0, y0 + 0.16, z - 0.32, z + 0.32);
             block(at - 0.3, at + 0.3, y1 - 0.16, y1, z - 0.3, z + 0.3);
           }
@@ -308,6 +310,9 @@ export default function GalleryTour({ slots, artistName }) {
 
       // ── Entrance hall: x -4..4, z 0..-16, 6 high ──
       floor(-4, 4, 9, -16);
+      // Full-height entrance returns hide the exposed ends of the interior walls.
+      wallX(-4, 9, 0, 0, 6);
+      wallX(4, 9, 0, 0, 6);
       wallX(-4, 0, -16, 0, 6);
       wallX(4, 0, -16, 0, 6, [-13, -15.2, 3.2]); // doorway to the corridor
       ceiling(-4, 4, 0, -16, 6);
@@ -544,8 +549,15 @@ export default function GalleryTour({ slots, artistName }) {
         const faceMat = keep(new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.02, toneMapped: false }));
         const art = cutOut
           ? new THREE.Mesh(keep(artwork.round ? new THREE.CircleGeometry(height / 2, 72) : new THREE.PlaneGeometry(width, height)), faceMat)
-          : new THREE.Mesh(keep(new THREE.BoxGeometry(width, height, 0.04)), [canvasEdgeMat, canvasEdgeMat, canvasEdgeMat, canvasEdgeMat, faceMat, canvasEdgeMat]);
-        art.position.z = cutOut ? 0.02 : 0.02 + 0.02;
+          : new THREE.Mesh(keep(new THREE.BoxGeometry(width, height, 0.065)), [artworkEdgeMat, artworkEdgeMat, artworkEdgeMat, artworkEdgeMat, faceMat, canvasEdgeMat]);
+        if (artwork.round) {
+          const backing = new THREE.Mesh(keep(new THREE.CylinderGeometry(height / 2, height / 2, 0.065, 72)), artworkEdgeMat);
+          backing.rotation.x = Math.PI / 2;
+          backing.position.z = 0.045;
+          backing.castShadow = true;
+          group.add(backing);
+        }
+        art.position.z = artwork.round ? 0.081 : cutOut ? 0.055 : 0.07;
         art.castShadow = true;
         if (cutOut) art.customDepthMaterial = keep(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: texture, alphaTest: 0.5 }));
         art.userData = { id: artwork.id };

@@ -35,10 +35,10 @@ export const gallerySkyFragment = `
     p += vec2(uTime * 0.11, uTime * 0.012);
     vec2 warp = vec2(fbm(p * 0.7), fbm(p * 0.7 + 8.4));
     float density = fbm(p + warp * 1.1);
-    float cloud = smoothstep(0.39, 0.64, density);
+    float cloud = smoothstep(0.29, 0.55, density);
     float light = fbm(p + warp * 1.1 + vec2(-0.12, 0.2));
     vec3 cloudColor = mix(vec3(0.70, 0.79, 0.87), vec3(1.0, 0.99, 0.97), smoothstep(0.40, 0.65, light));
-    sky = mix(sky, cloudColor, cloud * 0.95);
+    sky = mix(sky, cloudColor, cloud);
     sky = mix(sky, vec3(0.93, 0.96, 0.99), pow(1.0 - height, 4.0) * 0.45);
     gl_FragColor = vec4(sky, 1.0);
     #include <colorspace_fragment>
