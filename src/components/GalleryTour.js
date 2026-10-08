@@ -200,10 +200,13 @@ export default function GalleryTour({ slots, artistName }) {
       };
 
       // ── Materials: smooth, matte, off-white ──
-      const wallMat = keep(new THREE.MeshLambertMaterial({ color: WALL, toneMapped: false }));
-      const floorMat = keep(new THREE.MeshLambertMaterial({ color: FLOOR, toneMapped: false }));
-      const ceilingMat = keep(new THREE.MeshLambertMaterial({ color: WALL, toneMapped: false }));
-      const stepMat = keep(new THREE.MeshLambertMaterial({ color: 0xf2f2eb, toneMapped: false }));
+      const wallMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false }));
+      const floorMat = keep(new THREE.MeshBasicMaterial({ color: FLOOR, toneMapped: false }));
+      const ceilingMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false }));
+      const stepMat = keep(new THREE.MeshBasicMaterial({ color: 0xf7f7f0, toneMapped: false }));
+      // Separate shadow receivers preserve the chosen white even outside direct sunlight.
+      const wallShadeMat = keep(new THREE.ShadowMaterial({ color: 0x596477, opacity: 0.13, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+      const floorShadeMat = keep(new THREE.ShadowMaterial({ color: 0x596477, opacity: 0.17, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
       const glassMat = keep(new THREE.MeshBasicMaterial({ color: WALL, transparent: true, opacity: 0.35, toneMapped: false }));
       // Soft cloud density drifts independently of the visitor's camera.
@@ -224,6 +227,14 @@ export default function GalleryTour({ slots, artistName }) {
         mesh.castShadow = options.cast ?? true;
         mesh.receiveShadow = options.receive ?? true;
         scene.add(mesh);
+        if (material === wallMat || material === floorMat || material === stepMat || material === ceilingMat) {
+          const shade = new THREE.Mesh(mesh.geometry, material === floorMat ? floorShadeMat : wallShadeMat);
+          shade.position.copy(mesh.position);
+          shade.rotation.copy(mesh.rotation);
+          shade.receiveShadow = true;
+          shade.renderOrder = 1;
+          scene.add(shade);
+        }
         return mesh;
       };
       // a solid box from its extents
@@ -247,8 +258,11 @@ export default function GalleryTour({ slots, artistName }) {
       };
       const floor = (x0, x1, z0, z1, y = 0) =>
         add(new THREE.PlaneGeometry(x1 - x0, Math.abs(z1 - z0)), floorMat, [(x0 + x1) / 2, y, (z0 + z1) / 2], { rotation: [-Math.PI / 2, 0, 0], cast: false });
-      // a ceiling slab with skylight holes ("rect" strips or "oval" openings), bright sky above
-      const ceiling = (x0, x1, z0, z1, y, holes = []) => {
+      // Wide open roof bays and slim cross-beams, like the reference gallery.
+      const ceiling = (x0, x1, z0, z1, y) => {
+        const lowZ = Math.min(z0, z1), highZ = Math.max(z0, z1);
+        const rim = 0.55;
+        const holes = [{ rect: [x0 + rim, x1 - rim, lowZ + rim, highZ - rim] }];
         const shape = new THREE.Shape();
         shape.moveTo(x0, z0); shape.lineTo(x1, z0); shape.lineTo(x1, z1); shape.lineTo(x0, z1); shape.lineTo(x0, z0);
         for (const hole of holes) {
@@ -260,6 +274,15 @@ export default function GalleryTour({ slots, artistName }) {
         // the shape's y runs along world z; rotating it flat drops the extrusion below y
         const slab = add(new THREE.ExtrudeGeometry(shape, { depth: 0.45, bevelEnabled: false, curveSegments: 48 }), ceilingMat, [0, y + 0.45, 0], { rotation: [Math.PI / 2, 0, 0] });
         slab.receiveShadow = false;
+        if (x1 - x0 > Math.abs(z1 - z0)) {
+          for (let x = x0 + 3.5; x < x1 - rim; x += 3.5) {
+            block(x - 0.13, x + 0.13, y, y + 0.35, lowZ + rim, highZ - rim, ceilingMat);
+          }
+        } else {
+          for (let z = lowZ + 3.5; z < highZ - rim; z += 3.5) {
+            block(x0 + rim, x1 - rim, y, y + 0.35, z - 0.13, z + 0.13, ceilingMat);
+          }
+        }
         // open to the sky: nothing in the hole but the blue above it
         add(new THREE.PlaneGeometry(x1 - x0 + 4, Math.abs(z1 - z0) + 4), skyMat, [(x0 + x1) / 2, y + 2.6, (z0 + z1) / 2], { rotation: [Math.PI / 2, 0, 0], cast: false, receive: false });
       };
@@ -290,7 +313,7 @@ export default function GalleryTour({ slots, artistName }) {
       floor(-4, 4, 9, -16);
       wallX(-4, 0, -16, 0, 6);
       wallX(4, 0, -16, 0, 6, [-13, -15.2, 3.2]); // doorway to the corridor
-      ceiling(-4, 4, 0, -16, 6, [{ rect: [-0.9, 0.9, -2, -14] }]);
+      ceiling(-4, 4, 0, -16, 6);
       archedWindowWall(-4, 4, 0, 6, -16, 1.6, 1.0, 3.4);
       // frosted glass front with sliding doors
       block(-4, 4, 3.4, 6, -0.03, 0.03, glassMat, { cast: false });
@@ -323,7 +346,7 @@ export default function GalleryTour({ slots, artistName }) {
       floor(4, 10, -13, -15.2);
       wallZ(-13, 4.15, 9.85, 0, 3.2);
       wallZ(-15.2, 4.15, 9.85, 0, 3.2);
-      block(4.15, 9.85, 3.2, 3.6, -13, -15.2);
+      ceiling(4.15, 9.85, -13, -15.2, 3.2);
 
       // ── Great hall: x 10..44, z -9.1..-19.1, 7 high, oval skylights, benches down the middle ──
       floor(10, 44, -9.1, -19.1);
@@ -331,7 +354,7 @@ export default function GalleryTour({ slots, artistName }) {
       wallX(44, -9.1, -19.1, 0, 7, [-12.6, -15.6, 4.2]);
       wallZ(-9.1, 10, 44, 0, 7);
       wallZ(-19.1, 10, 44, 0, 7);
-      ceiling(10, 44, -9.1, -19.1, 7, [17, 25, 33, 41].map(x => ({ oval: [x, -14.1, 1.9, 1.15] })));
+      ceiling(10, 44, -9.1, -19.1, 7);
       for (const [x, z, w, d] of [[20, -14.1, 1.4, 1.4], [21.5, -13.1, 1.4, 1.0], [21.5, -15.1, 1.4, 1.0], [22.9, -14.1, 1.4, 1.4], [34, -14.1, 1.4, 1.4], [35.5, -13.3, 1.4, 1.0], [35.5, -14.9, 1.4, 1.0]]) {
         block(x - w / 2, x + w / 2, 0, 0.45, z - d / 2, z + d / 2, stepMat);
       }
@@ -346,8 +369,7 @@ export default function GalleryTour({ slots, artistName }) {
       const TOP = UPPER + 6;
       wallZ(-10.1, 62, 78.4, 0, TOP);
       wallZ(-18.1, 62, 70.4, 0, TOP);
-      block(44, 62, 7.45, TOP, -18.1, -10.1); // above the side hall's ceiling slab, closing the tall volume
-      ceiling(62, 78.4, -10.1, -18.1, TOP, [{ rect: [63, 77.4, -13.2, -15] }]);
+      ceiling(62, 78.4, -10.1, -18.1, TOP);
       const steps = 21, rise = UPPER / steps, run = 0.4;
       for (let k = 0; k < steps; k++) {
         const h = rise * (k + 1), x = 62 + run * k;
@@ -361,7 +383,7 @@ export default function GalleryTour({ slots, artistName }) {
       block(70.4, 78.4, UPPER - 0.4, UPPER, -50, -10.1, floorMat);
       wallX(78.4, -18.1, -50, UPPER, TOP);
       glazing('x', 70.4, -18.1, -50, UPPER, TOP, -1);
-      ceiling(70.4, 78.4, -18.1, -50, TOP, [{ rect: [73.2, 75.6, -20, -48] }]);
+      ceiling(70.4, 78.4, -18.1, -50, TOP);
       archedWindowWall(70.4, 78.4, UPPER, 6, -50, 1.6, 0.6, 3.6);
 
       // ── Light: soft, even white daylight, no colour cast ──
