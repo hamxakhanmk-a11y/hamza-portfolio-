@@ -28,25 +28,17 @@ const FOG = 0xfffff8;
 const PLACES = {
   1: { pos: [3.85, HANG, -5.2], yaw: -Math.PI / 2 },
   2: { pos: [3.85, HANG, -7.8], yaw: -Math.PI / 2 },
-  3: { pos: [3.85, HANG, -11.5], yaw: -Math.PI / 2 },
-  4: { pos: [-3.85, HANG, -4], yaw: Math.PI / 2 },
+  3: { pos: [-3.85, HANG, -4], yaw: Math.PI / 2 },
+  4: { pos: [78.25, UPPER + HANG, -30.2], yaw: -Math.PI / 2 },
   5: { pos: [-3.85, HANG, -7], yaw: Math.PI / 2 },
-  6: { pos: [-3.85, HANG, -10], yaw: Math.PI / 2 },
+  6: { pos: [23.2, HANG, -9.25], yaw: Math.PI },
   7: { pos: [16.2, HANG, -18.95], yaw: 0 },
-  8: { pos: [18.8, HANG, -18.95], yaw: 0 },
-  9: { pos: [23.2, HANG, -9.25], yaw: Math.PI },
-  10: { pos: [25.8, HANG, -9.25], yaw: Math.PI },
-  11: { pos: [30.2, HANG, -18.95], yaw: 0 },
-  12: { pos: [32.8, HANG, -18.95], yaw: 0 },
-  13: { pos: [37.2, HANG, -9.25], yaw: Math.PI },
-  14: { pos: [39.8, HANG, -9.25], yaw: Math.PI },
-  15: { pos: [48, HANG, -10.25], yaw: Math.PI },
-  16: { pos: [52, HANG, -10.25], yaw: Math.PI },
-  17: { pos: [56, HANG, -10.25], yaw: Math.PI },
-  18: { pos: [78.25, UPPER + HANG, -22.5], yaw: -Math.PI / 2 },
-  19: { pos: [78.25, UPPER + HANG, -30.2], yaw: -Math.PI / 2 },
-  20: { pos: [78.25, UPPER + HANG, -32.8], yaw: -Math.PI / 2 },
-  21: { pos: [78.25, UPPER + HANG, -41], yaw: -Math.PI / 2 },
+  8: { pos: [25.8, HANG, -9.25], yaw: Math.PI },
+  9: { pos: [78.25, UPPER + HANG, -32.8], yaw: -Math.PI / 2 },
+  11: { pos: [37.2, HANG, -9.25], yaw: Math.PI },
+  12: { pos: [39.8, HANG, -9.25], yaw: Math.PI },
+  13: { pos: [18.8, HANG, -18.95], yaw: 0 },
+  14: { pos: [31.5, HANG, -18.95], yaw: 0 },
 };
 
 // The camera's route: a keyframe per line (position, look-at point); `stop` marks where scrolling pauses.
@@ -54,30 +46,27 @@ const PATH = [
   { pos: [0, EYE, 5.5], look: [0, 2.2, -8], stop: { kind: 'entrance' } },
   { pos: [0, EYE, -1.5], look: [0, 2.3, -16] },
   { pos: [0.25, EYE, -6.5], look: [4, HANG, -6.5], stop: { bay: [1, 2] } },
-  { pos: [0.6, EYE, -11.5], look: [4, HANG - 0.1, -11.5], stop: { bay: [3] } },
-  { pos: [2.2, EYE, -6.6], look: [-4, HANG, -7.3], stop: { bay: [4, 5, 6] } },
+  { pos: [2.2, EYE, -6.6], look: [-4, HANG, -5.5], stop: { bay: [3, 5] } },
   { pos: [2.6, EYE, -12.6], look: [6, 1.9, -14.1] },
   { pos: [5.5, EYE, -14.1], look: [14, 1.9, -14.1] },
   { pos: [11.2, EYE, -14.1], look: [28, 2.6, -14.1], stop: { kind: 'view', text: 'The great hall' } },
   { pos: [14, EYE, -14.1], look: [24, HANG, -16] },
-  { pos: [17.5, EYE, -15.3], look: [17.5, HANG, -19.1], stop: { bay: [7, 8] } },
+  { pos: [17.5, EYE, -15.3], look: [17.5, HANG, -19.1], stop: { bay: [7, 13] } },
   { pos: [21, EYE, -14.1], look: [30, HANG, -12] },
-  { pos: [24.5, EYE, -12.9], look: [24.5, HANG, -9.1], stop: { bay: [9, 10] } },
+  { pos: [24.5, EYE, -12.9], look: [24.5, HANG, -9.1], stop: { bay: [6, 8] } },
   { pos: [28, EYE, -14.1], look: [36, HANG, -16] },
-  { pos: [31.5, EYE, -15.3], look: [31.5, HANG, -19.1], stop: { bay: [11, 12] } },
+  { pos: [31.5, EYE, -15.3], look: [31.5, HANG, -19.1], stop: { bay: [14] } },
   { pos: [35, EYE, -14.1], look: [42, HANG, -12.5] },
-  { pos: [38.5, EYE, -12.9], look: [38.5, HANG, -9.1], stop: { bay: [13, 14] } },
+  { pos: [38.5, EYE, -12.9], look: [38.5, HANG, -9.1], stop: { bay: [11, 12] } },
   { pos: [42, EYE, -14.1], look: [52, 2.0, -14.1] },
-  { pos: [45.5, EYE, -15.8], look: [53, HANG, -10.1], stop: { bay: [15, 16, 17] } },
+  { pos: [45.5, EYE, -14.1], look: [60, 2.0, -14.1] },
   { pos: [59, EYE, -14.1], look: [70, 4.5, -14.1] },
   { pos: [66.2, 3.8, -14.1], look: [78, 7, -14.1] },
   { pos: [72, UPPER_EYE, -14.1], look: [78.4, 6.8, -14.1], stop: { kind: 'view', text: 'Up to the first floor' } },
   { pos: [74.4, UPPER_EYE, -17], look: [76, 6.2, -30] },
-  { pos: [75.6, UPPER_EYE, -21], look: [78.4, UPPER + HANG, -22.5], stop: { bay: [18] } },
   { pos: [74.4, UPPER_EYE, -25.5], look: [75, 6.2, -40] },
-  { pos: [74.8, UPPER_EYE, -31.5], look: [78.4, UPPER + HANG, -31.5], stop: { bay: [19, 20] } },
+  { pos: [74.8, UPPER_EYE, -31.5], look: [78.4, UPPER + HANG, -31.5], stop: { bay: [4, 9] } },
   { pos: [74.4, UPPER_EYE, -36], look: [75, 6.2, -50] },
-  { pos: [75.6, UPPER_EYE, -39.5], look: [78.4, UPPER + HANG, -41], stop: { bay: [21] } },
   { pos: [74.4, UPPER_EYE, -44], look: [74.4, 6.6, -50], stop: { kind: 'end' } },
 ];
 
@@ -188,7 +177,7 @@ export default function GalleryTour({ slots, artistName }) {
       const ceilingMat = brightSurface(WALL);
       const stepMat = brightSurface(0xf7f7f0);
       const columnMat = wallMat;
-      const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xd4a437, metalness: 0.65, roughness: 0.34, toneMapped: false }));
+      const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3d68b, metalness: 0.35, roughness: 0.4, toneMapped: false }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
       const glassMat = keep(new THREE.MeshBasicMaterial({ color: WALL, transparent: true, opacity: 0.35, toneMapped: false }));
       // Soft cloud density drifts independently of the visitor's camera.
