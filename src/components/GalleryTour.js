@@ -90,11 +90,6 @@ const smootherstep = t => t * t * t * (t * (t * 6 - 15) + 10);
 const dwell = t => 0.3 * t + 0.7 * smootherstep(t);
 const clamp01 = t => Math.min(1, Math.max(0, t));
 
-function cssFont(variable, fallback) {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
-  return value ? `${value}, ${fallback}` : fallback;
-}
-
 function hasTransparentCorners(image) {
   const size = 24;
   const canvas = document.createElement('canvas');
@@ -103,29 +98,6 @@ function hasTransparentCorners(image) {
   ctx.drawImage(image, 0, 0, size, size);
   const { data } = ctx.getImageData(0, 0, size, size);
   return [[1, 1], [size - 2, 1], [1, size - 2], [size - 2, size - 2]].every(([x, y]) => data[(y * size + x) * 4 + 3] < 40);
-}
-
-// The title under a painting, as the film has it.
-function labelCanvas(artwork, fontFamily) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = '#5a5651';
-  ctx.font = `500 58px ${fontFamily}`;
-  if ('letterSpacing' in ctx) ctx.letterSpacing = '4px';
-  let title = String(artwork.title || '').toUpperCase();
-  while (title.length > 4 && ctx.measureText(title).width > 980) title = `${title.slice(0, -2)}…`;
-  ctx.fillText(title, 512, 24);
-  const meta = [artwork.size, artwork.medium].filter(Boolean).join('  ·  ').toUpperCase();
-  if (meta) {
-    ctx.fillStyle = 'rgba(90,86,81,0.7)';
-    ctx.font = `500 30px ${fontFamily}`;
-    ctx.fillText(meta, 512, 112);
-  }
-  return canvas;
 }
 
 export default function GalleryTour({ slots, artistName }) {
@@ -190,7 +162,6 @@ export default function GalleryTour({ slots, artistName }) {
       pmrem.dispose();
 
       const camera = new THREE.PerspectiveCamera(50, 1, 0.3, 300);
-      const fontFamily = cssFont('--font-cormorant', 'Georgia, serif');
       await (document.fonts?.ready || Promise.resolve());
       const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
       const canvasTexture = canvas => {
@@ -217,7 +188,7 @@ export default function GalleryTour({ slots, artistName }) {
       const ceilingMat = brightSurface(WALL);
       const stepMat = brightSurface(0xf7f7f0);
       const columnMat = wallMat;
-      const artworkEdgeMat = keep(new THREE.MeshLambertMaterial({ color: 0xe3e1d9, toneMapped: false }));
+      const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xd4a437, metalness: 0.65, roughness: 0.34, toneMapped: false }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
       const glassMat = keep(new THREE.MeshBasicMaterial({ color: WALL, transparent: true, opacity: 0.35, toneMapped: false }));
       // Soft cloud density drifts independently of the visitor's camera.
@@ -572,10 +543,6 @@ export default function GalleryTour({ slots, artistName }) {
         art.userData = { id: artwork.id };
         group.add(art);
         paintingMeshes.push(art);
-        const label = new THREE.Mesh(keep(new THREE.PlaneGeometry(2.0, 0.5)), keep(new THREE.MeshBasicMaterial({ map: canvasTexture(labelCanvas(artwork, fontFamily)), transparent: true, depthWrite: false, toneMapped: false })));
-        label.position.set(0, -height / 2 - 0.42, 0.03); // a real gap from the wall instead of a depth trick
-        label.renderOrder = 2; // see-through layers at nearly the same depth: fix their order so it never flips
-        group.add(label);
         // the canvas's soft shadow on the wall, painted on so it can never flicker
         const shade = new THREE.Mesh(keep(new THREE.PlaneGeometry(width * 1.6, height * 1.6)), keep(new THREE.MeshBasicMaterial({ map: wallShadowTex, transparent: true, opacity: cutOut ? 0.16 : 0.26, depthWrite: false })));
         shade.position.set(0.03, -0.07, 0.014); // behind the canvas (which starts at 0.02), clear of the wall
