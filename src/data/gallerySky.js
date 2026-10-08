@@ -30,7 +30,8 @@ export const gallerySkyFragment = `
   void main() {
     float height = clamp(vUv.y, 0.0, 1.0);
     vec3 sky = mix(vec3(0.86, 0.93, 0.98), vec3(0.26, 0.57, 0.82), pow(height, 0.7));
-    vec2 p = vec2(vUv.x * 7.0, vUv.y * 4.0);
+    float angle = vUv.x * 6.2831853;
+    vec2 p = vec2(cos(angle), sin(angle)) * 4.0 + vec2(height * 3.0, height * 4.0);
     p += vec2(uTime * 0.11, uTime * 0.012);
     vec2 warp = vec2(fbm(p * 0.7), fbm(p * 0.7 + 8.4));
     float density = fbm(p + warp * 1.1);

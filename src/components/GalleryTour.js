@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TOUR_SLOTS } from '@/data/galleryTour';
 import { gallerySkyVertex, gallerySkyFragment } from '@/data/gallerySky';
+import { getRestoredArtworkImage } from '@/data/artworkImageRestoration';
 
 // A white 3D gallery the visitor glides through by scrolling, laid out like the reference film:
 // frosted glass doors open onto the entrance hall (arched window at the end, a stair beside it),
@@ -188,7 +189,7 @@ export default function GalleryTour({ slots, artistName }) {
       scene.environmentIntensity = 0.2;
       pmrem.dispose();
 
-      const camera = new THREE.PerspectiveCamera(50, 1, 0.3, 150); // a nearer near plane wastes depth precision on far walls
+      const camera = new THREE.PerspectiveCamera(50, 1, 0.3, 300);
       const fontFamily = cssFont('--font-cormorant', 'Georgia, serif');
       await (document.fonts?.ready || Promise.resolve());
       const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -200,13 +201,12 @@ export default function GalleryTour({ slots, artistName }) {
       };
 
       // ── Materials: smooth, matte, off-white ──
-      const wallMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false }));
-      const floorMat = keep(new THREE.MeshBasicMaterial({ color: FLOOR, toneMapped: false }));
-      const ceilingMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false }));
-      const stepMat = keep(new THREE.MeshBasicMaterial({ color: 0xf7f7f0, toneMapped: false }));
-      // Separate shadow receivers preserve the chosen white even outside direct sunlight.
-      const wallShadeMat = keep(new THREE.ShadowMaterial({ color: 0x596477, opacity: 0.13, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
-      const floorShadeMat = keep(new THREE.ShadowMaterial({ color: 0x596477, opacity: 0.17, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+      // A bright base keeps shaded plaster white; a small diffuse term adds daylight relief.
+      const brightSurface = (color) => keep(new THREE.MeshLambertMaterial({ color: 0x242424, emissive: color, emissiveIntensity: 0.94, toneMapped: false }));
+      const wallMat = brightSurface(WALL);
+      const floorMat = brightSurface(FLOOR);
+      const ceilingMat = brightSurface(WALL);
+      const stepMat = brightSurface(0xf7f7f0);
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
       const glassMat = keep(new THREE.MeshBasicMaterial({ color: WALL, transparent: true, opacity: 0.35, toneMapped: false }));
       // Soft cloud density drifts independently of the visitor's camera.
@@ -216,6 +216,8 @@ export default function GalleryTour({ slots, artistName }) {
         fragmentShader: gallerySkyFragment,
         fog: false,
         toneMapped: false,
+        side: THREE.BackSide,
+        depthWrite: false,
       }));
       const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
       const canvasEdgeMat = keep(new THREE.MeshBasicMaterial({ color: 0xf2ece2, toneMapped: false }));
@@ -227,16 +229,9 @@ export default function GalleryTour({ slots, artistName }) {
         mesh.castShadow = options.cast ?? true;
         mesh.receiveShadow = options.receive ?? true;
         scene.add(mesh);
-        if (material === wallMat || material === floorMat || material === stepMat || material === ceilingMat) {
-          const shade = new THREE.Mesh(mesh.geometry, material === floorMat ? floorShadeMat : wallShadeMat);
-          shade.position.copy(mesh.position);
-          shade.rotation.copy(mesh.rotation);
-          shade.receiveShadow = true;
-          shade.renderOrder = 1;
-          scene.add(shade);
-        }
         return mesh;
       };
+      add(new THREE.SphereGeometry(120, 48, 24), skyMat, [37, 0, -20], { cast: false, receive: false });
       // a solid box from its extents
       // corners may come in either order: a negative size would build the box inside-out
       const block = (x0, x1, y0, y1, z0, z1, material = wallMat, options) =>
@@ -284,7 +279,6 @@ export default function GalleryTour({ slots, artistName }) {
           }
         }
         // open to the sky: nothing in the hole but the blue above it
-        add(new THREE.PlaneGeometry(x1 - x0 + 4, Math.abs(z1 - z0) + 4), skyMat, [(x0 + x1) / 2, y + 2.6, (z0 + z1) / 2], { rotation: [Math.PI / 2, 0, 0], cast: false, receive: false });
       };
       const archedWindowWall = (x0, x1, y0, height, z, radius, sill, spring) => {
         const w = x1 - x0;
@@ -295,16 +289,19 @@ export default function GalleryTour({ slots, artistName }) {
         shape.holes.push(hole);
         add(new THREE.ExtrudeGeometry(shape, { depth: WALL_T, bevelEnabled: false, curveSegments: 40 }), wallMat, [(x0 + x1) / 2, y0, z - WALL_T / 2]);
         // the window is an open arch onto the sky: no glass and no bars
-        add(new THREE.PlaneGeometry(w + 6, height + 6), skyMat, [(x0 + x1) / 2, y0 + height / 2, z - 3], { cast: false, receive: false });
       };
       // an open wall onto the sky: slim piers every 4 m and nothing between them, no glass, no bars
-      const glazing = (axis, at, a0, a1, y0, y1, outward = 1) => { // outward: which side of the wall is outside
-        const len = Math.abs(a1 - a0), mid = (a0 + a1) / 2, h = y1 - y0;
+      const glazing = (axis, at, a0, a1, y0, y1) => {
+        const h = y1 - y0;
         if (axis === 'x') {
-          add(new THREE.PlaneGeometry(len, h), skyMat, [at + 0.35 * outward, (y0 + y1) / 2, mid], { rotation: [0, outward > 0 ? -Math.PI / 2 : Math.PI / 2, 0], cast: false, receive: false });
-          for (let z = Math.max(a0, a1); z >= Math.min(a0, a1); z -= 4) block(at - 0.2, at + 0.2, y0, y1, z - 0.2, z + 0.2);
+          const start = Math.min(a0, a1), end = Math.max(a0, a1);
+          const columns = end - start <= 8.1 ? [start, end] : Array.from({ length: Math.floor((end - start) / 4) + 1 }, (_, i) => start + i * 4);
+          for (const z of columns) {
+            add(new THREE.CylinderGeometry(0.2, 0.25, h, 12), wallMat, [at, (y0 + y1) / 2, z]);
+            block(at - 0.32, at + 0.32, y0, y0 + 0.16, z - 0.32, z + 0.32);
+            block(at - 0.3, at + 0.3, y1 - 0.16, y1, z - 0.3, z + 0.3);
+          }
         } else {
-          add(new THREE.PlaneGeometry(len, h), skyMat, [mid, (y0 + y1) / 2, at - 0.35], { cast: false, receive: false });
           for (let x = a0; x <= a1; x += 4) block(x - 0.2, x + 0.2, y0, y1, at - 0.2, at + 0.2);
         }
       };
@@ -396,8 +393,8 @@ export default function GalleryTour({ slots, artistName }) {
       sun.castShadow = true;
       sun.shadow.mapSize.set(narrow ? 2048 : 4096, narrow ? 2048 : 4096);
       Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 50, bottom: -50, near: 0.5, far: 150 });
-      sun.shadow.bias = -0.00015;
-      sun.shadow.normalBias = 0.025;
+      sun.shadow.bias = -0.0004;
+      sun.shadow.normalBias = 0.08;
       scene.add(sun.target);
       scene.add(sun);
       const fill = new THREE.DirectionalLight(0xeaf4ff, 0.1);
@@ -519,12 +516,24 @@ export default function GalleryTour({ slots, artistName }) {
         group.rotation.y = place.yaw;
         scene.add(group);
         let texture;
+        const restoration = getRestoredArtworkImage(artwork.image_url);
         try {
-          texture = keep(await loader.loadAsync(optimizedImage(artwork.image_url)));
+          texture = keep(await loader.loadAsync(optimizedImage(restoration?.src || artwork.image_url)));
         } catch {
           return;
         }
         if (disposed) return;
+        if (restoration) {
+          const source = texture.image;
+          const canvas = document.createElement('canvas');
+          canvas.width = 1024; canvas.height = 1024;
+          const ctx = canvas.getContext('2d');
+          const blue = restoration.src.endsWith('1787070962764.jpg');
+          const side = blue ? source.width * (949 / 1170) : Math.min(source.width, source.height);
+          const cx = source.width * 0.5, cy = source.height * (blue ? 569.5 / 1153 : 0.5);
+          ctx.drawImage(source, cx - side / 2, cy - side / 2, side, side, 0, 0, 1024, 1024);
+          texture = keep(new THREE.CanvasTexture(canvas));
+        }
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.anisotropy = maxAnisotropy;
         const image = texture.image;
@@ -532,7 +541,7 @@ export default function GalleryTour({ slots, artistName }) {
         let height = 1.75, width = height * aspect;
         if (width > 2.2) { width = 2.2; height = width / aspect; }
         const cutOut = artwork.round || hasTransparentCorners(image);
-        const faceMat = keep(new THREE.MeshBasicMaterial({ map: texture, transparent: cutOut, alphaTest: cutOut ? 0.04 : 0, toneMapped: false }));
+        const faceMat = keep(new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.02, toneMapped: false }));
         const art = cutOut
           ? new THREE.Mesh(keep(artwork.round ? new THREE.CircleGeometry(height / 2, 72) : new THREE.PlaneGeometry(width, height)), faceMat)
           : new THREE.Mesh(keep(new THREE.BoxGeometry(width, height, 0.04)), [canvasEdgeMat, canvasEdgeMat, canvasEdgeMat, canvasEdgeMat, faceMat, canvasEdgeMat]);
