@@ -202,12 +202,21 @@ export default function GalleryTour({ slots, artistName }) {
 
       // ── Materials: smooth, matte, off-white ──
       // A bright base keeps shaded plaster white; a small diffuse term adds daylight relief.
-      const brightSurface = (color) => keep(new THREE.MeshLambertMaterial({ color: 0x242424, emissive: color, emissiveIntensity: 0.94, toneMapped: false }));
+      const brightSurface = (color) => {
+        const material = keep(new THREE.MeshLambertMaterial({ color: 0x242424, emissive: color, emissiveIntensity: 0.94, toneMapped: false }));
+        material.onBeforeCompile = (shader) => {
+          shader.fragmentShader = shader.fragmentShader
+            .replace('#include <shadowmap_pars_fragment>', '#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>')
+            .replace('#include <opaque_fragment>', 'outgoingLight *= mix(0.84, 1.0, getShadowMask());\n#include <opaque_fragment>');
+        };
+        material.customProgramCacheKey = () => 'bright-gallery-daylight-v1';
+        return material;
+      };
       const wallMat = brightSurface(WALL);
       const floorMat = brightSurface(FLOOR);
       const ceilingMat = brightSurface(WALL);
       const stepMat = brightSurface(0xf7f7f0);
-      const columnMat = keep(new THREE.MeshLambertMaterial({ color: 0xcacbc6, emissive: 0xfffff8, emissiveIntensity: 0.35, toneMapped: false }));
+      const columnMat = wallMat;
       const artworkEdgeMat = keep(new THREE.MeshLambertMaterial({ color: 0xe3e1d9, toneMapped: false }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
       const glassMat = keep(new THREE.MeshBasicMaterial({ color: WALL, transparent: true, opacity: 0.35, toneMapped: false }));
