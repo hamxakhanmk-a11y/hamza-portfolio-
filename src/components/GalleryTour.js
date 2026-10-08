@@ -170,8 +170,11 @@ export default function GalleryTour({ slots, artistName }) {
       // no filmic tone curve: it drags a lit white wall down to grey; colours render as painted
       renderer.toneMapping = THREE.NoToneMapping;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
-      // no shadow map: a moving shadow map is what makes dark shapes flicker; shadows are painted on instead
-      renderer.shadowMap.enabled = false;
+      // The building and sun are fixed: bake this map once, not on every camera frame.
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.autoUpdate = false;
+      renderer.shadowMap.needsUpdate = true;
       host.appendChild(renderer.domElement);
       renderer.domElement.style.display = 'block';
 
@@ -197,10 +200,10 @@ export default function GalleryTour({ slots, artistName }) {
       };
 
       // ── Materials: smooth, matte, off-white ──
-      const wallMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false }));
-      const floorMat = keep(new THREE.MeshBasicMaterial({ color: FLOOR, toneMapped: false }));
-      const ceilingMat = keep(new THREE.MeshBasicMaterial({ color: WALL, toneMapped: false }));
-      const stepMat = keep(new THREE.MeshBasicMaterial({ color: 0xf2f2eb, toneMapped: false }));
+      const wallMat = keep(new THREE.MeshLambertMaterial({ color: WALL, toneMapped: false }));
+      const floorMat = keep(new THREE.MeshLambertMaterial({ color: FLOOR, toneMapped: false }));
+      const ceilingMat = keep(new THREE.MeshLambertMaterial({ color: WALL, toneMapped: false }));
+      const stepMat = keep(new THREE.MeshLambertMaterial({ color: 0xf2f2eb, toneMapped: false }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
       const glassMat = keep(new THREE.MeshBasicMaterial({ color: WALL, transparent: true, opacity: 0.35, toneMapped: false }));
       // Soft cloud density drifts independently of the visitor's camera.
@@ -363,11 +366,19 @@ export default function GalleryTour({ slots, artistName }) {
 
       // ── Light: soft, even white daylight, no colour cast ──
       // bright, even light so the walls read as off-white, with a weak sun for soft shading
-      scene.add(new THREE.HemisphereLight(0xfffaf2, 0xf1eadf, 2.0));
-      const sun = new THREE.DirectionalLight(0xfff6e8, 0.3);
-      sun.position.set(6, 30, 4);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.76));
+      scene.add(new THREE.HemisphereLight(0xe9f4ff, 0xe6e6df, 0.16));
+      const sun = new THREE.DirectionalLight(0xfffcf5, 0.65);
+      sun.position.set(-5, 35, -35);
+      sun.target.position.set(37, 0, -20);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(narrow ? 2048 : 4096, narrow ? 2048 : 4096);
+      Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 50, bottom: -50, near: 0.5, far: 150 });
+      sun.shadow.bias = -0.00015;
+      sun.shadow.normalBias = 0.025;
+      scene.add(sun.target);
       scene.add(sun);
-      const fill = new THREE.DirectionalLight(0xfff6e8, 0.25);
+      const fill = new THREE.DirectionalLight(0xeaf4ff, 0.1);
       fill.position.set(-8, 12, -10);
       scene.add(fill);
 
@@ -400,7 +411,7 @@ export default function GalleryTour({ slots, artistName }) {
         ctx.fillStyle = grad; ctx.fillRect(0, 0, 256, 8);
         return canvasTexture(canvas);
       };
-      const bandMat = keep(new THREE.MeshBasicMaterial({ map: edgeTexture(48, 55, 64, 0.23), transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
+      const bandMat = keep(new THREE.MeshBasicMaterial({ map: edgeTexture(48, 55, 64, 0.12), transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
       // warm sunlight spilling in beside a window, additive so it lightens rather than tints
       const spillMat = keep(new THREE.MeshBasicMaterial({ map: edgeTexture(235, 244, 255, 0.12), transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
       // strip: a plane whose dark/bright edge lies along the line a->b, fading out across the surface.
@@ -473,7 +484,7 @@ export default function GalleryTour({ slots, artistName }) {
 
       // under the benches
       for (const [x, z, w, d] of [[20, -14.1, 1.4, 1.4], [21.5, -13.1, 1.4, 1.0], [21.5, -15.1, 1.4, 1.0], [22.9, -14.1, 1.4, 1.4], [34, -14.1, 1.4, 1.4], [35.5, -13.3, 1.4, 1.0], [35.5, -14.9, 1.4, 1.0], [0, -13.8, 2.4, 1.2]]) {
-        paintedShadow(floorShadowTex, w * 1.9, d * 1.9, [x, 0.012, z], [-Math.PI / 2, 0, 0], 0.28);
+        paintedShadow(floorShadowTex, w * 1.5, d * 1.5, [x, 0.012, z], [-Math.PI / 2, 0, 0], 0.16);
       }
 
       // ── Paintings: plain canvases, shown exactly as their photographs ──
@@ -588,10 +599,11 @@ export default function GalleryTour({ slots, artistName }) {
       const tick = () => {
         frameId = requestAnimationFrame(tick);
         const now = performance.now();
-        const delta = Math.min((now - lastTime) / 1000, 0.05);
+        const elapsed = (now - lastTime) / 1000;
+        const delta = Math.min(elapsed, 0.05);
         lastTime = now;
         if (!visible) return;
-        if (!reducedMotion) skyMat.uniforms.uTime.value += delta;
+        if (!reducedMotion) skyMat.uniforms.uTime.value += elapsed;
         // critically damped glide towards the scroll position
         current += (target - current) * (reducedMotion ? 1 : 1 - Math.exp(-delta * 2.4));
         if (Math.abs(target - current) < 0.002) current = target; // settle fully: no long, barely-moving tail
@@ -642,6 +654,7 @@ export default function GalleryTour({ slots, artistName }) {
         renderer.domElement.removeEventListener('pointermove', onMove);
         renderer.domElement.removeEventListener('click', onClick);
         disposables.forEach(item => item.dispose?.());
+        sun.shadow.map?.dispose();
         renderer.dispose();
         renderer.domElement.remove();
       };
