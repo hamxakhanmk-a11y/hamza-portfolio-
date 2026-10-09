@@ -20,8 +20,8 @@ const STOP_SCREEN_SHARE = 70; // svh of scrolling per camera stop
 const WALL_T = 0.3;
 
 // Bright off-white throughout; stable contact shadows define the architecture.
-const WALL = 0xfffffc;
-const FOG = 0xfffff8;
+const WALL = 0xfff8eb;
+const FOG = 0xfffaf2;
 
 // Where each wall place hangs: position of the canvas centre and the way it faces (rotation about y).
 const BASE_PLACES = {
@@ -159,9 +159,10 @@ export default function GalleryTour({ slots, artistName }) {
     let cleanup = () => {};
 
     (async () => {
-      const [THREE, { RoomEnvironment }] = await Promise.all([
+      const [THREE, { RoomEnvironment }, { Reflector }] = await Promise.all([
         import('three'),
         import('three/addons/environments/RoomEnvironment.js'),
+        import('three/addons/objects/Reflector.js'),
       ]);
       if (disposed || !hostRef.current) return;
       const host = hostRef.current;
@@ -194,7 +195,7 @@ export default function GalleryTour({ slots, artistName }) {
       scene.fog = new THREE.Fog(FOG, 30, 110);
       const pmrem = new THREE.PMREMGenerator(renderer);
       scene.environment = keep(pmrem.fromScene(new RoomEnvironment(), 0.04).texture);
-      scene.environmentIntensity = 0.65;
+      scene.environmentIntensity = 0.4;
       pmrem.dispose();
 
       const camera = new THREE.PerspectiveCamera(50, 1, 0.3, 300);
@@ -220,7 +221,7 @@ export default function GalleryTour({ slots, artistName }) {
         toneMapped: true,
       }));
       const wallMat = stoneSurface(0.42, 0.25);
-      const floorMat = stoneSurface(0.25, 0.45);
+      const floorMat = stoneSurface(0.18, 0.6);
       const ceilingMat = stoneSurface(0.6, 0.1);
       const stepMat = floorMat;
       const columnMat = wallMat;
@@ -307,6 +308,37 @@ export default function GalleryTour({ slots, artistName }) {
         shape.holes.push(hole);
         add(new THREE.ExtrudeGeometry(shape, { depth: WALL_T, bevelEnabled: false, curveSegments: 40 }), wallMat, [(x0 + x1) / 2, y0, z - WALL_T / 2]);
         // the window is an open arch onto the sky: no glass and no bars
+      };
+      // Ionic columns: tapered shafts, layered bases, and paired spiral volutes.
+      const ionicColumn = (x, z, y0, height, yaw = 0) => {
+        const column = new THREE.Group();
+        column.position.set(x, y0, z);
+        column.rotation.y = yaw;
+        const part = (geometry, y) => {
+          const mesh = new THREE.Mesh(keep(geometry), columnMat);
+          mesh.position.y = y;
+          mesh.castShadow = mesh.receiveShadow = true;
+          column.add(mesh);
+          return mesh;
+        };
+        part(new THREE.BoxGeometry(0.86, 0.14, 0.86), 0.07);
+        part(new THREE.CylinderGeometry(0.39, 0.39, 0.1, 40), 0.19);
+        part(new THREE.CylinderGeometry(0.3, 0.37, 0.16, 40), 0.32);
+        part(new THREE.CylinderGeometry(0.26, 0.3, height - 1.02, 48), (height - 1.02) / 2 + 0.4);
+        part(new THREE.CylinderGeometry(0.32, 0.27, 0.12, 40), height - 0.56);
+        part(new THREE.BoxGeometry(0.9, 0.13, 0.55), height - 0.4);
+        part(new THREE.BoxGeometry(1.02, 0.15, 0.68), height - 0.075);
+        for (const side of [-1, 1]) {
+          const points = [];
+          for (let k = 0; k <= 72; k++) {
+            const t = k / 72;
+            const angle = t * Math.PI * 3.5;
+            const radius = 0.19 * (1 - t) + 0.025;
+            points.push(new THREE.Vector3(side * (0.35 + Math.cos(angle) * radius), height - 0.3 + Math.sin(angle) * radius, 0.29));
+          }
+          part(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 72, 0.036, 8, false), 0);
+        }
+        scene.add(column);
       };
       // an open wall onto the sky: slim piers every 4 m and nothing between them, no glass, no bars
       const glazing = (axis, at, a0, a1, y0, y1) => {
@@ -404,10 +436,75 @@ export default function GalleryTour({ slots, artistName }) {
       ceiling(70.4, 78.4, -18.1, -50, TOP);
       archedWindowWall(70.4, 78.4, UPPER, 6, -50, 1.6, 0.6, 3.6);
 
+      // Columns frame the halls without occupying the painting bays or camera aisle.
+      ionicColumn(-3.5, -1, 0, 6, Math.PI / 2);
+      ionicColumn(3.5, -1, 0, 6, -Math.PI / 2);
+      ionicColumn(3.5, -12.1, 0, 6, -Math.PI / 2);
+      for (const x of [11, 23, 31, 43]) {
+        ionicColumn(x, -18.6, 0, 7);
+        ionicColumn(x, -9.6, 0, 7, Math.PI);
+      }
+      for (const x of [45, 61]) {
+        ionicColumn(x, -17.6, 0, 7);
+        ionicColumn(x, -10.6, 0, 7, Math.PI);
+      }
+
+      // Low-opacity planar reflections show the real paintings and pillars in polished stone.
+      // Only the current floor renders a reflection, bounding the extra render cost.
+      const floorReflections = [];
+      for (const [width, depth, x, z, y] of [[82.4, 59, 37.2, -20.5, 0], [8, 39.9, 74.4, -30.05, UPPER]]) {
+        const reflection = new Reflector(keep(new THREE.PlaneGeometry(width, depth)), {
+          color: 0xfff8eb, textureWidth: narrow ? 384 : 768, textureHeight: narrow ? 384 : 768,
+          clipBias: 0.003, multisample: 0,
+        });
+        reflection.rotation.x = -Math.PI / 2;
+        reflection.position.set(x, y + 0.009, z);
+        reflection.material.transparent = true;
+        reflection.material.opacity = 0.16;
+        reflection.material.depthWrite = false;
+        reflection.material.fragmentShader = reflection.material.fragmentShader.replace('gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );', 'gl_FragColor = vec4( blendOverlay( base.rgb, color ), 0.16 );');
+        keep(reflection);
+        scene.add(reflection);
+        floorReflections.push(reflection);
+      }
+
+      // Soft, irregular spectral reflections, inspired by the light in the reference film.
+      const shimmerMaterials = [];
+      const shimmer = (position, rotation, width, height, seed, strength = 0.2) => {
+        const material = keep(new THREE.ShaderMaterial({
+          uniforms: { uTime: { value: 0 }, uSeed: { value: seed }, uStrength: { value: strength } },
+          transparent: true, depthWrite: false, blending: THREE.NormalBlending, toneMapped: false,
+          vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+          fragmentShader: `varying vec2 vUv;
+            uniform float uTime; uniform float uSeed; uniform float uStrength;
+            void main(){
+              vec2 p=(vUv-0.5)*2.0;
+              float t=uTime*0.09+uSeed;
+              vec2 bend=p+0.16*vec2(sin(p.y*4.0+t),cos(p.x*3.0-t));
+              float edge=1.0-smoothstep(0.35,1.0,length(p));
+              float ribbon=pow(0.5+0.5*sin(bend.x*6.0+bend.y*4.0+t),3.0);
+              float cloud=0.5+0.5*cos(bend.y*5.0-bend.x*2.0-t*0.6);
+              vec3 spectrum=0.72+0.28*cos(vec3(0.0,2.1,4.2)+bend.x*3.0+bend.y*2.0+t);
+              vec3 ivory=vec3(1.0,0.91,0.72);
+              gl_FragColor=vec4(mix(ivory,spectrum,0.5),edge*(0.12+ribbon*cloud)*uStrength);
+            }`,
+        }));
+        shimmerMaterials.push(material);
+        add(new THREE.PlaneGeometry(width, height), material, position, { rotation, cast: false, receive: false });
+      };
+      for (const { slot } of hung) {
+        const place = PLACES[slot];
+        const p = [...place.pos];
+        p[0] += Math.sin(place.yaw) * 0.018;
+        p[2] += Math.cos(place.yaw) * 0.018;
+        shimmer(p, [0, place.yaw, 0], 5.6, 4.8, slot * 1.73, 0.26);
+        shimmer([place.pos[0] + Math.sin(place.yaw) * 1.6, slot >= 18 ? UPPER + 0.022 : 0.022, place.pos[2] + Math.cos(place.yaw) * 1.6], [-Math.PI / 2, 0, place.yaw], 5, 4, slot * 1.73, 0.18);
+      }
+
       // One sun casts a consistent pattern; open-sky and bounce light reach both walls.
-      scene.add(new THREE.AmbientLight(0xfffcf5, 1.1));
-      scene.add(new THREE.HemisphereLight(0xf5f9ff, 0xfff8ed, 1.8));
-      const sun = new THREE.DirectionalLight(0xfff8eb, 4.0);
+      scene.add(new THREE.AmbientLight(0xfffcf5, 0.45));
+      scene.add(new THREE.HemisphereLight(0xf5f9ff, 0xfff8ed, 1.15));
+      const sun = new THREE.DirectionalLight(0xfff8eb, 3.0);
       sun.position.set(-5, 65, -35);
       sun.target.position.set(37, 0, -20);
       sun.castShadow = true;
@@ -663,6 +760,9 @@ export default function GalleryTour({ slots, artistName }) {
         if (Math.abs(sway.tx - sway.x) < 0.00005) sway.x = sway.tx;
         if (Math.abs(sway.ty - sway.y) < 0.00005) sway.y = sway.ty;
         placeCamera(current);
+        floorReflections[0].visible = camera.position.y < UPPER + 0.5;
+        floorReflections[1].visible = camera.position.y >= UPPER + 0.5;
+        if (!reducedMotion) for (const material of shimmerMaterials) material.uniforms.uTime.value += elapsed;
         renderer.render(scene, camera);
         const nearest = Math.round(current);
         if (nearest !== lastStop) { lastStop = nearest; setStop(nearest); }
