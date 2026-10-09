@@ -479,14 +479,21 @@ export default function GalleryTour({ slots, artistName }) {
             uniform float uTime; uniform float uSeed; uniform float uStrength;
             void main(){
               vec2 p=(vUv-0.5)*2.0;
-              float t=uTime*0.09+uSeed;
-              vec2 bend=p+0.16*vec2(sin(p.y*4.0+t),cos(p.x*3.0-t));
-              float edge=1.0-smoothstep(0.35,1.0,length(p));
-              float ribbon=pow(0.5+0.5*sin(bend.x*6.0+bend.y*4.0+t),3.0);
-              float cloud=0.5+0.5*cos(bend.y*5.0-bend.x*2.0-t*0.6);
-              vec3 spectrum=0.72+0.28*cos(vec3(0.0,2.1,4.2)+bend.x*3.0+bend.y*2.0+t);
-              vec3 ivory=vec3(1.0,0.91,0.72);
-              gl_FragColor=vec4(mix(ivory,spectrum,0.5),edge*(0.12+ribbon*cloud)*uStrength);
+              float t=uTime*0.065+uSeed;
+              // Bent elliptical ribbons form irregular glass-like focal patches.
+              vec2 bend=p+0.12*vec2(sin(p.y*5.0+t),cos(p.x*4.0-t*0.7));
+              float edge=1.0-smoothstep(0.65,1.0,length(p));
+              float d1=length((bend-vec2(-0.22,0.2))*vec2(1.05,1.55));
+              float d2=length((bend-vec2(0.3,-0.08))*vec2(1.6,0.95));
+              float d3=length((bend-vec2(-0.05,-0.4))*vec2(0.85,1.75));
+              float gold=exp(-pow((d1-0.5)/0.13,2.0));
+              float blue=exp(-pow((d2-0.42)/0.12,2.0));
+              float pink=exp(-pow((d3-0.36)/0.14,2.0));
+              float breakup=0.45+0.55*smoothstep(-0.6,0.8,sin(bend.x*7.0+bend.y*5.0+t));
+              float light=gold+blue+pink;
+              vec3 spectral=(gold*vec3(1.0,0.87,0.52)+blue*vec3(0.57,0.83,1.0)+pink*vec3(1.0,0.65,0.88))/max(light,0.001);
+              vec3 glow=mix(vec3(1.0,0.98,0.89),spectral,0.55);
+              gl_FragColor=vec4(glow,edge*min(light,1.0)*breakup*uStrength);
             }`,
         }));
         shimmerMaterials.push(material);
@@ -497,9 +504,16 @@ export default function GalleryTour({ slots, artistName }) {
         const p = [...place.pos];
         p[0] += Math.sin(place.yaw) * 0.018;
         p[2] += Math.cos(place.yaw) * 0.018;
-        shimmer(p, [0, place.yaw, 0], 5.6, 4.8, slot * 1.73, 0.26);
-        shimmer([place.pos[0] + Math.sin(place.yaw) * 1.6, slot >= 18 ? UPPER + 0.022 : 0.022, place.pos[2] + Math.cos(place.yaw) * 1.6], [-Math.PI / 2, 0, place.yaw], 5, 4, slot * 1.73, 0.18);
+        shimmer(p, [0, place.yaw, 0], 5.6, 4.8, slot * 1.73, 0.52);
+        shimmer([place.pos[0] + Math.sin(place.yaw) * 1.6, slot >= 18 ? UPPER + 0.022 : 0.022, place.pos[2] + Math.cos(place.yaw) * 1.6], [-Math.PI / 2, 0, place.yaw], 5, 4, slot * 1.73, 0.32);
       }
+
+      // Larger reflected patches also reach bare wall bays and the open floor.
+      shimmer([-3.826, 3.8, -8], [0, Math.PI / 2, 0], 6, 4, 2.4, 0.35);
+      shimmer([23, 3.8, -18.926], [0, 0, 0], 7, 5, 5.1, 0.36);
+      shimmer([31, 3.4, -9.274], [0, Math.PI, 0], 6, 5, 8.3, 0.34);
+      shimmer([52, 3.8, -17.926], [0, 0, 0], 8, 5, 3.7, 0.36);
+      shimmer([74.4, UPPER + 0.023, -37], [-Math.PI / 2, 0, 0], 6, 8, 6.2, 0.3);
 
       // One sun casts a consistent pattern; open-sky and bounce light reach both walls.
       scene.add(new THREE.AmbientLight(0xfffcf5, 0.45));
