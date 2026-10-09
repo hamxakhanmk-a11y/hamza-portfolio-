@@ -5,7 +5,7 @@ import { siteConfig } from '@/data/config';
 import ImageCropper from '@/components/ImageCropper';
 import HeroStageEditor from '@/components/HeroStageEditor';
 import HeroMedia, { isVideoSource } from '@/components/HeroMedia';
-import { TOUR_SLOTS, TOUR_SETTING_KEY, parseTourMap, resolveTourSlots } from '@/data/galleryTour';
+import { TOUR_SLOTS, TOUR_SETTING_KEY, DEFAULT_TOUR_MAP, parseTourMap, resolveTourSlots } from '@/data/galleryTour';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -140,6 +140,16 @@ const heroTextDefaults = {
 
 const heroStageDefaults = { ...heroCameraDefaults, ...heroTextDefaults };
 
+// small optimised thumbnails for the 3D Gallery tab (the originals are large)
+const tourThumb = url => `/_next/image?url=${encodeURIComponent(url)}&w=384&q=75`;
+// if the optimiser can't fetch the original in time, show the original instead of a broken image
+const tourThumbFallback = original => event => {
+  const img = event.currentTarget;
+  if (img.dataset.fallback) return;
+  img.dataset.fallback = '1';
+  img.src = original;
+};
+
 export default function AdminPage() {
   const [token, setToken] = useState(() => typeof window === 'undefined' ? null : localStorage.getItem('admin_token'));
   const [password, setPassword] = useState('');
@@ -174,6 +184,7 @@ export default function AdminPage() {
   const [savingLayout, setSavingLayout] = useState(false);
   const [tourMsg, setTourMsg] = useState('');
   const [savingTour, setSavingTour] = useState(false);
+  const [tourDirty, setTourDirty] = useState(false);
 
   const fileRef = useRef(null);
   const heroRef = useRef(null);
@@ -496,10 +507,28 @@ export default function AdminPage() {
 
   function setTourChoice(slotId, value) {
     const map = parseTourMap(siteText[TOUR_SETTING_KEY]);
-    if (value === 'auto') delete map[slotId];
-    else map[slotId] = value === 'none' ? 'none' : Number(value);
+    const next = value === 'none' ? 'none' : Number(value);
+    const previous = map[slotId];
+    let note = '';
+    if (next !== 'none') {
+      const other = TOUR_SLOTS.find(slot => slot.id !== slotId && String(map[slot.id]) === String(next));
+      if (other) {
+        map[other.id] = previous ?? 'none';
+        note = previous === 'none' || previous == null
+          ? `Moved from place ${other.id}, which is now an empty wall.`
+          : `Swapped with place ${other.id}.`;
+      }
+    }
+    map[slotId] = next;
     setSiteText(prev => ({ ...prev, [TOUR_SETTING_KEY]: JSON.stringify(map) }));
-    setTourMsg('');
+    setTourDirty(true);
+    setTourMsg(note);
+  }
+
+  function resetTourArrangement() {
+    setSiteText(prev => ({ ...prev, [TOUR_SETTING_KEY]: JSON.stringify(DEFAULT_TOUR_MAP) }));
+    setTourDirty(true);
+    setTourMsg('Default arrangement restored. Save to publish it.');
   }
 
   async function saveTourSlots() {
@@ -508,9 +537,9 @@ export default function AdminPage() {
     const response = await fetch('/api/site-text', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ key: TOUR_SETTING_KEY, value: siteText[TOUR_SETTING_KEY] || '{}' }),
+      body: JSON.stringify({ key: TOUR_SETTING_KEY, value: JSON.stringify(parseTourMap(siteText[TOUR_SETTING_KEY])) }),
     });
-    if (response.ok) setTourMsg('✓ Gallery tour saved and published!');
+    if (response.ok) { setTourMsg('✓ Gallery saved and published!'); setTourDirty(false); }
     else {
       const error = await response.json().catch(() => ({}));
       setTourMsg(`Error: ${error.error || 'Could not save the gallery tour.'}`);
@@ -841,7 +870,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex gap-5 overflow-x-auto border-b border-neutral-200 bg-white px-4 sm:gap-8 sm:px-6">
-        {[['dashboard', 'Dashboard'], ['artworks', 'Artworks'], ['layout', 'Layout'], ['tour', 'Gallery Tour'], ['shows', 'Shows'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
+        {[['dashboard', 'Dashboard'], ['artworks', 'Artworks'], ['layout', 'Layout'], ['tour', '3D Gallery'], ['shows', 'Shows'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -888,7 +917,7 @@ export default function AdminPage() {
                 {[
                   ['+ Add Artwork', 'artworks'],
                   ['Arrange Paintings', 'layout'],
-                  ['Choose Gallery Tour Paintings', 'tour'],
+                  ['Change 3D Gallery Paintings', 'tour'],
                   ['Manage Shows', 'shows'],
                   ['Edit About', 'about'],
                   ['Edit Contact Details', 'contact'],
@@ -969,54 +998,105 @@ export default function AdminPage() {
         {/* ═══════════════ GALLERY TOUR ═══════════════ */}
         {activeTab === 'tour' && (() => {
           const tourMap = parseTourMap(siteText[TOUR_SETTING_KEY]);
-          const tourArtworks = [...artworks.filter(art => art.section === 'portfolio' || art.section === 'shop'), ...artworks.filter(art => art.section === 'commissions')].filter(art => art.show_on_website !== false && art.image_url);
+          // the gallery hangs portfolio paintings only (commissions stay on their own page)
+          const tourArtworks = artworks.filter(art => (art.section === 'portfolio' || art.section === 'shop') && art.show_on_website !== false && art.image_url);
           const resolved = new Map(resolveTourSlots(tourMap, tourArtworks).map(entry => [entry.slot, entry.artwork]));
+          const hungIds = new Set([...resolved.values()].filter(Boolean).map(art => String(art.id)));
+          const filled = [...resolved.values()].filter(Boolean).length;
+          const notHung = tourArtworks.filter(art => !hungIds.has(String(art.id)));
+          const rooms = [];
+          for (const slot of TOUR_SLOTS) {
+            const [room, ...rest] = slot.where.split(' · ');
+            let group = rooms.find(entry => entry.room === room);
+            if (!group) rooms.push(group = { room, slots: [] });
+            group.slots.push({ ...slot, spot: rest.join(' · ') });
+          }
           return (
             <div className="flex flex-col gap-7">
               <div>
                 <p className="mb-2 text-xs uppercase tracking-[0.25em] text-neutral-400">Portfolio Page</p>
-                <h2 className="text-4xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>Gallery Tour</h2>
+                <h2 className="text-4xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>3D Gallery</h2>
                 <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-500">
-                  The 3D gallery at the top of the Portfolio page has {TOUR_SLOTS.length} places on its walls, the same as the reference film, visited in this order: the entrance hall, the great hall, the side hall, then the glass hall upstairs. Each card says where that place is.
-                  Choose a painting for it, leave it on <strong>Automatic</strong> to fill it from your portfolio, or choose <strong>Empty wall</strong>.
+                  Choose which painting hangs in each place of the walk-through gallery, room by room in the order visitors reach them.
+                  Picking a painting that already hangs somewhere else swaps the two places. Paintings on a wall are spaced out automatically,
+                  so leaving a place as an <strong>Empty wall</strong> gives its neighbours more room.
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5">
-                {TOUR_SLOTS.map(slot => {
-                  const choice = tourMap[slot.id];
-                  const shown = resolved.get(slot.id);
-                  return (
-                    <div key={slot.id} className="overflow-hidden border border-neutral-200 bg-white">
-                      <div className="flex items-start justify-between gap-3 border-b border-neutral-100 px-3 py-3">
-                        <span className="flex h-7 min-w-7 items-center justify-center bg-neutral-900 px-2 text-xs text-white">{slot.id}</span>
-                        <p className="flex-1 text-xs leading-relaxed text-neutral-600">{slot.where}</p>
-                      </div>
-                      <div className="flex items-center gap-3 p-3">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-neutral-50">
-                          {shown ? <img src={shown.image_url} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-[9px] uppercase text-neutral-300">Empty</span>}
-                        </div>
-                        <select
-                          value={choice == null ? 'auto' : String(choice)}
-                          onChange={event => setTourChoice(slot.id, event.target.value)}
-                          className="min-w-0 flex-1 border border-neutral-200 bg-white px-2 py-2 text-xs text-neutral-700"
-                          aria-label={`Painting for wall place ${slot.id}`}
-                        >
-                          <option value="auto">Automatic{choice == null && shown ? ` (${shown.title})` : ''}</option>
-                          <option value="none">Empty wall</option>
-                          {tourArtworks.map(art => <option key={art.id} value={String(art.id)}>{art.title}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex flex-col gap-3 border border-neutral-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                <p className="text-sm text-neutral-600">
+                  <strong className="font-medium text-neutral-900">{filled}</strong> of {TOUR_SLOTS.length} places filled
+                  {notHung.length > 0 && <> · <strong className="font-medium text-neutral-900">{notHung.length}</strong> portfolio {notHung.length === 1 ? 'painting is' : 'paintings are'} not in the gallery</>}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <a href="/portfolio" target="_blank" rel="noreferrer" className="border border-neutral-200 px-4 py-2 text-[11px] uppercase tracking-[0.14em] text-neutral-600 hover:border-neutral-700 hover:text-neutral-900">View gallery ↗</a>
+                  <button onClick={resetTourArrangement} className="border border-neutral-200 px-4 py-2 text-[11px] uppercase tracking-[0.14em] text-neutral-600 hover:border-neutral-700 hover:text-neutral-900">Reset to default</button>
+                </div>
               </div>
 
+              {notHung.length > 0 && (
+                <div className="border border-dashed border-neutral-300 bg-white p-4 sm:p-5">
+                  <p className="mb-3 text-[10px] uppercase tracking-[0.2em] text-neutral-400">Not in the gallery yet</p>
+                  <div className="flex flex-wrap gap-3">
+                    {notHung.map(art => (
+                      <div key={art.id} className="flex w-28 flex-col items-center gap-1.5 text-center">
+                        <div className="flex h-20 w-20 items-center justify-center bg-neutral-50 p-1">
+                          <img src={tourThumb(art.image_url)} onError={tourThumbFallback(art.image_url)} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
+                        </div>
+                        <span className="line-clamp-2 text-[11px] leading-tight text-neutral-600">{art.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {rooms.map(({ room, slots }) => (
+                <section key={room} className="flex flex-col gap-3">
+                  <h3 className="text-xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>{room}</h3>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
+                    {slots.map(slot => {
+                      const choice = tourMap[slot.id];
+                      const shown = resolved.get(slot.id);
+                      const missing = choice != null && choice !== 'none' && !shown;
+                      return (
+                        <div key={slot.id} className={`overflow-hidden border bg-white ${shown ? 'border-neutral-200' : 'border-dashed border-neutral-300'}`}>
+                          <div className="flex items-center gap-2 border-b border-neutral-100 px-3 py-2">
+                            <span className="flex h-6 min-w-6 items-center justify-center bg-neutral-900 px-1.5 text-[11px] text-white">{slot.id}</span>
+                            <p className="flex-1 truncate text-xs text-neutral-500">{slot.spot}</p>
+                          </div>
+                          <div className="flex h-36 items-center justify-center bg-neutral-50 p-3">
+                            {shown
+                              ? <img src={tourThumb(shown.image_url)} onError={tourThumbFallback(shown.image_url)} alt={shown.title} loading="lazy" className="max-h-full max-w-full object-contain drop-shadow" />
+                              : <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-300">{missing ? 'Painting no longer in portfolio' : 'Empty wall'}</span>}
+                          </div>
+                          <div className="p-3">
+                            <select
+                              value={choice == null || missing ? 'none' : String(choice)}
+                              onChange={event => setTourChoice(slot.id, event.target.value)}
+                              className="w-full border border-neutral-200 bg-white px-2 py-2 text-xs text-neutral-700"
+                              aria-label={`Painting for place ${slot.id}, ${slot.where}`}
+                            >
+                              <option value="none">Empty wall</option>
+                              {tourArtworks.map(art => {
+                                const elsewhere = TOUR_SLOTS.find(other => other.id !== slot.id && String(tourMap[other.id]) === String(art.id));
+                                return <option key={art.id} value={String(art.id)}>{art.title}{elsewhere ? ` (in place ${elsewhere.id})` : ''}</option>;
+                              })}
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+
               <div className="sticky bottom-3 flex flex-col items-center justify-between gap-3 border border-neutral-200 bg-white/95 p-4 shadow-lg backdrop-blur sm:flex-row">
-                <p className={`text-xs ${tourMsg.startsWith('✓') ? 'text-green-700' : 'text-neutral-500'}`}>{tourMsg || 'Changes are published only after you save.'}</p>
+                <p className={`text-xs ${tourMsg.startsWith('✓') ? 'text-green-700' : tourMsg.startsWith('Error') ? 'text-red-600' : 'text-neutral-500'}`}>
+                  {tourMsg || (tourDirty ? 'You have unsaved changes.' : 'Changes are published only after you save.')}
+                </p>
                 <button onClick={saveTourSlots} disabled={savingTour}
                   className="w-full bg-neutral-900 px-7 py-3 text-xs uppercase tracking-[0.18em] text-white disabled:opacity-40 sm:w-auto">
-                  {savingTour ? 'Saving…' : 'Save Gallery Tour'}
+                  {savingTour ? 'Saving…' : 'Save Gallery'}
                 </button>
               </div>
             </div>
