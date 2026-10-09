@@ -20,7 +20,7 @@ const STOP_SCREEN_SHARE = 70; // svh of scrolling per camera stop
 const WALL_T = 0.3;
 
 // Bright off-white throughout; stable contact shadows define the architecture.
-const WALL = 0xfffff8;
+const WALL = 0xfffffc;
 const FLOOR = 0xfafaf3;
 const FOG = 0xfffff8;
 
@@ -208,21 +208,23 @@ export default function GalleryTour({ slots, artistName }) {
         return texture;
       };
 
-      // ── Materials: smooth, matte, off-white ──
-      // A bright base keeps shaded plaster white; a small diffuse term adds daylight relief.
-      const brightSurface = (color) => {
-        const material = keep(new THREE.MeshLambertMaterial({ color: 0x242424, emissive: color, emissiveIntensity: 0.94, toneMapped: false }));
+      // Bright plaster with a restrained sheen in direct sunlight.
+      const brightSurface = (color, plaster = false) => {
+        const options = { color: 0x242424, emissive: color, emissiveIntensity: plaster ? 0.98 : 0.94, toneMapped: false };
+        const material = keep(plaster
+          ? new THREE.MeshPhongMaterial({ ...options, specular: 0x454540, shininess: 28 })
+          : new THREE.MeshLambertMaterial(options));
         material.onBeforeCompile = (shader) => {
           shader.fragmentShader = shader.fragmentShader
             .replace('#include <shadowmap_pars_fragment>', '#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>')
-            .replace('#include <opaque_fragment>', 'outgoingLight *= mix(0.84, 1.0, getShadowMask());\n#include <opaque_fragment>');
+            .replace('#include <opaque_fragment>', `outgoingLight *= mix(${plaster ? '0.96' : '0.84'}, 1.0, getShadowMask());\n#include <opaque_fragment>`);
         };
-        material.customProgramCacheKey = () => 'bright-gallery-daylight-v1';
+        material.customProgramCacheKey = () => plaster ? 'bright-gallery-plaster-v2' : 'bright-gallery-daylight-v1';
         return material;
       };
-      const wallMat = brightSurface(WALL);
+      const wallMat = brightSurface(WALL, true);
       const floorMat = brightSurface(FLOOR);
-      const ceilingMat = brightSurface(WALL);
+      const ceilingMat = brightSurface(WALL, true);
       const stepMat = brightSurface(0xf7f7f0);
       const columnMat = wallMat;
       const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3d68b, metalness: 0.35, roughness: 0.4, toneMapped: false }));
@@ -409,7 +411,7 @@ export default function GalleryTour({ slots, artistName }) {
       // bright, even light so the walls read as off-white, with a weak sun for soft shading
       scene.add(new THREE.AmbientLight(0xffffff, 0.76));
       scene.add(new THREE.HemisphereLight(0xe9f4ff, 0xe6e6df, 0.16));
-      const sun = new THREE.DirectionalLight(0xfffcf5, 0.65);
+      const sun = new THREE.DirectionalLight(0xfffffc, 1.05);
       sun.position.set(-5, 35, -35);
       sun.target.position.set(37, 0, -20);
       sun.castShadow = true;
