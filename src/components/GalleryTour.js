@@ -25,7 +25,7 @@ const FLOOR = 0xfafaf3;
 const FOG = 0xfffff8;
 
 // Where each wall place hangs: position of the canvas centre and the way it faces (rotation about y).
-const PLACES = {
+const BASE_PLACES = {
   1: { pos: [3.85, HANG, -5.2], yaw: -Math.PI / 2 },
   2: { pos: [3.85, HANG, -7.8], yaw: -Math.PI / 2 },
   3: { pos: [3.85, HANG, -11.5], yaw: -Math.PI / 2 },
@@ -50,7 +50,7 @@ const PLACES = {
 };
 
 // The camera's route: a keyframe per line (position, look-at point); `stop` marks where scrolling pauses.
-const PATH = [
+const BASE_PATH = [
   { pos: [0, EYE, 5.5], look: [0, 2.2, -8], stop: { kind: 'entrance' } },
   { pos: [0, EYE, -1.5], look: [0, 2.3, -16] },
   { pos: [0.25, EYE, -6.5], look: [4, HANG, -6.5], stop: { bay: [1, 2] } },
@@ -108,7 +108,44 @@ export default function GalleryTour({ slots, artistName }) {
   const [stop, setStop] = useState(0);
   const [hovering, setHovering] = useState(false);
   const [progress, setProgress] = useState(0);
+  // Divide usable walls into equal bays, with space at either end.
+  const PLACES = Object.fromEntries(Object.entries(BASE_PLACES).map(([id, place]) => [id, { ...place, pos: [...place.pos] }]));
+  const walls = [
+    { ids: [1, 2, 3], axis: 2, from: -1, to: -12 },
+    { ids: [4, 5, 6], axis: 2, from: -1, to: -13 },
+    { ids: [7, 8, 11, 12], axis: 0, from: 11, to: 43 },
+    { ids: [9, 10, 13, 14], axis: 0, from: 11, to: 43 },
+    { ids: [15, 16, 17], axis: 0, from: 45, to: 61 },
+    { ids: [18, 19, 20, 21], axis: 2, from: -19.1, to: -49 },
+  ];
+  for (const wall of walls) {
+    const occupied = wall.ids.filter(id => slots.some(entry => entry.slot === id && entry.artwork));
+    occupied.forEach((id, index) => {
+      PLACES[id].pos[wall.axis] = wall.from + (wall.to - wall.from) * (index + 1) / (occupied.length + 1);
+    });
+  }
   const hung = slots.filter(entry => entry.artwork && PLACES[entry.slot]);
+  const paintingStop = id => {
+    const place = PLACES[id];
+    const pos = [...place.pos];
+    pos[0] += Math.sin(place.yaw) * 3.5;
+    pos[2] += Math.cos(place.yaw) * 3.5;
+    pos[1] = id >= 18 ? UPPER_EYE : EYE;
+    return { pos, look: [...place.pos], stop: { bay: [id] } };
+  };
+  const stopsFor = ids => ids.filter(id => hung.some(entry => entry.slot === id)).map(paintingStop);
+  // Face each painting at its new position, keeping the connecting corridors and stairs.
+  const PATH = [
+    ...BASE_PATH.slice(0, 2),
+    ...stopsFor([1, 2, 3, 4, 5, 6]),
+    ...BASE_PATH.slice(5, 8),
+    ...stopsFor([7, 9, 8, 10, 11, 13, 12, 14]),
+    BASE_PATH[16],
+    ...stopsFor([15, 16, 17]),
+    ...BASE_PATH.slice(18, 22),
+    ...stopsFor([18, 19, 20, 21]),
+    BASE_PATH[27],
+  ];
   const bySlot = new Map(hung.map(entry => [entry.slot, entry.artwork]));
   const numberOf = new Map(hung.map((entry, i) => [entry.slot, i + 1]));
   // the stops along the route; a bay with no paintings hung is skipped

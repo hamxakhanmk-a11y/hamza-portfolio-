@@ -27,19 +27,29 @@ export const TOUR_SLOTS = [
 
 export const TOUR_SETTING_KEY = 'gallery_tour_slots';
 
+// Curated arrangement; unused positions remain empty.
+export const DEFAULT_TOUR_MAP = {
+  1: 6, 2: 'none', 3: 'none', 4: 11, 5: 13, 6: 'none',
+  7: 7, 8: 12, 9: 16, 10: 10, 11: 15, 12: 'none',
+  13: 8, 14: 'none', 15: 14, 16: 'none', 17: 'none',
+  18: 3, 19: 4, 20: 5, 21: 'none',
+};
+
 export function parseTourMap(value) {
   try {
     const parsed = JSON.parse(value || '{}');
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? { ...DEFAULT_TOUR_MAP, ...parsed } : { ...DEFAULT_TOUR_MAP };
   } catch {
-    return {};
+    return { ...DEFAULT_TOUR_MAP };
   }
 }
 
 // Saved choice per slot: an artwork id, 'none' for a bare wall, or missing for automatic.
 // Automatic slots take the paintings not chosen anywhere else, in the order given, then repeat.
 export function resolveTourSlots(map, artworks) {
-  const usable = artworks.filter(artwork => artwork.image_url);
+  map = { ...DEFAULT_TOUR_MAP, ...map };
+  const usable = artworks.filter(artwork => artwork.image_url && artwork.section !== 'commissions');
   const byId = new Map(usable.map(artwork => [String(artwork.id), artwork]));
   const chosen = new Set(Object.values(map).map(String).filter(id => byId.has(id)));
   const pool = usable.filter(artwork => !chosen.has(String(artwork.id)));
@@ -48,7 +58,7 @@ export function resolveTourSlots(map, artworks) {
   return TOUR_SLOTS.map(slot => {
     const choice = map[slot.id];
     if (choice === 'none') return { slot: slot.id, artwork: null };
-    if (choice != null && byId.has(String(choice))) return { slot: slot.id, artwork: byId.get(String(choice)) };
+    if (choice != null) return { slot: slot.id, artwork: byId.get(String(choice)) || null };
     return { slot: slot.id, artwork: fallback.length ? fallback[next++ % fallback.length] : null };
   });
 }
