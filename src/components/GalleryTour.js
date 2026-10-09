@@ -7,7 +7,7 @@ import { gallerySkyVertex, gallerySkyFragment } from '@/data/gallerySky';
 import { getRestoredArtworkImage } from '@/data/artworkImageRestoration';
 
 // A white 3D gallery the visitor glides through by scrolling, laid out like the reference film:
-// frosted glass doors open onto the entrance hall (arched window at the end, a stair beside it),
+// frosted glass doors open onto the entrance hall (arched window at the end, an open seating area beside it),
 // a corridor turns into the great hall (oval skylights, benches, paintings in pairs), the side
 // hall leads to a wide flight of stairs, and at the top the route turns into the glass hall.
 // Paintings are fixed objects on the walls, so they never move; the camera does the walking.
@@ -423,11 +423,6 @@ export default function GalleryTour({ slots, artistName }) {
         scene.add(door);
         return { door, side };
       });
-      // a short stair against the far left corner, as in the film, with a slim rail
-      for (let k = 0; k < 10; k++) {
-        const h = 0.19 * (k + 1);
-        block(-3.85, -1.9, 0, h, -11 - 0.4 * k - 0.4, -11 - 0.4 * k, stepMat);
-      }
       const stairSide = (length, rise, position, yaw = 0) => {
         const shape = new THREE.Shape();
         shape.moveTo(0, 0); shape.lineTo(length, 0); shape.lineTo(length, rise + 1.0);
@@ -436,7 +431,6 @@ export default function GalleryTour({ slots, artistName }) {
         const cap = new THREE.Mesh(keep(new THREE.TubeGeometry(new THREE.LineCurve3(new THREE.Vector3(0, 1.06, 0.12), new THREE.Vector3(length, rise + 1.06, 0.12)), 1, 0.105, 12, false)), floorMat);
         cap.rotation.y = yaw; cap.position.set(...position); cap.castShadow = true; scene.add(cap);
       };
-      stairSide(4, 1.9, [-1.98, 0, -11], Math.PI / 2);
       block(-1.2, 1.2, 0, 0.42, -13.2, -14.4, stepMat); // bench
 
       // ── Corridor: x 4..10, z -13..-15.2, 3.2 high ──
@@ -524,51 +518,31 @@ export default function GalleryTour({ slots, artistName }) {
         archMolding([place.pos[0],base,place.pos[2]],1.48,3.1,place.yaw,0.52);
       }
 
-      // Carved classical busts and amphorae stand in empty bays beside the route.
-      const sculptureMat = stoneSurface(0.55, 0.14);
-      const sculpture = (x, z, base = 0, yaw = 0, vase = false) => {
+      // Ivory amphora vases on pedestals in the empty bays beside the route.
+      const vaseMat = stoneSurface(0.55, 0.14);
+      const pedestalVase = (x, z, base = 0, yaw = 0) => {
         const group = new THREE.Group(); group.position.set(x, base, z); group.rotation.y = yaw;
-        const part = (geometry, position, scale = [1, 1, 1]) => {
-          const mesh = new THREE.Mesh(keep(geometry), sculptureMat);
-          mesh.position.set(...position); mesh.scale.set(...scale); mesh.castShadow = mesh.receiveShadow = true;
-          group.add(mesh); return mesh;
+        const part = (geometry, position) => {
+          const mesh = new THREE.Mesh(keep(geometry), vaseMat);
+          mesh.position.set(...position); mesh.castShadow = mesh.receiveShadow = true;
+          group.add(mesh);
         };
         part(new THREE.BoxGeometry(0.92, 0.15, 0.92), [0, 0.075, 0]);
         part(new THREE.BoxGeometry(0.72, 0.95, 0.72), [0, 0.62, 0]);
         part(new THREE.BoxGeometry(0.88, 0.12, 0.88), [0, 1.15, 0]);
-        if (vase) {
-          const profile = [[0.17,0],[0.23,0.06],[0.19,0.13],[0.27,0.28],[0.34,0.54],[0.32,0.7],[0.15,0.88],[0.13,1.08],[0.22,1.14],[0.22,1.2]];
-          part(new THREE.LatheGeometry(profile.map(([r,y]) => new THREE.Vector2(r,y)),48), [0,1.21,0]);
-          for (const side of [-1,1]) {
-            const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(side*0.16,2.25,0),new THREE.Vector3(side*0.48,2.17,0),new THREE.Vector3(side*0.45,1.92,0),new THREE.Vector3(side*0.28,1.82,0)]);
-            part(new THREE.TubeGeometry(curve,24,0.035,8,false),[0,0,0]);
-          }
-        } else {
-          part(new THREE.CylinderGeometry(0.2,0.25,0.1,32),[0,1.28,0]);
-          part(new THREE.SphereGeometry(1,32,24),[0,1.56,0],[0.46,0.32,0.24]);
-          part(new THREE.CylinderGeometry(0.13,0.18,0.28,24),[0,1.86,0]);
-          part(new THREE.SphereGeometry(1,32,24),[0,2.14,0],[0.23,0.31,0.22]);
-          part(new THREE.SphereGeometry(1,16,12),[0,2.13,0.225],[0.055,0.09,0.08]);
-          part(new THREE.SphereGeometry(1,16,12),[0,2.01,0.205],[0.09,0.025,0.025]);
-          for (const side of [-1,1]) {
-            part(new THREE.SphereGeometry(1,16,12),[side*0.235,2.13,0],[0.04,0.065,0.04]);
-            part(new THREE.SphereGeometry(1,16,12),[side*0.095,2.23,0.195],[0.095,0.025,0.03]);
-          }
-          for (let i=0;i<13;i++) {
-            const angle=i/13*Math.PI*2;
-            part(new THREE.SphereGeometry(0.07,12,8),[Math.cos(angle)*0.195,2.34+0.025*Math.sin(angle*3),Math.sin(angle)*0.17]);
-          }
-          for (const side of [-1,1]) {
-            const fold = part(new THREE.BoxGeometry(0.045,0.4,0.035),[side*0.18,1.54,0.22]); fold.rotation.z=side*0.35;
-          }
+        const profile = [[0.17,0],[0.23,0.06],[0.19,0.13],[0.27,0.28],[0.34,0.54],[0.32,0.7],[0.15,0.88],[0.13,1.08],[0.22,1.14],[0.22,1.2]];
+        part(new THREE.LatheGeometry(profile.map(([r,y]) => new THREE.Vector2(r,y)),48), [0,1.21,0]);
+        for (const side of [-1,1]) {
+          const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(side*0.16,2.25,0),new THREE.Vector3(side*0.48,2.17,0),new THREE.Vector3(side*0.45,1.92,0),new THREE.Vector3(side*0.28,1.82,0)]);
+          part(new THREE.TubeGeometry(curve,24,0.035,8,false),[0,0,0]);
         }
         scene.add(group);
       };
-      sculpture(-2.9,-2.6,0,Math.PI/2,true);
-      sculpture(23,-17.2,0,0);
-      sculpture(31,-11,0,Math.PI,true);
-      sculpture(52,-16.9,0,0);
-      sculpture(72,-46,UPPER,Math.PI/2,true);
+      pedestalVase(-2.9,-2.6,0,Math.PI/2);
+      pedestalVase(23,-17.2);
+      pedestalVase(31,-11,0,Math.PI);
+      pedestalVase(52,-16.9);
+      pedestalVase(72,-46,UPPER,Math.PI/2);
 
       // Low-opacity planar reflections show the real paintings and pillars in polished stone.
       // Only the current floor renders a reflection, bounding the extra render cost.
