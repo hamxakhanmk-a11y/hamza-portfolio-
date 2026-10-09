@@ -21,7 +21,6 @@ const WALL_T = 0.3;
 
 // Bright off-white throughout; stable contact shadows define the architecture.
 const WALL = 0xfffffc;
-const FLOOR = 0xfafaf3;
 const FOG = 0xfffff8;
 
 // Where each wall place hangs: position of the canvas centre and the way it faces (rotation about y).
@@ -217,15 +216,21 @@ export default function GalleryTour({ slots, artistName }) {
         material.onBeforeCompile = (shader) => {
           shader.fragmentShader = shader.fragmentShader
             .replace('#include <shadowmap_pars_fragment>', '#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>')
-            .replace('#include <opaque_fragment>', `outgoingLight *= mix(${plaster ? '0.96' : '0.84'}, 1.0, getShadowMask());\n#include <opaque_fragment>`);
+            .replace('#include <opaque_fragment>', plaster
+              ? `float daylight = getShadowMask();
+                 outgoingLight = min(outgoingLight, vec3(1.0));
+                 outgoingLight *= mix(0.96, 1.0, daylight);
+                 outgoingLight *= mix(vec3(1.0), vec3(1.0, 0.988, 0.955), daylight);
+                 #include <opaque_fragment>`
+              : 'outgoingLight *= mix(0.84, 1.0, getShadowMask());\n#include <opaque_fragment>');
         };
-        material.customProgramCacheKey = () => plaster ? 'bright-gallery-plaster-v2' : 'bright-gallery-daylight-v1';
+        material.customProgramCacheKey = () => plaster ? 'ivory-gallery-plaster-v3' : 'bright-gallery-daylight-v1';
         return material;
       };
       const wallMat = brightSurface(WALL, true);
-      const floorMat = brightSurface(FLOOR);
+      const floorMat = wallMat;
       const ceilingMat = brightSurface(WALL, true);
-      const stepMat = brightSurface(0xf7f7f0);
+      const stepMat = wallMat;
       const columnMat = wallMat;
       const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3d68b, metalness: 0.35, roughness: 0.4, toneMapped: false }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
@@ -407,11 +412,10 @@ export default function GalleryTour({ slots, artistName }) {
       ceiling(70.4, 78.4, -18.1, -50, TOP);
       archedWindowWall(70.4, 78.4, UPPER, 6, -50, 1.6, 0.6, 3.6);
 
-      // ── Light: soft, even white daylight, no colour cast ──
-      // bright, even light so the walls read as off-white, with a weak sun for soft shading
+      // Ivory daylight from both sides of the open roof.
       scene.add(new THREE.AmbientLight(0xffffff, 0.76));
       scene.add(new THREE.HemisphereLight(0xe9f4ff, 0xe6e6df, 0.16));
-      const sun = new THREE.DirectionalLight(0xfffffc, 1.05);
+      const sun = new THREE.DirectionalLight(0xfff4df, 1.05);
       sun.position.set(-5, 35, -35);
       sun.target.position.set(37, 0, -20);
       sun.castShadow = true;
@@ -421,6 +425,17 @@ export default function GalleryTour({ slots, artistName }) {
       sun.shadow.normalBias = 0.08;
       scene.add(sun.target);
       scene.add(sun);
+      // Opposite roof opening also casts the ceiling-beam pattern onto left walls.
+      const leftSun = new THREE.DirectionalLight(0xfff4df, 0.75);
+      leftSun.position.set(80, 35, -35);
+      leftSun.target.position.set(37, 0, -20);
+      leftSun.castShadow = true;
+      leftSun.shadow.mapSize.set(narrow ? 1024 : 2048, narrow ? 1024 : 2048);
+      Object.assign(leftSun.shadow.camera, { left: -60, right: 60, top: 50, bottom: -50, near: 0.5, far: 150 });
+      leftSun.shadow.bias = -0.0004;
+      leftSun.shadow.normalBias = 0.08;
+      scene.add(leftSun.target);
+      scene.add(leftSun);
       const fill = new THREE.DirectionalLight(0xeaf4ff, 0.1);
       fill.position.set(-8, 12, -10);
       scene.add(fill);
