@@ -473,7 +473,7 @@ export default function GalleryTour({ slots, artistName }) {
       const shimmer = (position, rotation, width, height, seed, strength = 0.2) => {
         const material = keep(new THREE.ShaderMaterial({
           uniforms: { uTime: { value: 0 }, uSeed: { value: seed }, uStrength: { value: strength } },
-          transparent: true, depthWrite: false, blending: THREE.NormalBlending, toneMapped: false,
+          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
           vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
           fragmentShader: `varying vec2 vUv;
             uniform float uTime; uniform float uSeed; uniform float uStrength;
@@ -489,11 +489,14 @@ export default function GalleryTour({ slots, artistName }) {
               float gold=exp(-pow((d1-0.5)/0.13,2.0));
               float blue=exp(-pow((d2-0.42)/0.12,2.0));
               float pink=exp(-pow((d3-0.36)/0.14,2.0));
-              float breakup=0.45+0.55*smoothstep(-0.6,0.8,sin(bend.x*7.0+bend.y*5.0+t));
+              float breakup=smoothstep(-0.1,0.85,sin(bend.x*7.0+bend.y*5.0+t));
               float light=gold+blue+pink;
               vec3 spectral=(gold*vec3(1.0,0.87,0.52)+blue*vec3(0.57,0.83,1.0)+pink*vec3(1.0,0.65,0.88))/max(light,0.001);
-              vec3 glow=mix(vec3(1.0,0.98,0.89),spectral,0.55);
-              gl_FragColor=vec4(glow,edge*min(light,1.0)*breakup*uStrength);
+              // Concentrated near-white light, with a barely colored fringe.
+              float focus=pow(min(light,1.0),1.7);
+              float fringe=(1.0-focus)*0.07;
+              vec3 glow=mix(vec3(1.0,0.985,0.95),spectral,fringe);
+              gl_FragColor=vec4(glow,edge*focus*breakup*uStrength);
             }`,
         }));
         shimmerMaterials.push(material);
@@ -504,16 +507,16 @@ export default function GalleryTour({ slots, artistName }) {
         const p = [...place.pos];
         p[0] += Math.sin(place.yaw) * 0.018;
         p[2] += Math.cos(place.yaw) * 0.018;
-        shimmer(p, [0, place.yaw, 0], 5.6, 4.8, slot * 1.73, 0.52);
-        shimmer([place.pos[0] + Math.sin(place.yaw) * 1.6, slot >= 18 ? UPPER + 0.022 : 0.022, place.pos[2] + Math.cos(place.yaw) * 1.6], [-Math.PI / 2, 0, place.yaw], 5, 4, slot * 1.73, 0.32);
+        shimmer(p, [0, place.yaw, 0], 4.4, 3.8, slot * 1.73, 0.48);
+        shimmer([place.pos[0] + Math.sin(place.yaw) * 1.6, slot >= 18 ? UPPER + 0.022 : 0.022, place.pos[2] + Math.cos(place.yaw) * 1.6], [-Math.PI / 2, 0, place.yaw], 4, 3.2, slot * 1.73, 0.2);
       }
 
       // Larger reflected patches also reach bare wall bays and the open floor.
-      shimmer([-3.826, 3.8, -8], [0, Math.PI / 2, 0], 6, 4, 2.4, 0.35);
-      shimmer([23, 3.8, -18.926], [0, 0, 0], 7, 5, 5.1, 0.36);
-      shimmer([31, 3.4, -9.274], [0, Math.PI, 0], 6, 5, 8.3, 0.34);
-      shimmer([52, 3.8, -17.926], [0, 0, 0], 8, 5, 3.7, 0.36);
-      shimmer([74.4, UPPER + 0.023, -37], [-Math.PI / 2, 0, 0], 6, 8, 6.2, 0.3);
+      shimmer([-3.826, 3.8, -8], [0, Math.PI / 2, 0], 4.8, 3.2, 2.4, 0.2);
+      shimmer([23, 3.8, -18.926], [0, 0, 0], 5.4, 3.8, 5.1, 0.22);
+      shimmer([31, 3.4, -9.274], [0, Math.PI, 0], 4.8, 3.8, 8.3, 0.2);
+      shimmer([52, 3.8, -17.926], [0, 0, 0], 6, 3.8, 3.7, 0.22);
+      shimmer([74.4, UPPER + 0.023, -37], [-Math.PI / 2, 0, 0], 4.8, 6, 6.2, 0.18);
 
       // One sun casts a consistent pattern; open-sky and bounce light reach both walls.
       scene.add(new THREE.AmbientLight(0xfffcf5, 0.45));
