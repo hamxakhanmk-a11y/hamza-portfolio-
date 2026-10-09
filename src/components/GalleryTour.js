@@ -194,7 +194,7 @@ export default function GalleryTour({ slots, artistName }) {
       scene.fog = new THREE.Fog(FOG, 30, 110);
       const pmrem = new THREE.PMREMGenerator(renderer);
       scene.environment = keep(pmrem.fromScene(new RoomEnvironment(), 0.04).texture);
-      scene.environmentIntensity = 0.2;
+      scene.environmentIntensity = 0.65;
       pmrem.dispose();
 
       const camera = new THREE.PerspectiveCamera(50, 1, 0.3, 300);
@@ -207,30 +207,22 @@ export default function GalleryTour({ slots, artistName }) {
         return texture;
       };
 
-      // Bright plaster with a restrained sheen in direct sunlight.
-      const brightSurface = (color, plaster = false) => {
-        const options = { color: 0x242424, emissive: color, emissiveIntensity: plaster ? 0.98 : 0.94, toneMapped: false };
-        const material = keep(plaster
-          ? new THREE.MeshPhongMaterial({ ...options, specular: 0x454540, shininess: 28 })
-          : new THREE.MeshLambertMaterial(options));
-        material.onBeforeCompile = (shader) => {
-          shader.fragmentShader = shader.fragmentShader
-            .replace('#include <shadowmap_pars_fragment>', '#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>')
-            .replace('#include <opaque_fragment>', plaster
-              ? `float daylight = getShadowMask();
-                 outgoingLight = min(outgoingLight, vec3(1.0));
-                 outgoingLight *= mix(0.96, 1.0, daylight);
-                 outgoingLight *= mix(vec3(1.0), vec3(1.0, 0.988, 0.955), daylight);
-                 #include <opaque_fragment>`
-              : 'outgoingLight *= mix(0.84, 1.0, getShadowMask());\n#include <opaque_fragment>');
-        };
-        material.customProgramCacheKey = () => plaster ? 'ivory-gallery-plaster-v3' : 'bright-gallery-daylight-v1';
-        return material;
-      };
-      const wallMat = brightSurface(WALL, true);
-      const floorMat = wallMat;
-      const ceilingMat = brightSurface(WALL, true);
-      const stepMat = wallMat;
+      // A shared ivory base with real diffuse and specular response to daylight.
+      // No shadow-mask tint or brightness clamp: geometry determines the sun patches.
+      const stoneSurface = (roughness, clearcoat) => keep(new THREE.MeshPhysicalMaterial({
+        color: WALL,
+        metalness: 0,
+        roughness,
+        clearcoat,
+        clearcoatRoughness: 0.24,
+        emissive: WALL,
+        emissiveIntensity: 0.08,
+        toneMapped: true,
+      }));
+      const wallMat = stoneSurface(0.42, 0.25);
+      const floorMat = stoneSurface(0.25, 0.45);
+      const ceilingMat = stoneSurface(0.6, 0.1);
+      const stepMat = floorMat;
       const columnMat = wallMat;
       const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3d68b, metalness: 0.35, roughness: 0.4, toneMapped: false }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
@@ -412,11 +404,11 @@ export default function GalleryTour({ slots, artistName }) {
       ceiling(70.4, 78.4, -18.1, -50, TOP);
       archedWindowWall(70.4, 78.4, UPPER, 6, -50, 1.6, 0.6, 3.6);
 
-      // Ivory daylight from both sides of the open roof.
-      scene.add(new THREE.AmbientLight(0xffffff, 0.76));
-      scene.add(new THREE.HemisphereLight(0xe9f4ff, 0xe6e6df, 0.16));
-      const sun = new THREE.DirectionalLight(0xfff4df, 1.05);
-      sun.position.set(-5, 35, -35);
+      // One sun casts a consistent pattern; open-sky and bounce light reach both walls.
+      scene.add(new THREE.AmbientLight(0xfffcf5, 1.1));
+      scene.add(new THREE.HemisphereLight(0xf5f9ff, 0xfff8ed, 1.8));
+      const sun = new THREE.DirectionalLight(0xfff8eb, 4.0);
+      sun.position.set(-5, 65, -35);
       sun.target.position.set(37, 0, -20);
       sun.castShadow = true;
       sun.shadow.mapSize.set(narrow ? 2048 : 4096, narrow ? 2048 : 4096);
@@ -425,21 +417,6 @@ export default function GalleryTour({ slots, artistName }) {
       sun.shadow.normalBias = 0.08;
       scene.add(sun.target);
       scene.add(sun);
-      // Opposite roof opening also casts the ceiling-beam pattern onto left walls.
-      const leftSun = new THREE.DirectionalLight(0xfff4df, 0.75);
-      leftSun.position.set(80, 35, -35);
-      leftSun.target.position.set(37, 0, -20);
-      leftSun.castShadow = true;
-      leftSun.shadow.mapSize.set(narrow ? 1024 : 2048, narrow ? 1024 : 2048);
-      Object.assign(leftSun.shadow.camera, { left: -60, right: 60, top: 50, bottom: -50, near: 0.5, far: 150 });
-      leftSun.shadow.bias = -0.0004;
-      leftSun.shadow.normalBias = 0.08;
-      scene.add(leftSun.target);
-      scene.add(leftSun);
-      const fill = new THREE.DirectionalLight(0xeaf4ff, 0.1);
-      fill.position.set(-8, 12, -10);
-      scene.add(fill);
-
       // painted shadows: soft dark gradients that sit still on the wall or floor
       const shadowTexture = (w, h, blur) => {
         const canvas = document.createElement('canvas');
