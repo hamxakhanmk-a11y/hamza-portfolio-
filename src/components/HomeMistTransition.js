@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import styles from './HomeMistTransition.module.css';
+import { HOME_DESCENT_SVH } from '@/data/galleryTour';
 
 export function HomeSkyIntro() {
   return <div className={styles.openingSky} data-home-sky aria-hidden="true" />;
@@ -23,7 +24,7 @@ export default function HomeMistTransition() {
       const THREE = await import('three');
       if (disposed) return;
       const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, powerPreference: 'low-power' });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       const scene = new THREE.Scene();
       const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
@@ -39,7 +40,7 @@ export default function HomeMistTransition() {
       });
       texture.colorSpace = THREE.SRGBColorSpace;
       const geometry = new THREE.PlaneGeometry(1, 1);
-      const trailCount = 20;
+      const trailCount = 8;
       const trails = Array.from({ length: trailCount }, () => new THREE.Vector4());
       const strengths = new Float32Array(trailCount);
       const resolution = new THREE.Vector2(1, 1);
@@ -65,8 +66,8 @@ export default function HomeMistTransition() {
             Object.assign(shader.uniforms, stirringUniforms);
             shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
               #include <common>
-              uniform vec4 uCloudTrails[20];
-              uniform float uCloudStrengths[20];
+              uniform vec4 uCloudTrails[8];
+              uniform float uCloudStrengths[8];
               uniform vec2 uCloudResolution;
               uniform float uCloudFlow;
               uniform float uCloudLighten;
@@ -96,7 +97,7 @@ export default function HomeMistTransition() {
               #ifdef USE_MAP
                 vec2 screen = gl_FragCoord.xy / uCloudResolution.y;
                 vec2 displacement = vec2(0.0);
-                for (int i = 0; i < 20; i++) {
+                for (int i = 0; i < 8; i++) {
                   vec2 offset = screen - uCloudTrails[i].xy;
                   float influence = exp(-dot(offset, offset) / 0.018);
                   vec2 curl = vec2(-offset.y, offset.x);
@@ -135,7 +136,7 @@ export default function HomeMistTransition() {
               #endif
             `);
           };
-          material.customProgramCacheKey = () => 'continuous-cloud-mist-v4';
+          material.customProgramCacheKey = () => 'continuous-cloud-mist-v5';
           const mesh = new THREE.Mesh(geometry, material);
           mesh.scale.set(2, 2, 1);
           scene.add(mesh);
@@ -183,15 +184,21 @@ export default function HomeMistTransition() {
         hero.style.setProperty('--hero-edge', `${THREE.MathUtils.smoothstep(progress, 0, 0.2) * window.innerHeight * 0.4}px`);
         const skyHeight = sky?.offsetHeight || 1;
         const introProgress = Math.max(0, Math.min(1, window.scrollY / skyHeight));
+        hero.style.setProperty('--hero-arrival-edge', `${(1 - introProgress) * window.innerHeight * 0.5}px`);
         const heroArrival = Math.max(0, (window.scrollY - skyHeight) / window.innerHeight);
         const opening = Boolean(sky && sky.getBoundingClientRect().bottom > 0);
         const gallery = document.querySelector('[data-sky-descent]');
         const descent = Number(gallery?.dataset.descent || 0);
         const galleryRect = gallery?.getBoundingClientRect();
         const departure = THREE.MathUtils.smoothstep(progress, 0, 1);
+        const skyTone = THREE.MathUtils.smoothstep(progress, 0, 0.8);
+        const skyColor = `rgb(${Math.round(6 + 134 * skyTone)} ${Math.round(58 + 126 * skyTone)} ${Math.round(91 + 117 * skyTone)})`;
+        hero.style.setProperty('--journey-sky', skyColor);
+        gallery?.style.setProperty('--journey-sky', skyColor);
+        hero.closest('main')?.style.setProperty('--journey-sky', skyColor);
         gallery?.style.setProperty('--gallery-edge', `${(1 - departure) * window.innerHeight * 0.5}px`);
         const inDescent = galleryRect && galleryRect.top < window.innerHeight && galleryRect.bottom > 0 &&
-          (descent < 1 || galleryRect.top > -window.innerHeight * 3);
+          (descent < 1 || galleryRect.top > -window.innerHeight * HOME_DESCENT_SVH / 100);
         const arriving = Boolean(sky && heroArrival < 0.9);
         const active = (opening || arriving || (progress > 0 && progress < 1) || inDescent) && !document.hidden && !motion.matches && !contextLost;
         canvas.style.opacity = active && textureReady ? '1' : '0';
@@ -211,7 +218,7 @@ export default function HomeMistTransition() {
         const envelope = opening ? 1 : arriving ? 1 - THREE.MathUtils.smoothstep(heroArrival, 0, 0.9) :
           departure * (1 - THREE.MathUtils.smoothstep(descent, 0.2, 0.86));
         stirringUniforms.uCloudLighten.value = opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0, 1) * 0.3 :
-          THREE.MathUtils.lerp(0.3, 1, THREE.MathUtils.smoothstep(descent, 0, 0.78));
+          THREE.MathUtils.lerp(0.3, 1, THREE.MathUtils.smoothstep((Math.max(0, Math.min(1, progress)) + descent) / 2, 0, 0.8));
         stirringUniforms.uCloudEnvelope.value = envelope;
         stirringUniforms.uCloudSides.value = opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0.3, 1) :
           1 - THREE.MathUtils.smoothstep(progress, 0.1, 1);
@@ -264,8 +271,12 @@ export default function HomeMistTransition() {
         renderer.dispose();
         hero.style.removeProperty('--sky-departure');
         hero.style.removeProperty('--hero-edge');
+        hero.style.removeProperty('--hero-arrival-edge');
+        hero.style.removeProperty('--journey-sky');
+        hero.closest('main')?.style.removeProperty('--journey-sky');
         sky?.style.removeProperty('--sky-bridge-opacity');
         document.querySelector('[data-sky-descent]')?.style.removeProperty('--gallery-edge');
+        document.querySelector('[data-sky-descent]')?.style.removeProperty('--journey-sky');
       };
     }
     let startupObserver;

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { TOUR_SLOTS } from '@/data/galleryTour';
+import { TOUR_SLOTS, HOME_DESCENT_SVH } from '@/data/galleryTour';
 import { gallerySkyVertex, gallerySkyFragment } from '@/data/gallerySky';
 import { getRestoredArtworkImage } from '@/data/artworkImageRestoration';
 
@@ -897,7 +897,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const rect = root.getBoundingClientRect();
         const travel = root.offsetHeight - hostRef.current.clientHeight;
         const p = travel > 0 ? Math.min(1, Math.max(0, -rect.top / travel)) : 0;
-        const descentTravel = descendFromSky && !reducedMotion ? window.innerHeight * 3 : 0;
+        const descentTravel = descendFromSky && !reducedMotion ? window.innerHeight * HOME_DESCENT_SVH / 100 : 0;
         const distance = Math.max(0, -rect.top);
         target = distance < descentTravel ? -3 * (1 - distance / descentTravel) :
           clamp01((distance - descentTravel) / Math.max(1, travel - descentTravel)) * (stopKeys.length - 1);
@@ -929,7 +929,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         if (!visible) return;
         if (!reducedMotion) skyMat.uniforms.uTime.value += elapsed;
         // critically damped glide towards the scroll position
-        current += (target - current) * (reducedMotion ? 1 : 1 - Math.exp(-delta * 2.4));
+        current += (target - current) * (reducedMotion ? 1 : 1 - Math.exp(-delta * 6.5));
         if (Math.abs(target - current) < 0.002) current = target; // settle fully: no long, barely-moving tail
         // the pointer's gentle pull; it settles completely, so the picture is perfectly still at rest
         sway.x += (sway.tx - sway.x) * Math.min(1, delta * 2);
@@ -1016,7 +1016,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       data-sky-descent={descendFromSky ? 'true' : undefined}
       data-water-surface-block
       className={`relative bg-[#f8f4ed] ${descendFromSky ? 'sky-gallery-tour' : ''}`}
-      style={descendFromSky ? { '--tour-height': `${stopCount * STOP_SCREEN_SHARE}svh` } : { height: `${stopCount * STOP_SCREEN_SHARE}svh` }}
+      style={descendFromSky ? { '--tour-height': `${stopCount * STOP_SCREEN_SHARE}svh`, '--descent-height': `${HOME_DESCENT_SVH}svh` } : { height: `${stopCount * STOP_SCREEN_SHARE}svh` }}
       aria-label="Walk-through gallery of portfolio paintings"
     >
       <div className="sticky top-0 h-[100svh] overflow-hidden">

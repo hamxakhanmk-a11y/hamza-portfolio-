@@ -67,7 +67,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
             trigger: rootRef.current,
             start: 'top top',
             end: 'bottom bottom',
-            scrub: 0.45,
+            scrub: true,
             invalidateOnRefresh: true,
           },
         });

@@ -21,9 +21,9 @@ export default function HomeSmoothScroll() {
       if (disposed || motion.matches || instance) return;
       const ScrollTrigger = scrollModule.ScrollTrigger || scrollModule.default;
       instance = new Lenis({
-        lerp: 0.12,
+        lerp: 0.22,
         smoothWheel: true,
-        wheelMultiplier: 1,
+        wheelMultiplier: 1.15,
         syncTouch: false,
         touchMultiplier: 1,
         anchors: true,

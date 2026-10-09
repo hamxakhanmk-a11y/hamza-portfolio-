@@ -26,6 +26,7 @@ export const TOUR_SLOTS = [
 ];
 
 export const TOUR_SETTING_KEY = 'gallery_tour_slots';
+export const HOME_DESCENT_SVH = 180;
 
 // Curated arrangement; unused positions remain empty.
 export const DEFAULT_TOUR_MAP = {

@@ -13,21 +13,23 @@
   z-index: 1;
   height: 100svh;
   background: linear-gradient(180deg, #08283f, #063a5b);
+  mask-image: linear-gradient(180deg, #000 60%, transparent);
 }
 
-.journey { background: #063a5b; }
+.journey { background: var(--journey-sky, #063a5b); }
+.journey :global(.intro-shell.intro-embedded) { background: var(--journey-sky, #063a5b); }
 
-.journey :global(#gallery-tour) { background: #063a5b; }
+.journey :global(#gallery-tour) { background: var(--journey-sky, #8cb8d0); }
 .journey :global(.gallery-tour-scene) {
   mask-image: linear-gradient(180deg, transparent, #000 var(--gallery-edge, 0px));
 }
 .journey :global(.intro-sticky) {
-  mask-image: linear-gradient(180deg, #000 calc(100% - var(--hero-edge, 0px)), transparent);
+  background: var(--journey-sky, #063a5b);
+  mask-image: linear-gradient(180deg, transparent, #000 var(--hero-arrival-edge, 0px), #000 calc(100% - var(--hero-edge, 0px)), transparent);
 }
 
 .journey :global(.intro-media) {
-  opacity: calc(1 - var(--sky-departure, 0));
-  mask-image: linear-gradient(180deg, #000 45%, rgb(0 0 0 / clamp(0, calc(1 - var(--sky-departure, 0) * 6), 1)) 100%);
+  opacity: 1;
 }
 
 .journey :global(#gallery) {

@@ -74,7 +74,7 @@ body {
   pointer-events: none;
 }
 
-.sky-gallery-tour { height: calc(var(--tour-height) + 300svh); }
+.sky-gallery-tour { height: calc(var(--tour-height) + var(--descent-height)); }
 @media (prefers-reduced-motion: reduce) {
   .sky-gallery-tour { height: var(--tour-height); }
 }
