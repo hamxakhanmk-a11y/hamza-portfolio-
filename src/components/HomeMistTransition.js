@@ -158,7 +158,12 @@ export default function HomeMistTransition() {
         const introProgress = Math.max(0, Math.min(1, window.scrollY / skyHeight));
         sky?.style.setProperty('--sky-bridge-opacity', String(1 - THREE.MathUtils.smoothstep(introProgress, 0.72, 1)));
         const opening = Boolean(sky && sky.getBoundingClientRect().bottom > 0);
-        const active = (opening || (progress > 0 && progress < 4.1)) && !document.hidden && !motion.matches && !contextLost;
+        const gallery = document.querySelector('[data-sky-descent]');
+        const descent = Number(gallery?.dataset.descent || 0);
+        const galleryRect = gallery?.getBoundingClientRect();
+        const inDescent = galleryRect && galleryRect.top < window.innerHeight && galleryRect.bottom > 0 &&
+          (descent < 1 || galleryRect.top > -window.innerHeight * 3);
+        const active = (opening || (progress > 0 && progress < 1) || inDescent) && !document.hidden && !motion.matches && !contextLost;
         canvas.style.opacity = active && textureReady ? '1' : '0';
         canvas.style.backgroundColor = 'transparent';
         if (!active) { last = 0; return; }
@@ -172,9 +177,9 @@ export default function HomeMistTransition() {
           renderer.setSize(w, h, false);
           renderer.getDrawingBufferSize(resolution);
         }
-        const flightProgress = opening ? introProgress : progress;
+        const flightProgress = opening ? introProgress : inDescent ? descent * 3 + 1 : progress;
         const envelope = opening ? 1 - THREE.MathUtils.smoothstep(introProgress, 0.45, 1) :
-          THREE.MathUtils.smoothstep(progress, 0, 0.35) * (1 - THREE.MathUtils.smoothstep(progress, 3.1, 4.1));
+          inDescent ? (1 - THREE.MathUtils.smoothstep(descent, 0.2, 0.86)) : THREE.MathUtils.smoothstep(progress, 0, 0.35);
         stirringUniforms.uCloudFlow.value = flightProgress * 1.2 + elapsed * 0.035;
         material.opacity = envelope;
         renderer.render(scene, camera);
@@ -229,7 +234,6 @@ export default function HomeMistTransition() {
 
   return (
     <>
-      <div className={styles.pathway} aria-hidden="true" />
       <canvas ref={canvasRef} className={styles.mist} aria-hidden="true" />
     </>
   );

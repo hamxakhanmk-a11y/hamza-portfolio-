@@ -133,7 +133,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
           </div>
 
           <div className="intro-scene">
-            <Link href="/portfolio" className="intro-enter-scene">
+            <Link href="#gallery-tour" className="intro-enter-scene">
               <div className="intro-positioned-copy" style={textPosition(4)}>
                 <span>{heroText?.[4]?.eyebrow || 'Enter the'}</span>
                 <strong>{heroText?.[4]?.title || 'Collection'}</strong>

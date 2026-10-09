@@ -26,11 +26,6 @@
   pointer-events: none;
 }
 
-.pathway {
-  height: 210svh;
-  background: linear-gradient(180deg, #063a5b 0%, #397f9f 26%, #90bed3 60%, #edf7fb 100%);
-}
-
 .journey :global(.intro-media) {
   opacity: calc(1 - var(--sky-departure, 0));
   mask-image: linear-gradient(180deg, #000 45%, rgb(0 0 0 / clamp(0, calc(1 - var(--sky-departure, 0) * 6), 1)) 100%);
@@ -52,6 +47,5 @@
 @media (prefers-reduced-motion: reduce) {
   .openingSky { display: none; }
   .mist { display: none; }
-  .pathway { display: none; }
   .journey :global(.intro-media) { opacity: 1; mask-image: none; }
 }

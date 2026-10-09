@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import Hero from "@/components/Hero";
 import Gallery from "@/components/Gallery";
+import HomeGalleryTour from "@/components/HomeGalleryTour";
 import Contact from "@/components/Contact";
 import CommissionInquiry from "@/components/CommissionInquiry";
 import WaterSurface from "@/components/WaterSurface";
@@ -18,6 +19,7 @@ export default function Home() {
         <HomeSkyIntro />
         <Hero />
         <HomeMistTransition />
+        <HomeGalleryTour />
         <Gallery />
         <CommissionInquiry compact />
         <Contact />

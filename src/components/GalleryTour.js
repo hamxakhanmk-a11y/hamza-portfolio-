@@ -99,7 +99,7 @@ function hasTransparentCorners(image) {
   return [[1, 1], [size - 2, 1], [1, size - 2], [size - 2, size - 2]].every(([x, y]) => data[(y * size + x) * 4 + 3] < 40);
 }
 
-export default function GalleryTour({ slots, artistName }) {
+export default function GalleryTour({ slots, artistName, descendFromSky = false, collectionId = 'portfolio-collection' }) {
   const rootRef = useRef(null);
   const hostRef = useRef(null);
   const router = useRouter();
@@ -107,6 +107,7 @@ export default function GalleryTour({ slots, artistName }) {
   const [stop, setStop] = useState(0);
   const [hovering, setHovering] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [descending, setDescending] = useState(descendFromSky);
   // Divide usable walls into equal bays, with space at either end.
   const PLACES = Object.fromEntries(Object.entries(BASE_PLACES).map(([id, place]) => [id, { ...place, pos: [...place.pos] }]));
   const walls = [
@@ -135,7 +136,7 @@ export default function GalleryTour({ slots, artistName }) {
   const stopsFor = ids => ids.filter(id => hung.some(entry => entry.slot === id)).map(paintingStop);
   // Face each painting at its new position, keeping the connecting corridors and stairs.
   const PATH = [
-    ...BASE_PATH.slice(0, 2),
+    ...(descendFromSky ? [{ pos: [0, EYE, -2], look: [0, 2.3, -16], stop: { kind: 'entrance' } }] : BASE_PATH.slice(0, 2)),
     ...stopsFor([1, 2, 3, 4, 5, 6]),
     ...BASE_PATH.slice(5, 8),
     ...stopsFor([7, 9, 8, 10, 11, 13, 12, 14]),
@@ -159,10 +160,11 @@ export default function GalleryTour({ slots, artistName }) {
     let cleanup = () => {};
 
     (async () => {
-      const [THREE, { RoomEnvironment }, { Reflector }] = await Promise.all([
+      const [THREE, { RoomEnvironment }, { Reflector }, { mergeGeometries }] = await Promise.all([
         import('three'),
         import('three/addons/environments/RoomEnvironment.js'),
         import('three/addons/objects/Reflector.js'),
+        import('three/addons/utils/BufferGeometryUtils.js'),
       ]);
       if (disposed || !hostRef.current) return;
       const host = hostRef.current;
@@ -544,6 +546,44 @@ export default function GalleryTour({ slots, artistName }) {
       pedestalVase(52,-16.9);
       pedestalVase(72,-46,UPPER,Math.PI/2);
 
+      // Batch stationary architecture by material and shadow settings. The reflective
+      // floor renders this scene again, so reducing draw calls benefits both passes.
+      // Sliding doors stay separate because their transforms change during the tour.
+      scene.updateMatrixWorld(true);
+      const doorGroups = new Set(doors.map(entry => entry.door));
+      const batches = new Map();
+      scene.traverse(mesh => {
+        if (!mesh.isMesh || Array.isArray(mesh.material) || mesh.material.transparent || mesh.material.isShaderMaterial) return;
+        for (let parent = mesh.parent; parent; parent = parent.parent) if (doorGroups.has(parent)) return;
+        const key = mesh.material.uuid + ':' + mesh.castShadow + ':' + mesh.receiveShadow;
+        if (!batches.has(key)) batches.set(key, []);
+        batches.get(key).push(mesh);
+      });
+      let architectureBefore = 0, architectureAfter = 0;
+      for (const meshes of batches.values()) {
+        architectureBefore += meshes.length;
+        architectureAfter += meshes.length < 2 ? meshes.length : 1;
+        if (meshes.length < 2) continue;
+        const parts = meshes.map(mesh => {
+          const geometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+          geometry.applyMatrix4(mesh.matrixWorld);
+          return geometry;
+        });
+        const geometry = mergeGeometries(parts, false);
+        for (const part of parts) part.dispose();
+        if (!geometry) continue;
+        const merged = new THREE.Mesh(keep(geometry), meshes[0].material);
+        merged.castShadow = meshes[0].castShadow;
+        merged.receiveShadow = meshes[0].receiveShadow;
+        for (const mesh of meshes) mesh.removeFromParent();
+        scene.add(merged);
+      }
+
+      if (new URLSearchParams(window.location.search).has('galleryDebug')) {
+        host.dataset.staticMeshesBefore = String(architectureBefore);
+        host.dataset.staticMeshesAfter = String(architectureAfter);
+      }
+
       // Low-opacity planar reflections show the real paintings and pillars in polished stone.
       // Only the current floor renders a reflection, bounding the extra render cost.
       const floorReflections = [];
@@ -822,6 +862,14 @@ export default function GalleryTour({ slots, artistName }) {
       const lookPoint = new THREE.Vector3();
       const sway = { x: 0, y: 0, tx: 0, ty: 0 };
       const placeCamera = s => {
+        if (s < 0) {
+          // Descend through the open bay at z=-2, between the roof beams.
+          const flight = smootherstep(clamp01(1 + s / 3));
+          camera.position.set(0, THREE.MathUtils.lerp(48, EYE, flight), -2);
+          lookPoint.set(0, THREE.MathUtils.lerp(38, 2.3, flight), THREE.MathUtils.lerp(-5, -16, flight));
+          camera.lookAt(lookPoint);
+          return;
+        }
         const t = Math.min(1, Math.max(0, stopToKey(s) / segments));
         positionCurve.getPoint(t, camera.position);
         targetCurve.getPoint(t, lookPoint);
@@ -838,6 +886,7 @@ export default function GalleryTour({ slots, artistName }) {
       let current = 0;
       let lastStop = -1;
       let lastProgress = -1;
+      let wasDescending = descendFromSky;
       let visible = true;
       let frameId = 0;
       let lastTime = performance.now();
@@ -846,9 +895,12 @@ export default function GalleryTour({ slots, artistName }) {
         const root = rootRef.current;
         if (!root) return;
         const rect = root.getBoundingClientRect();
-        const travel = root.offsetHeight - window.innerHeight;
+        const travel = root.offsetHeight - hostRef.current.clientHeight;
         const p = travel > 0 ? Math.min(1, Math.max(0, -rect.top / travel)) : 0;
-        target = p * (stopKeys.length - 1);
+        const descentTravel = descendFromSky && !reducedMotion ? window.innerHeight * 3 : 0;
+        const distance = Math.max(0, -rect.top);
+        target = distance < descentTravel ? -3 * (1 - distance / descentTravel) :
+          clamp01((distance - descentTravel) / Math.max(1, travel - descentTravel)) * (stopKeys.length - 1);
         if (Math.abs(p - lastProgress) > 0.002) { lastProgress = p; setProgress(p); }
       };
 
@@ -868,10 +920,11 @@ export default function GalleryTour({ slots, artistName }) {
       };
 
       const tick = () => {
+        if (disposed || !rootRef.current) return;
         frameId = requestAnimationFrame(tick);
         const now = performance.now();
         const elapsed = (now - lastTime) / 1000;
-        const delta = Math.min(elapsed, 0.05);
+        const delta = Math.min(elapsed, 0.25);
         lastTime = now;
         if (!visible) return;
         if (!reducedMotion) skyMat.uniforms.uTime.value += elapsed;
@@ -884,11 +937,14 @@ export default function GalleryTour({ slots, artistName }) {
         if (Math.abs(sway.tx - sway.x) < 0.00005) sway.x = sway.tx;
         if (Math.abs(sway.ty - sway.y) < 0.00005) sway.y = sway.ty;
         placeCamera(current);
-        floorReflections[0].visible = camera.position.y < UPPER + 0.5;
-        floorReflections[1].visible = camera.position.y >= UPPER + 0.5;
+        if (descendFromSky) rootRef.current.dataset.descent = String(clamp01(1 + current / 3));
+        floorReflections[0].visible = current >= 0 && camera.position.y < UPPER + 0.5;
+        floorReflections[1].visible = current >= 0 && camera.position.y >= UPPER + 0.5;
         if (!reducedMotion) for (const material of shimmerMaterials) material.uniforms.uTime.value += elapsed;
         renderer.render(scene, camera);
-        const nearest = Math.round(current);
+        const nearest = Math.max(0, Math.round(current));
+        const isDescending = current < -0.01;
+        if (isDescending !== wasDescending) { wasDescending = isDescending; setDescending(isDescending); }
         if (nearest !== lastStop) { lastStop = nearest; setStop(nearest); }
       };
 
@@ -896,6 +952,7 @@ export default function GalleryTour({ slots, artistName }) {
       const raycaster = new THREE.Raycaster();
       const pointer = new THREE.Vector2();
       const pick = event => {
+        if (current < 0) return null;
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
         raycaster.setFromCamera(pointer, camera);
@@ -949,21 +1006,24 @@ export default function GalleryTour({ slots, artistName }) {
   const atEnd = stop >= stopCount - 1;
 
   function skipToCollection() {
-    document.getElementById('portfolio-collection')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById(collectionId)?.scrollIntoView({ behavior: 'smooth' });
   }
 
   return (
     <section
       ref={rootRef}
-      className="relative bg-[#f8f4ed]"
-      style={{ height: `${stopCount * STOP_SCREEN_SHARE}svh` }}
+      id="gallery-tour"
+      data-sky-descent={descendFromSky ? 'true' : undefined}
+      data-water-surface-block
+      className={`relative bg-[#f8f4ed] ${descendFromSky ? 'sky-gallery-tour' : ''}`}
+      style={descendFromSky ? { '--tour-height': `${stopCount * STOP_SCREEN_SHARE}svh` } : { height: `${stopCount * STOP_SCREEN_SHARE}svh` }}
       aria-label="Walk-through gallery of portfolio paintings"
     >
       <div className="sticky top-0 h-[100svh] overflow-hidden">
         <div ref={hostRef} className="absolute inset-0" style={{ cursor: hovering ? 'pointer' : 'default' }} />
 
         {/* Title card over the doors, as the film opens */}
-        <div className={`pointer-events-none absolute inset-x-0 top-[22%] flex flex-col items-center text-center transition-opacity duration-700 ${status === 'ready' && progress < 0.012 ? 'opacity-100' : 'opacity-0'}`}>
+        <div className={`pointer-events-none absolute inset-x-0 top-[22%] flex flex-col items-center text-center transition-opacity duration-700 ${status === 'ready' && !descending && stop === 0 ? 'opacity-100' : 'opacity-0'}`}>
           <p className="text-4xl font-light tracking-[0.2em] text-[#4a4a48] sm:text-6xl" style={{ fontFamily: 'var(--font-cormorant)' }}>{artistName.toUpperCase()}</p>
           <p className="mt-3 text-[11px] uppercase tracking-[0.45em] text-[#ed7189]">Portfolio</p>
         </div>
@@ -981,7 +1041,8 @@ export default function GalleryTour({ slots, artistName }) {
         </button>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-4 sm:bottom-10">
-          {currentStop.kind === 'entrance' && status === 'ready' && (
+          {descending && status === 'ready' && <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/70">Scroll through the clouds</p>}
+          {!descending && currentStop.kind === 'entrance' && status === 'ready' && (
             <div className="flex flex-col items-center gap-3 text-center">
               <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/70">Scroll to walk through the gallery</p>
               <span className="block h-9 w-5 rounded-full border border-[#075f8f]/40 p-1">

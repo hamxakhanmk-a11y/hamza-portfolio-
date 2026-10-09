@@ -2,10 +2,6 @@ export const dynamic = 'force-dynamic';
 
 import { createClient } from '@supabase/supabase-js';
 import ArtworkGrid from '@/components/ArtworkGrid';
-import GalleryTour from '@/components/GalleryTour';
-import { TOUR_SETTING_KEY, parseTourMap, resolveTourSlots } from '@/data/galleryTour';
-import { isRoundArtwork } from '@/data/artworkPresentation';
-import { siteConfig } from '@/data/config';
 
 function publicClient() {
   return createClient(
@@ -27,34 +23,12 @@ async function getArtworks(sections) {
   } catch { return []; }
 }
 
-async function getTourMap() {
-  try {
-    const { data } = await publicClient().from('site_text').select('value').eq('key', TOUR_SETTING_KEY).maybeSingle();
-    return parseTourMap(data?.value);
-  } catch { return {}; }
-}
-
 export default async function PortfolioPage() {
-  const [artworks, commissions, tourMap] = await Promise.all([getArtworks(['portfolio', 'shop']), getArtworks(['commissions']), getTourMap()]);
-  // the tour hangs the portfolio first, then commissions, so its walls are full like the film's
-  const tourSlots = resolveTourSlots(tourMap, [...artworks, ...commissions]).map(({ slot, artwork }) => ({
-    slot,
-    artwork: artwork && {
-      id: artwork.id,
-      title: artwork.title,
-      image_url: artwork.image_url,
-      size: artwork.size,
-      medium: artwork.medium,
-      price: artwork.price,
-      available: artwork.available,
-      round: isRoundArtwork(artwork),
-    },
-  }));
+  const artworks = await getArtworks(['portfolio', 'shop']);
 
   return (
     <>
       <main className="bg-white min-h-screen">
-        <GalleryTour slots={tourSlots} artistName={siteConfig.artistName} />
 
         <div id="portfolio-collection" className="scroll-mt-24 pb-10 pt-28 text-center sm:pb-16 sm:pt-36">
           <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: 'var(--color-coral)' }}>Collection</p>
