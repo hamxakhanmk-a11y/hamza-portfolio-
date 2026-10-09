@@ -136,7 +136,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
   const stopsFor = ids => ids.filter(id => hung.some(entry => entry.slot === id)).map(paintingStop);
   // Face each painting at its new position, keeping the connecting corridors and stairs.
   const PATH = [
-    ...(descendFromSky ? [{ pos: [0, EYE, -2], look: [0, 2.3, -16], stop: { kind: 'entrance' } }] : BASE_PATH.slice(0, 2)),
+    ...BASE_PATH.slice(0, 2),
     ...stopsFor([1, 2, 3, 4, 5, 6]),
     ...BASE_PATH.slice(5, 8),
     ...stopsFor([7, 9, 8, 10, 11, 13, 12, 14]),
@@ -863,10 +863,10 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const sway = { x: 0, y: 0, tx: 0, ty: 0 };
       const placeCamera = s => {
         if (s < 0) {
-          // Descend through the open bay at z=-2, between the roof beams.
+          // Land on the forecourt facing the doors; the existing route then enters.
           const flight = smootherstep(clamp01(1 + s / 3));
-          camera.position.set(0, THREE.MathUtils.lerp(48, EYE, flight), -2);
-          lookPoint.set(0, THREE.MathUtils.lerp(38, 2.3, flight), THREE.MathUtils.lerp(-5, -16, flight));
+          camera.position.set(0, THREE.MathUtils.lerp(48, EYE, flight), THREE.MathUtils.lerp(12, 5.5, flight));
+          lookPoint.set(0, THREE.MathUtils.lerp(38, 2.2, flight), THREE.MathUtils.lerp(2, -8, flight));
           camera.lookAt(lookPoint);
           return;
         }

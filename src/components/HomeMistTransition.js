@@ -50,9 +50,13 @@ export default function HomeMistTransition() {
         uCloudStrengths: { value: strengths },
         uCloudResolution: { value: resolution },
         uCloudFlow: { value: 0 },
+        uCloudLighten: { value: 0 },
+        uCloudEnvelope: { value: 1 },
+        uCloudSeam: { value: -2 },
+        uCloudSeamStrength: { value: 0 },
       };
           const material = new THREE.MeshBasicMaterial({
-            map: texture, color: '#d8edfa', transparent: true,
+            map: texture, color: '#ffffff', transparent: true,
             depthWrite: false, opacity: 0, toneMapped: false,
           });
           // Distort the vapor locally in screen space, without steering the camera.
@@ -64,6 +68,10 @@ export default function HomeMistTransition() {
               uniform float uCloudStrengths[20];
               uniform vec2 uCloudResolution;
               uniform float uCloudFlow;
+              uniform float uCloudLighten;
+              uniform float uCloudEnvelope;
+              uniform float uCloudSeam;
+              uniform float uCloudSeamStrength;
               float cloudHash(vec2 p) {
                 return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
               }
@@ -102,14 +110,22 @@ export default function HomeMistTransition() {
                 vec4 wisps = texture2D(map, clamp(stirredUv + vec2((broad - 0.5) * 0.12, (vapor - 0.5) * 0.18), 0.0, 1.0));
                 float surrounding = smoothstep(0.12, 0.48, abs(vMapUv.x - 0.5));
                 float density = smoothstep(0.20, 0.62, broad * 0.65 + vapor * 0.35);
-                float opacity = clamp(density * (0.85 + surrounding * 0.12) + wisps.a * 0.3, 0.0, 0.96);
-                vec3 mistColor = mix(vec3(0.50, 0.70, 0.80), vec3(0.96, 0.98, 1.0), smoothstep(0.28, 0.65, vapor));
-                mistColor = mix(mistColor, wisps.rgb, wisps.a * 0.35);
+                float opacity = clamp(density * (0.85 + surrounding * 0.12) + wisps.a * 0.3, 0.0, 0.96) * uCloudEnvelope;
+                // Feather the actual section edge with the same cloud field on both sides.
+                float bridge = (1.0 - smoothstep(0.035, 0.38, abs(screen.y - uCloudSeam))) * uCloudSeamStrength;
+                opacity = mix(opacity, 1.0, bridge);
+                vec3 paintedCloud = mix(vec3(0.055, 0.20, 0.32), vec3(0.23, 0.57, 0.65), smoothstep(0.22, 0.68, vapor));
+                float rose = smoothstep(0.42, 0.66, cloudFbm(field * 0.55 + 8.3));
+                paintedCloud = mix(paintedCloud, vec3(0.76, 0.48, 0.58), rose * 0.48);
+                paintedCloud = mix(paintedCloud, vec3(0.84, 0.82, 0.73), smoothstep(0.65, 0.87, vapor) * 0.35);
+                vec3 paleCloud = mix(vec3(0.57, 0.76, 0.87), vec3(0.98, 0.99, 1.0), smoothstep(0.28, 0.65, vapor));
+                paleCloud = mix(paleCloud, wisps.rgb, wisps.a * 0.2);
+                vec3 mistColor = mix(paintedCloud, paleCloud, uCloudLighten);
                 diffuseColor *= vec4(mistColor, opacity);
               #endif
             `);
           };
-          material.customProgramCacheKey = () => 'continuous-cloud-mist-v2';
+          material.customProgramCacheKey = () => 'continuous-cloud-mist-v3';
           const mesh = new THREE.Mesh(geometry, material);
           mesh.scale.set(2, 2, 1);
           scene.add(mesh);
@@ -156,14 +172,15 @@ export default function HomeMistTransition() {
         hero.style.setProperty('--sky-departure', String(Math.max(0, Math.min(1, progress))));
         const skyHeight = sky?.offsetHeight || 1;
         const introProgress = Math.max(0, Math.min(1, window.scrollY / skyHeight));
-        sky?.style.setProperty('--sky-bridge-opacity', String(1 - THREE.MathUtils.smoothstep(introProgress, 0.72, 1)));
+        const heroArrival = Math.max(0, (window.scrollY - skyHeight) / window.innerHeight);
         const opening = Boolean(sky && sky.getBoundingClientRect().bottom > 0);
         const gallery = document.querySelector('[data-sky-descent]');
         const descent = Number(gallery?.dataset.descent || 0);
         const galleryRect = gallery?.getBoundingClientRect();
         const inDescent = galleryRect && galleryRect.top < window.innerHeight && galleryRect.bottom > 0 &&
           (descent < 1 || galleryRect.top > -window.innerHeight * 3);
-        const active = (opening || (progress > 0 && progress < 1) || inDescent) && !document.hidden && !motion.matches && !contextLost;
+        const arriving = Boolean(sky && heroArrival < 0.9);
+        const active = (opening || arriving || (progress > 0 && progress < 1) || inDescent) && !document.hidden && !motion.matches && !contextLost;
         canvas.style.opacity = active && textureReady ? '1' : '0';
         canvas.style.backgroundColor = 'transparent';
         if (!active) { last = 0; return; }
@@ -177,11 +194,17 @@ export default function HomeMistTransition() {
           renderer.setSize(w, h, false);
           renderer.getDrawingBufferSize(resolution);
         }
-        const flightProgress = opening ? introProgress : inDescent ? descent * 3 + 1 : progress;
-        const envelope = opening ? 1 - THREE.MathUtils.smoothstep(introProgress, 0.45, 1) :
+        const flightProgress = opening || arriving ? window.scrollY / window.innerHeight : 5 + descent * 3;
+        const envelope = opening ? 1 : arriving ? 1 - THREE.MathUtils.smoothstep(heroArrival, 0, 0.9) :
           inDescent ? (1 - THREE.MathUtils.smoothstep(descent, 0.2, 0.86)) : THREE.MathUtils.smoothstep(progress, 0, 0.35);
+        stirringUniforms.uCloudLighten.value = opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0, 1) * 0.3 :
+          THREE.MathUtils.lerp(0.3, 1, THREE.MathUtils.smoothstep(descent, 0, 0.78));
+        stirringUniforms.uCloudEnvelope.value = envelope;
+        const seam = opening ? hero.getBoundingClientRect().top : hero.getBoundingClientRect().bottom;
+        stirringUniforms.uCloudSeam.value = 1 - seam / window.innerHeight;
+        stirringUniforms.uCloudSeamStrength.value = seam > 0 && seam < window.innerHeight ? 1 : 0;
         stirringUniforms.uCloudFlow.value = flightProgress * 1.2 + elapsed * 0.035;
-        material.opacity = envelope;
+        material.opacity = 1;
         renderer.render(scene, camera);
         frame = requestAnimationFrame(draw);
       }

@@ -26,7 +26,7 @@ export default function SiteMotion() {
 
       context = gsap.context(() => {
         mediaQuery.add('(prefers-reduced-motion: reduce)', () => {
-          gsap.set('[data-gsap-reveal], main section, main header, .editorial-art-frame, .living-image, .artwork-inside-motion', {
+          gsap.set('[data-gsap-reveal], main section:not(#gallery-tour), main header, .editorial-art-frame, .living-image, .artwork-inside-motion', {
             clearProps: 'all',
             autoAlpha: 1,
           });
@@ -48,7 +48,7 @@ export default function SiteMotion() {
             );
           });
 
-          const sections = gsap.utils.toArray('main > section:not(.intro-shell), main > footer, main article > header, [data-gsap-reveal]');
+          const sections = gsap.utils.toArray('main > section:not(.intro-shell):not(#gallery-tour), main > footer, main article > header, [data-gsap-reveal]');
           sections.forEach((section) => {
             gsap.fromTo(section,
               { autoAlpha: 0, y: 34 },
