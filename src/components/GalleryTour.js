@@ -182,7 +182,7 @@ export default function GalleryTour({ slots, artistName }) {
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       // The building and sun are fixed: bake this map once, not on every camera frame.
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.type = THREE.VSMShadowMap;
       renderer.shadowMap.autoUpdate = false;
       renderer.shadowMap.needsUpdate = true;
       host.appendChild(renderer.domElement);
@@ -255,13 +255,37 @@ export default function GalleryTour({ slots, artistName }) {
       // corners may come in either order: a negative size would build the box inside-out
       const block = (x0, x1, y0, y1, z0, z1, material = wallMat, options) =>
         add(new THREE.BoxGeometry(Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)), material, [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], options);
-      // a wall along x or z with a rectangular opening in it
-      const wallX = (x, z0, z1, y0, y1, hole) => { // wall in the plane x = const, running along z
+      // Doorways are cut as actual arches, with layered stone archivolts.
+      const archMolding = (centre, radius, spring, yaw, depth = 0.16) => {
+        const trim = new THREE.Group(); trim.position.set(...centre); trim.rotation.y = yaw;
+        for (const [offset, tube] of [[0.04, 0.065], [0.16, 0.045]]) {
+          const points = Array.from({ length: 49 }, (_, i) => {
+            const angle = Math.PI * i / 48;
+            return new THREE.Vector3(Math.cos(angle) * (radius + offset), spring + Math.sin(angle) * (radius + offset), depth);
+          });
+          const curve = new THREE.Mesh(keep(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 48, tube, 8, false)), wallMat);
+          curve.castShadow = curve.receiveShadow = true; trim.add(curve);
+          for (const side of [-1, 1]) {
+            const jamb = new THREE.Mesh(keep(new THREE.BoxGeometry(tube * 2, spring, tube * 2)), wallMat);
+            jamb.position.set(side * (radius + offset), spring / 2, depth);
+            jamb.castShadow = jamb.receiveShadow = true; trim.add(jamb);
+          }
+        }
+        scene.add(trim);
+      };
+      const wallX = (x, z0, z1, y0, y1, hole) => {
         if (!hole) return block(x - WALL_T / 2, x + WALL_T / 2, y0, y1, z0, z1);
-        const [h0, h1, hTop] = hole; // z range of the opening, and its height above y0
-        block(x - WALL_T / 2, x + WALL_T / 2, y0, y1, z0, Math.max(h0, h1));
-        block(x - WALL_T / 2, x + WALL_T / 2, y0, y1, Math.min(h0, h1), z1);
-        block(x - WALL_T / 2, x + WALL_T / 2, y0 + hTop, y1, Math.min(h0, h1), Math.max(h0, h1));
+        const [h0, h1, hTop] = hole;
+        const width = Math.abs(z1 - z0), centreZ = (z0 + z1) / 2;
+        const centre = centreZ - (h0 + h1) / 2;
+        const radius = Math.abs(h1 - h0) / 2, spring = hTop - radius;
+        const shape = new THREE.Shape();
+        shape.moveTo(-width / 2, 0); shape.lineTo(centre - radius, 0);
+        shape.lineTo(centre - radius, spring); shape.absarc(centre, spring, radius, Math.PI, 0, true);
+        shape.lineTo(centre + radius, 0); shape.lineTo(width / 2, 0);
+        shape.lineTo(width / 2, y1 - y0); shape.lineTo(-width / 2, y1 - y0); shape.closePath();
+        add(new THREE.ExtrudeGeometry(shape, { depth: WALL_T, bevelEnabled: false, curveSegments: 40 }), wallMat, [x - WALL_T / 2, y0, centreZ], { rotation: [0, Math.PI / 2, 0] });
+        for (const yaw of [-Math.PI / 2, Math.PI / 2]) archMolding([x, y0, (h0 + h1) / 2], radius, spring, yaw, 0.24);
       };
       const wallZ = (z, x0, x1, y0, y1, hole) => { // wall in the plane z = const, running along x
         if (!hole) return block(x0, x1, y0, y1, z - WALL_T / 2, z + WALL_T / 2);
@@ -296,6 +320,13 @@ export default function GalleryTour({ slots, artistName }) {
           for (let z = lowZ + 3.5; z < highZ - rim; z += 3.5) {
             block(x0 + rim, x1 - rim, y, y + 0.35, z - 0.13, z + 0.13, ceilingMat);
           }
+        }
+        // Layered cornices run beneath the open roof perimeter.
+        for (const [drop, reach, height] of [[0.12, 0.24, 0.12], [0.28, 0.16, 0.1], [0.4, 0.09, 0.08]]) {
+          block(x0, x0 + reach, y - drop - height, y - drop, lowZ, highZ);
+          block(x1 - reach, x1, y - drop - height, y - drop, lowZ, highZ);
+          block(x0, x1, y - drop - height, y - drop, lowZ, lowZ + reach);
+          block(x0, x1, y - drop - height, y - drop, highZ - reach, highZ);
         }
         // open to the sky: nothing in the hole but the blue above it
       };
@@ -347,9 +378,7 @@ export default function GalleryTour({ slots, artistName }) {
           const start = Math.min(a0, a1), end = Math.max(a0, a1);
           const columns = end - start <= 8.1 ? [start, end] : Array.from({ length: Math.floor((end - start) / 4) + 1 }, (_, i) => start + i * 4);
           for (const z of columns) {
-            add(new THREE.CylinderGeometry(0.23, 0.26, h, 48), columnMat, [at, (y0 + y1) / 2, z]);
-            block(at - 0.32, at + 0.32, y0, y0 + 0.16, z - 0.32, z + 0.32);
-            block(at - 0.3, at + 0.3, y1 - 0.16, y1, z - 0.3, z + 0.3);
+            ionicColumn(at, z, y0, h, Math.PI / 2);
           }
         } else {
           for (let x = a0; x <= a1; x += 4) block(x - 0.2, x + 0.2, y0, y1, at - 0.2, at + 0.2);
@@ -388,8 +417,15 @@ export default function GalleryTour({ slots, artistName }) {
         const h = 0.19 * (k + 1);
         block(-3.85, -1.9, 0, h, -11 - 0.4 * k - 0.4, -11 - 0.4 * k, stepMat);
       }
-      block(-1.98, -1.88, 0.9, 1.0, -11.2, -15.2, frameMat, { cast: false });
-      for (const z of [-11.3, -13.2, -15.1]) block(-1.98, -1.88, 0, 1.0, z - 0.05, z + 0.05, frameMat, { cast: false });
+      const stairSide = (length, rise, position, yaw = 0) => {
+        const shape = new THREE.Shape();
+        shape.moveTo(0, 0); shape.lineTo(length, 0); shape.lineTo(length, rise + 1.0);
+        shape.lineTo(0, 1.0); shape.closePath();
+        add(new THREE.ExtrudeGeometry(shape, { depth: 0.24, bevelEnabled: true, bevelSize: 0.045, bevelThickness: 0.045, bevelSegments: 3 }), wallMat, position, { rotation: [0, yaw, 0] });
+        const cap = new THREE.Mesh(keep(new THREE.TubeGeometry(new THREE.LineCurve3(new THREE.Vector3(0, 1.06, 0.12), new THREE.Vector3(length, rise + 1.06, 0.12)), 1, 0.105, 12, false)), floorMat);
+        cap.rotation.y = yaw; cap.position.set(...position); cap.castShadow = true; scene.add(cap);
+      };
+      stairSide(4, 1.9, [-1.98, 0, -11], Math.PI / 2);
       block(-1.2, 1.2, 0, 0.42, -13.2, -14.4, stepMat); // bench
 
       // ── Corridor: x 4..10, z -13..-15.2, 3.2 high ──
@@ -426,6 +462,9 @@ export default function GalleryTour({ slots, artistName }) {
         block(x, x + run, 0, h, -18.1, -10.1, floorMat);
         add(new THREE.PlaneGeometry(8, rise - 0.02), stepMat, [x - 0.005, h - rise / 2, -14.1], { rotation: [0, -Math.PI / 2, 0], cast: false });
       }
+      // Solid sloping balustrades and rounded caps frame the broad main stair.
+      stairSide(steps * run, UPPER, [62, 0, -17.85]);
+      stairSide(steps * run, UPPER, [62, 0, -10.6]);
       // tall window facing the top of the stairs
       glazing('x', 78.4, -10.1, -18.1, UPPER, TOP);
 
@@ -449,6 +488,66 @@ export default function GalleryTour({ slots, artistName }) {
         ionicColumn(x, -10.6, 0, 7, Math.PI);
       }
 
+      // Shallow arched alcoves emphasize selected painting bays without adding frames.
+      const alcoveMat = stoneSurface(0.65, 0.1);
+      alcoveMat.color.setHex(0xf1eadf);
+      for (const id of [1, 7, 10, 15, 19]) {
+        if (!bySlot.has(id)) continue;
+        const place = PLACES[id], base = id >= 18 ? UPPER : 0;
+        const niche = new THREE.Shape();
+        niche.moveTo(-1.48, 0.25); niche.lineTo(1.48, 0.25); niche.lineTo(1.48, 3.1);
+        niche.absarc(0, 3.1, 1.48, 0, Math.PI, false); niche.lineTo(-1.48, 0.25);
+        const pos = [place.pos[0] + Math.sin(place.yaw) * 0.004, base, place.pos[2] + Math.cos(place.yaw) * 0.004];
+        add(new THREE.ShapeGeometry(niche, 48), alcoveMat, pos, { rotation: [0, place.yaw, 0], cast: false });
+        archMolding([place.pos[0], base, place.pos[2]], 1.48, 3.1, place.yaw, 0.085);
+      }
+
+      // Carved classical busts and amphorae stand in empty bays beside the route.
+      const sculptureMat = stoneSurface(0.55, 0.14);
+      const sculpture = (x, z, base = 0, yaw = 0, vase = false) => {
+        const group = new THREE.Group(); group.position.set(x, base, z); group.rotation.y = yaw;
+        const part = (geometry, position, scale = [1, 1, 1]) => {
+          const mesh = new THREE.Mesh(keep(geometry), sculptureMat);
+          mesh.position.set(...position); mesh.scale.set(...scale); mesh.castShadow = mesh.receiveShadow = true;
+          group.add(mesh); return mesh;
+        };
+        part(new THREE.BoxGeometry(0.92, 0.15, 0.92), [0, 0.075, 0]);
+        part(new THREE.BoxGeometry(0.72, 0.95, 0.72), [0, 0.62, 0]);
+        part(new THREE.BoxGeometry(0.88, 0.12, 0.88), [0, 1.15, 0]);
+        if (vase) {
+          const profile = [[0.17,0],[0.23,0.06],[0.19,0.13],[0.27,0.28],[0.34,0.54],[0.32,0.7],[0.15,0.88],[0.13,1.08],[0.22,1.14],[0.22,1.2]];
+          part(new THREE.LatheGeometry(profile.map(([r,y]) => new THREE.Vector2(r,y)),48), [0,1.21,0]);
+          for (const side of [-1,1]) {
+            const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(side*0.16,2.25,0),new THREE.Vector3(side*0.48,2.17,0),new THREE.Vector3(side*0.45,1.92,0),new THREE.Vector3(side*0.28,1.82,0)]);
+            part(new THREE.TubeGeometry(curve,24,0.035,8,false),[0,0,0]);
+          }
+        } else {
+          part(new THREE.CylinderGeometry(0.2,0.25,0.1,32),[0,1.28,0]);
+          part(new THREE.SphereGeometry(1,32,24),[0,1.56,0],[0.46,0.32,0.24]);
+          part(new THREE.CylinderGeometry(0.13,0.18,0.28,24),[0,1.86,0]);
+          part(new THREE.SphereGeometry(1,32,24),[0,2.14,0],[0.23,0.31,0.22]);
+          part(new THREE.SphereGeometry(1,16,12),[0,2.13,0.225],[0.055,0.09,0.08]);
+          part(new THREE.SphereGeometry(1,16,12),[0,2.01,0.205],[0.09,0.025,0.025]);
+          for (const side of [-1,1]) {
+            part(new THREE.SphereGeometry(1,16,12),[side*0.235,2.13,0],[0.04,0.065,0.04]);
+            part(new THREE.SphereGeometry(1,16,12),[side*0.095,2.23,0.195],[0.095,0.025,0.03]);
+          }
+          for (let i=0;i<13;i++) {
+            const angle=i/13*Math.PI*2;
+            part(new THREE.SphereGeometry(0.07,12,8),[Math.cos(angle)*0.195,2.34+0.025*Math.sin(angle*3),Math.sin(angle)*0.17]);
+          }
+          for (const side of [-1,1]) {
+            const fold = part(new THREE.BoxGeometry(0.045,0.4,0.035),[side*0.18,1.54,0.22]); fold.rotation.z=side*0.35;
+          }
+        }
+        scene.add(group);
+      };
+      sculpture(-2.9,-2.6,0,Math.PI/2,true);
+      sculpture(23,-17.2,0,0);
+      sculpture(31,-11,0,Math.PI,true);
+      sculpture(52,-16.9,0,0);
+      sculpture(72,-46,UPPER,Math.PI/2,true);
+
       // Low-opacity planar reflections show the real paintings and pillars in polished stone.
       // Only the current floor renders a reflection, bounding the extra render cost.
       const floorReflections = [];
@@ -462,7 +561,16 @@ export default function GalleryTour({ slots, artistName }) {
         reflection.material.transparent = true;
         reflection.material.opacity = 0.16;
         reflection.material.depthWrite = false;
-        reflection.material.fragmentShader = reflection.material.fragmentShader.replace('gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );', 'gl_FragColor = vec4( blendOverlay( base.rgb, color ), 0.16 );');
+        reflection.material.uniforms.uBlurStep = { value: new THREE.Vector2(1 / (narrow ? 384 : 768), 1 / (narrow ? 384 : 768)) };
+        reflection.material.fragmentShader = reflection.material.fragmentShader
+          .replace('uniform sampler2D tDiffuse;', 'uniform sampler2D tDiffuse; uniform vec2 uBlurStep;')
+          .replace('vec4 base = texture2DProj( tDiffuse, vUv );', `vec4 base = texture2DProj(tDiffuse, vUv) * 0.2;
+            for(int bx=-1;bx<=1;bx++){for(int by=-1;by<=1;by++){
+              if(bx==0 && by==0) continue;
+              vec4 sampleUv=vUv; sampleUv.xy+=vec2(float(bx),float(by))*uBlurStep*3.0*vUv.w;
+              base+=texture2DProj(tDiffuse,sampleUv)*0.1;
+            }}`)
+          .replace('gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );', 'gl_FragColor = vec4( blendOverlay( base.rgb, color ), 0.13 );');
         keep(reflection);
         scene.add(reflection);
         floorReflections.push(reflection);
@@ -529,6 +637,9 @@ export default function GalleryTour({ slots, artistName }) {
       Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 50, bottom: -50, near: 0.5, far: 150 });
       sun.shadow.bias = -0.0004;
       sun.shadow.normalBias = 0.08;
+      sun.shadow.radius = 4;
+      sun.shadow.blurSamples = 8;
+      sun.shadow.intensity = 0.78;
       scene.add(sun.target);
       scene.add(sun);
       // painted shadows: soft dark gradients that sit still on the wall or floor
