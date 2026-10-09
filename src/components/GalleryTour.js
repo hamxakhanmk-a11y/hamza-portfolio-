@@ -1020,7 +1020,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       aria-label="Walk-through gallery of portfolio paintings"
     >
       <div className="sticky top-0 h-[100svh] overflow-hidden">
-        <div ref={hostRef} className="absolute inset-0" style={{ cursor: hovering ? 'pointer' : 'default' }} />
+        <div ref={hostRef} className="gallery-tour-scene absolute inset-0" style={{ cursor: hovering ? 'pointer' : 'default' }} />
 
         {/* Title card over the doors, as the film opens */}
         <div className={`pointer-events-none absolute inset-x-0 top-[22%] flex flex-col items-center text-center transition-opacity duration-700 ${status === 'ready' && !descending && stop === 0 ? 'opacity-100' : 'opacity-0'}`}>

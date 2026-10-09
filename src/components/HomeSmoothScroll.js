@@ -30,6 +30,7 @@ export default function HomeSmoothScroll() {
         prevent: (element) => Boolean(element.closest('[role="dialog"], [data-lenis-prevent]')),
       });
       instance.on('scroll', ScrollTrigger.update);
+      if (introPending) instance.stop();
       const tick = (time) => {
         instance?.raf(time);
         const sky = document.querySelector('[data-home-sky]');
@@ -40,8 +41,10 @@ export default function HomeSmoothScroll() {
             introRunning = true;
             instance.scrollTo(sky.offsetTop + sky.offsetHeight, {
               duration: 3.6,
+              force: true,
+              lock: true,
               easing: (t) => t * t * (3 - 2 * t),
-              onComplete: () => { introRunning = false; },
+              onComplete: () => { introRunning = false; instance?.start(); },
             });
           }
         }
@@ -52,20 +55,18 @@ export default function HomeSmoothScroll() {
     function stop() { cancelAnimationFrame(frame); instance?.destroy(); instance = null; }
     function takeOver(event) {
       if (event.type === 'keydown' && !['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) return;
-      introPending = false;
-      if (introRunning && instance) instance.scrollTo(instance.scroll, { immediate: true });
-      introRunning = false;
+      if (!motion.matches && (introPending || introRunning)) event.preventDefault();
     }
     function preferenceChanged() { if (motion.matches) stop(); else start(); }
     start();
     motion.addEventListener('change', preferenceChanged);
-    window.addEventListener('wheel', takeOver, { passive: true });
-    window.addEventListener('touchstart', takeOver, { passive: true });
+    window.addEventListener('wheel', takeOver, { passive: false });
+    window.addEventListener('touchmove', takeOver, { passive: false });
     window.addEventListener('keydown', takeOver);
     return () => {
       disposed = true; stop(); motion.removeEventListener('change', preferenceChanged);
       window.removeEventListener('wheel', takeOver);
-      window.removeEventListener('touchstart', takeOver);
+      window.removeEventListener('touchmove', takeOver);
       window.removeEventListener('keydown', takeOver);
     };
   }, []);

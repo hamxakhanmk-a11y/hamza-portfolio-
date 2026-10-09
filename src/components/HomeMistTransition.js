@@ -12,10 +12,10 @@ export default function HomeMistTransition() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const hero = document.querySelector('.intro-embedded');
+    let hero = document.querySelector('.intro-embedded');
     const sky = document.querySelector('[data-home-sky]');
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (!hero || motion.matches) return;
+    if (motion.matches) return;
     let disposed = false;
     let cleanup;
 
@@ -52,6 +52,7 @@ export default function HomeMistTransition() {
         uCloudFlow: { value: 0 },
         uCloudLighten: { value: 0 },
         uCloudEnvelope: { value: 1 },
+        uCloudSides: { value: 0 },
         uCloudSeam: { value: -2 },
         uCloudSeamStrength: { value: 0 },
       };
@@ -70,6 +71,7 @@ export default function HomeMistTransition() {
               uniform float uCloudFlow;
               uniform float uCloudLighten;
               uniform float uCloudEnvelope;
+              uniform float uCloudSides;
               uniform float uCloudSeam;
               uniform float uCloudSeamStrength;
               float cloudHash(vec2 p) {
@@ -107,13 +109,16 @@ export default function HomeMistTransition() {
                 float vapor = cloudFbm(field * 2.2 + vec2(broad * 1.8, broad));
                 vec2 center = vec2(uCloudResolution.x / uCloudResolution.y * 0.5, 0.5);
                 vec2 stirredUv = (screen - displacement - center) / vec2(1.5, 1.0) + 0.5;
-                vec4 wisps = texture2D(map, clamp(stirredUv + vec2((broad - 0.5) * 0.12, (vapor - 0.5) * 0.18), 0.0, 1.0));
+                vec4 wisps = texture2D(map, clamp(stirredUv + vec2((broad - 0.5) * 0.025, (vapor - 0.5) * 0.04), 0.0, 1.0));
+                vec4 distant = texture2D(map, clamp(stirredUv * 0.65 + vec2(0.17, 0.22 + uCloudFlow * 0.008), 0.0, 1.0));
                 float surrounding = smoothstep(0.12, 0.48, abs(vMapUv.x - 0.5));
-                float density = smoothstep(0.20, 0.62, broad * 0.65 + vapor * 0.35);
+                float density = smoothstep(0.28, 0.69, broad * 0.5 + vapor * 0.3 + distant.a * 0.2);
                 float opacity = clamp(density * (0.85 + surrounding * 0.12) + wisps.a * 0.3, 0.0, 0.96) * uCloudEnvelope;
                 // Feather the actual section edge with the same cloud field on both sides.
                 float bridge = (1.0 - smoothstep(0.035, 0.38, abs(screen.y - uCloudSeam))) * uCloudSeamStrength;
                 opacity = mix(opacity, 1.0, bridge);
+                float sideClouds = smoothstep(0.20, 0.48, abs(vMapUv.x - 0.5));
+                opacity *= mix(1.0, sideClouds * 0.85, uCloudSides);
                 vec3 paintedCloud = mix(vec3(0.055, 0.20, 0.32), vec3(0.23, 0.57, 0.65), smoothstep(0.22, 0.68, vapor));
                 float rose = smoothstep(0.42, 0.66, cloudFbm(field * 0.55 + 8.3));
                 paintedCloud = mix(paintedCloud, vec3(0.76, 0.48, 0.58), rose * 0.48);
@@ -121,11 +126,16 @@ export default function HomeMistTransition() {
                 vec3 paleCloud = mix(vec3(0.57, 0.76, 0.87), vec3(0.98, 0.99, 1.0), smoothstep(0.28, 0.65, vapor));
                 paleCloud = mix(paleCloud, wisps.rgb, wisps.a * 0.2);
                 vec3 mistColor = mix(paintedCloud, paleCloud, uCloudLighten);
+                // A second cloud layer and directional shading give the vapor depth.
+                float sunward = cloudFbm(field + vec2(-0.24, 0.32));
+                float rimLight = clamp((broad - sunward) * 2.0, -0.12, 0.2);
+                mistColor *= 0.94 + rimLight;
+                mistColor = mix(mistColor, wisps.rgb, wisps.a * 0.12);
                 diffuseColor *= vec4(mistColor, opacity);
               #endif
             `);
           };
-          material.customProgramCacheKey = () => 'continuous-cloud-mist-v3';
+          material.customProgramCacheKey = () => 'continuous-cloud-mist-v4';
           const mesh = new THREE.Mesh(geometry, material);
           mesh.scale.set(2, 2, 1);
           scene.add(mesh);
@@ -170,6 +180,7 @@ export default function HomeMistTransition() {
         frame = 0;
         const progress = 1 - hero.getBoundingClientRect().bottom / window.innerHeight;
         hero.style.setProperty('--sky-departure', String(Math.max(0, Math.min(1, progress))));
+        hero.style.setProperty('--hero-edge', `${THREE.MathUtils.smoothstep(progress, 0, 0.2) * window.innerHeight * 0.4}px`);
         const skyHeight = sky?.offsetHeight || 1;
         const introProgress = Math.max(0, Math.min(1, window.scrollY / skyHeight));
         const heroArrival = Math.max(0, (window.scrollY - skyHeight) / window.innerHeight);
@@ -177,6 +188,8 @@ export default function HomeMistTransition() {
         const gallery = document.querySelector('[data-sky-descent]');
         const descent = Number(gallery?.dataset.descent || 0);
         const galleryRect = gallery?.getBoundingClientRect();
+        const departure = THREE.MathUtils.smoothstep(progress, 0, 1);
+        gallery?.style.setProperty('--gallery-edge', `${(1 - departure) * window.innerHeight * 0.5}px`);
         const inDescent = galleryRect && galleryRect.top < window.innerHeight && galleryRect.bottom > 0 &&
           (descent < 1 || galleryRect.top > -window.innerHeight * 3);
         const arriving = Boolean(sky && heroArrival < 0.9);
@@ -194,16 +207,18 @@ export default function HomeMistTransition() {
           renderer.setSize(w, h, false);
           renderer.getDrawingBufferSize(resolution);
         }
-        const flightProgress = opening || arriving ? window.scrollY / window.innerHeight : 5 + descent * 3;
+        const flightProgress = window.scrollY / window.innerHeight;
         const envelope = opening ? 1 : arriving ? 1 - THREE.MathUtils.smoothstep(heroArrival, 0, 0.9) :
-          inDescent ? (1 - THREE.MathUtils.smoothstep(descent, 0.2, 0.86)) : THREE.MathUtils.smoothstep(progress, 0, 0.35);
+          departure * (1 - THREE.MathUtils.smoothstep(descent, 0.2, 0.86));
         stirringUniforms.uCloudLighten.value = opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0, 1) * 0.3 :
           THREE.MathUtils.lerp(0.3, 1, THREE.MathUtils.smoothstep(descent, 0, 0.78));
         stirringUniforms.uCloudEnvelope.value = envelope;
+        stirringUniforms.uCloudSides.value = opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0.3, 1) :
+          1 - THREE.MathUtils.smoothstep(progress, 0.1, 1);
         const seam = opening ? hero.getBoundingClientRect().top : hero.getBoundingClientRect().bottom;
         stirringUniforms.uCloudSeam.value = 1 - seam / window.innerHeight;
-        stirringUniforms.uCloudSeamStrength.value = seam > 0 && seam < window.innerHeight ? 1 : 0;
-        stirringUniforms.uCloudFlow.value = flightProgress * 1.2 + elapsed * 0.035;
+        stirringUniforms.uCloudSeamStrength.value = seam > 0 && seam < window.innerHeight ? (opening ? 1 : departure) : 0;
+        stirringUniforms.uCloudFlow.value = flightProgress * 0.65 + elapsed * 0.035;
         material.opacity = 1;
         renderer.render(scene, camera);
         frame = requestAnimationFrame(draw);
@@ -248,11 +263,26 @@ export default function HomeMistTransition() {
         material.dispose();
         renderer.dispose();
         hero.style.removeProperty('--sky-departure');
+        hero.style.removeProperty('--hero-edge');
         sky?.style.removeProperty('--sky-bridge-opacity');
+        document.querySelector('[data-sky-descent]')?.style.removeProperty('--gallery-edge');
       };
     }
-    initialize().catch(() => { canvas.style.opacity = '0'; });
-    return () => { disposed = true; cleanup?.(); };
+    let startupObserver;
+    const start = () => initialize().catch(() => {
+      canvas.style.opacity = '0';
+      if (sky) sky.dataset.ready = 'true';
+    });
+    if (hero) start();
+    else {
+      // The async hero may arrive after this client component has mounted.
+      startupObserver = new MutationObserver(() => {
+        hero = document.querySelector('.intro-embedded');
+        if (hero) { startupObserver.disconnect(); start(); }
+      });
+      startupObserver.observe(document.body, { childList: true, subtree: true });
+    }
+    return () => { disposed = true; startupObserver?.disconnect(); cleanup?.(); };
   }, []);
 
   return (
