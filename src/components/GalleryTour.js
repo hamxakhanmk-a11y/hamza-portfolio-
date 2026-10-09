@@ -217,7 +217,7 @@ export default function GalleryTour({ slots, artistName }) {
         clearcoat,
         clearcoatRoughness: 0.24,
         emissive: WALL,
-        emissiveIntensity: 0.08,
+        emissiveIntensity: 0.045,
         toneMapped: true,
       }));
       const wallMat = stoneSurface(0.42, 0.25);
@@ -385,6 +385,17 @@ export default function GalleryTour({ slots, artistName }) {
         }
       };
 
+      // Rounded corner returns soften the rectangular halls while leaving the aisle clear.
+      const curvedCorner = (x, z, height, yaw, base = 0) => {
+        add(new THREE.CylinderGeometry(0.65, 0.65, height, 32, 1, true, 0, Math.PI / 2), wallMat,
+          [x, base + height / 2, z], { rotation: [0, yaw, 0] });
+      };
+      const vaultMat = stoneSurface(0.6, 0.08); vaultMat.side = THREE.DoubleSide;
+      const corridorVault = () => {
+        add(new THREE.CylinderGeometry(1.1, 1.1, 5.7, 48, 1, true, 0, Math.PI), vaultMat,
+          [7, 2.1, -14.1], { rotation: [0, 0, Math.PI / 2] });
+        for (const x of [4.35, 7, 9.65]) archMolding([x, 0, -14.1], 1.1, 2.1, Math.PI / 2, 0);
+      };
       // ── Entrance hall: x -4..4, z 0..-16, 6 high ──
       floor(-4, 4, 9, -16);
       // Full-height entrance returns hide the exposed ends of the interior walls.
@@ -432,7 +443,7 @@ export default function GalleryTour({ slots, artistName }) {
       floor(4, 10, -13, -15.2);
       wallZ(-13, 4.15, 9.85, 0, 3.2);
       wallZ(-15.2, 4.15, 9.85, 0, 3.2);
-      ceiling(4.15, 9.85, -13, -15.2, 3.2);
+      corridorVault();
 
       // ── Great hall: x 10..44, z -9.1..-19.1, 7 high, oval skylights, benches down the middle ──
       floor(10, 44, -9.1, -19.1);
@@ -488,18 +499,29 @@ export default function GalleryTour({ slots, artistName }) {
         ionicColumn(x, -10.6, 0, 7, Math.PI);
       }
 
-      // Shallow arched alcoves emphasize selected painting bays without adding frames.
-      const alcoveMat = stoneSurface(0.65, 0.1);
-      alcoveMat.color.setHex(0xf1eadf);
+      curvedCorner(-4, -16, 5.55, 0);
+      curvedCorner(4, -16, 5.55, -Math.PI / 2);
+      curvedCorner(10, -19.1, 6.55, 0);
+      curvedCorner(44, -19.1, 6.55, -Math.PI / 2);
+      curvedCorner(44, -9.1, 6.55, Math.PI);
+      curvedCorner(10, -9.1, 6.55, Math.PI / 2);
+      curvedCorner(62, -18.1, 6.55, -Math.PI / 2);
+      curvedCorner(78.4, -50, 5.55, -Math.PI / 2, UPPER);
+
+      // Thick stone bays create real recess depth; paintings remain on the back wall.
+      const alcoveMat = stoneSurface(0.6, 0.1);
       for (const id of [1, 7, 10, 15, 19]) {
         if (!bySlot.has(id)) continue;
         const place = PLACES[id], base = id >= 18 ? UPPER : 0;
-        const niche = new THREE.Shape();
-        niche.moveTo(-1.48, 0.25); niche.lineTo(1.48, 0.25); niche.lineTo(1.48, 3.1);
-        niche.absarc(0, 3.1, 1.48, 0, Math.PI, false); niche.lineTo(-1.48, 0.25);
-        const pos = [place.pos[0] + Math.sin(place.yaw) * 0.004, base, place.pos[2] + Math.cos(place.yaw) * 0.004];
-        add(new THREE.ShapeGeometry(niche, 48), alcoveMat, pos, { rotation: [0, place.yaw, 0], cast: false });
-        archMolding([place.pos[0], base, place.pos[2]], 1.48, 3.1, place.yaw, 0.085);
+        const bay = new THREE.Shape();
+        bay.moveTo(-1.95,0); bay.lineTo(1.95,0); bay.lineTo(1.95,5.05); bay.lineTo(-1.95,5.05); bay.closePath();
+        const opening = new THREE.Path();
+        opening.moveTo(-1.48,0.18); opening.lineTo(-1.48,3.1);
+        opening.absarc(0,3.1,1.48,Math.PI,0,true); opening.lineTo(1.48,0.18); opening.closePath();
+        bay.holes.push(opening);
+        add(new THREE.ExtrudeGeometry(bay,{depth:0.48,bevelEnabled:true,bevelThickness:0.025,bevelSize:0.025,bevelSegments:3,curveSegments:48}), alcoveMat,
+          [place.pos[0],base,place.pos[2]],{rotation:[0,place.yaw,0]});
+        archMolding([place.pos[0],base,place.pos[2]],1.48,3.1,place.yaw,0.52);
       }
 
       // Carved classical busts and amphorae stand in empty bays beside the route.
@@ -588,20 +610,20 @@ export default function GalleryTour({ slots, artistName }) {
             void main(){
               vec2 p=(vUv-0.5)*2.0;
               float t=uTime*0.065+uSeed;
-              // Bent elliptical ribbons form irregular glass-like focal patches.
-              vec2 bend=p+0.12*vec2(sin(p.y*5.0+t),cos(p.x*4.0-t*0.7));
-              float edge=1.0-smoothstep(0.65,1.0,length(p));
-              float d1=length((bend-vec2(-0.22,0.2))*vec2(1.05,1.55));
-              float d2=length((bend-vec2(0.3,-0.08))*vec2(1.6,0.95));
-              float d3=length((bend-vec2(-0.05,-0.4))*vec2(0.85,1.75));
-              float gold=exp(-pow((d1-0.5)/0.13,2.0));
-              float blue=exp(-pow((d2-0.42)/0.12,2.0));
-              float pink=exp(-pow((d3-0.36)/0.14,2.0));
-              float breakup=smoothstep(-0.1,0.85,sin(bend.x*7.0+bend.y*5.0+t));
+              // Sparse distorted focal spots rather than repeated crescent-shaped ribbons.
+              vec2 bend=p+0.1*vec2(sin(p.y*5.0+t),cos(p.x*4.0-t*0.7));
+              float edge=1.0-smoothstep(0.55,1.0,length(p));
+              vec2 q1=(bend-vec2(-0.45,0.42))*vec2(1.0,2.0);
+              vec2 q2=(bend-vec2(0.48,0.1))*vec2(2.0,0.9);
+              vec2 q3=(bend-vec2(-0.05,-0.58))*vec2(1.3,2.5);
+              float gold=exp(-dot(q1,q1)*19.0);
+              float blue=exp(-dot(q2,q2)*22.0);
+              float pink=exp(-dot(q3,q3)*24.0);
+              float breakup=0.65+0.35*sin(bend.x*9.0+bend.y*7.0+t);
               float light=gold+blue+pink;
               vec3 spectral=(gold*vec3(1.0,0.87,0.52)+blue*vec3(0.57,0.83,1.0)+pink*vec3(1.0,0.65,0.88))/max(light,0.001);
               // Concentrated near-white light, with a barely colored fringe.
-              float focus=pow(min(light,1.0),1.7);
+              float focus=pow(min(light,1.0),0.85);
               float fringe=(1.0-focus)*0.07;
               vec3 glow=mix(vec3(1.0,0.985,0.95),spectral,fringe);
               gl_FragColor=vec4(glow,edge*focus*breakup*uStrength);
@@ -615,8 +637,8 @@ export default function GalleryTour({ slots, artistName }) {
         const p = [...place.pos];
         p[0] += Math.sin(place.yaw) * 0.018;
         p[2] += Math.cos(place.yaw) * 0.018;
-        shimmer(p, [0, place.yaw, 0], 4.4, 3.8, slot * 1.73, 0.48);
-        shimmer([place.pos[0] + Math.sin(place.yaw) * 1.6, slot >= 18 ? UPPER + 0.022 : 0.022, place.pos[2] + Math.cos(place.yaw) * 1.6], [-Math.PI / 2, 0, place.yaw], 4, 3.2, slot * 1.73, 0.2);
+        shimmer(p, [0, place.yaw, 0], 4.8, 4.4, slot * 1.73, 0.33);
+        shimmer([place.pos[0] + Math.sin(place.yaw) * 1.6, slot >= 18 ? UPPER + 0.022 : 0.022, place.pos[2] + Math.cos(place.yaw) * 1.6], [-Math.PI / 2, 0, place.yaw], 4, 3.2, slot * 1.73, 0.13);
       }
 
       // Larger reflected patches also reach bare wall bays and the open floor.
@@ -629,7 +651,7 @@ export default function GalleryTour({ slots, artistName }) {
       // One sun casts a consistent pattern; open-sky and bounce light reach both walls.
       scene.add(new THREE.AmbientLight(0xfffcf5, 0.45));
       scene.add(new THREE.HemisphereLight(0xf5f9ff, 0xfff8ed, 1.15));
-      const sun = new THREE.DirectionalLight(0xfff8eb, 3.0);
+      const sun = new THREE.DirectionalLight(0xfff8eb, 2.6);
       sun.position.set(-5, 65, -35);
       sun.target.position.set(37, 0, -20);
       sun.castShadow = true;
