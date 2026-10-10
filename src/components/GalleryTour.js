@@ -16,7 +16,7 @@ const EYE = 1.7;
 const UPPER = 4.2; // first-floor level
 const UPPER_EYE = UPPER + EYE;
 const HANG = 2.1; // painting centre height above its floor
-const STOP_SCREEN_SHARE = 70; // svh of scrolling per camera stop
+const STOP_SCREEN_SHARE = 90; // svh of scrolling per camera stop
 const WALL_T = 0.3;
 
 // Bright off-white throughout; stable contact shadows define the architecture.
@@ -86,7 +86,7 @@ function optimizedImage(url) {
 
 const smootherstep = t => t * t * t * (t * (t * 6 - 15) + 10);
 // Slows down around each stop without ever quite stopping: a dwell, not a halt.
-const dwell = t => 0.3 * t + 0.7 * smootherstep(t);
+const dwell = t => 0.75 * t + 0.25 * smootherstep(t);
 const clamp01 = t => Math.min(1, Math.max(0, t));
 
 function hasTransparentCorners(image) {
@@ -850,18 +850,40 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const f = Math.min(1, s - i);
         return stopKeys[i] + (stopKeys[i + 1] - stopKeys[i]) * dwell(f);
       };
+      // Give longer passages and larger turns more scroll distance, rather
+      // than making every interval finish in the same amount of scrolling.
+      const routeWeights = [0];
+      for (let i=0;i<stopKeys.length-1;i++) {
+        let length=0;
+        let previous=positionCurve.getPoint(stopKeys[i]/segments);
+        let previousDirection=targetCurve.getPoint(stopKeys[i]/segments).sub(previous).normalize();
+        for(let sample=1;sample<=32;sample++) {
+          const t=(stopKeys[i]+(stopKeys[i+1]-stopKeys[i])*sample/32)/segments;
+          const position=positionCurve.getPoint(t);
+          const direction=targetCurve.getPoint(t).sub(position).normalize();
+          length+=position.distanceTo(previous)+previousDirection.angleTo(direction)*4;
+          previous=position;previousDirection=direction;
+        }
+        routeWeights.push(routeWeights[i]+Math.max(4,length));
+      }
+      const scrollToStop = progress => {
+        const distance=progress*routeWeights[routeWeights.length-1];
+        let i=0;
+        while(i<routeWeights.length-2 && distance>routeWeights[i+1]) i++;
+        return i+(distance-routeWeights[i])/(routeWeights[i+1]-routeWeights[i]);
+      };
       const lookPoint = new THREE.Vector3();
       const sway = { x: 0, y: 0, tx: 0, ty: 0 };
       const placeCamera = s => {
         if (s < 0) {
           // Land on the forecourt facing the table; the route then enters.
           const descent = clamp01(1 + s / 3);
-          const flight = smootherstep(descent);
+          const flight = dwell(descent);
           camera.position.set(0, THREE.MathUtils.lerp(48, EYE, flight), THREE.MathUtils.lerp(12, 5.5, flight));
           // Ease the viewing angle itself, rather than two look-at coordinates.
           // Keep a fixed sight distance so perspective does not accelerate the turn.
           const arrivalPitch = Math.atan2(2.2 - EYE, 13.5);
-          const pitch = THREE.MathUtils.lerp(-Math.PI / 6, arrivalPitch, smootherstep(descent));
+          const pitch = THREE.MathUtils.lerp(-Math.PI / 6, arrivalPitch, dwell(descent));
           lookPoint.set(0, camera.position.y + Math.sin(pitch) * 24, camera.position.z - Math.cos(pitch) * 24);
           camera.lookAt(lookPoint);
           return;
@@ -894,7 +916,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const descentTravel = descendFromSky && !reducedMotion ? window.innerHeight * HOME_DESCENT_SVH / 100 : 0;
         const distance = Math.max(0, -rect.top);
         target = distance < descentTravel ? -3 * (1 - distance / descentTravel) :
-          clamp01((distance - descentTravel) / Math.max(1, travel - descentTravel)) * (stopKeys.length - 1);
+          scrollToStop(clamp01((distance - descentTravel) / Math.max(1, travel - descentTravel)));
         if (Math.abs(p - lastProgress) > 0.002) { lastProgress = p; setProgress(p); }
       };
 
@@ -925,7 +947,8 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
           skyMat.uniforms.uTime.value += elapsed;
         }
         // critically damped glide towards the scroll position
-        current += (target - current) * (reducedMotion ? 1 : 1 - Math.exp(-delta * 6.5));
+        const step=(target-current)*(reducedMotion?1:1-Math.exp(-delta*5));
+        current += reducedMotion ? step : THREE.MathUtils.clamp(step,-delta*1.4,delta*1.4);
         if (Math.abs(target - current) < 0.002) current = target; // settle fully: no long, barely-moving tail
         // the pointer's gentle pull; it settles completely, so the picture is perfectly still at rest
         sway.x += (sway.tx - sway.x) * Math.min(1, delta * 2);
