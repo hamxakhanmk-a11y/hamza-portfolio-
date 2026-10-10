@@ -129,9 +129,9 @@ export default function HomeMistTransition() {
                 float slope = clamp((broad - sunward) * 4.5, -0.45, 0.6);
                 float illumination = smoothstep(-0.22, 0.40, slope + vapor * 0.22);
                 float body = smoothstep(0.30, 0.65, broad);
-                vec3 shadedCloud = mix(vec3(0.29, 0.22, 0.39), vec3(0.27, 0.59, 0.63), body);
+                vec3 shadedCloud = mix(vec3(0.16, 0.27, 0.46), vec3(0.20, 0.57, 0.73), body);
                 vec3 paintedCloud = mix(shadedCloud, vec3(0.94, 0.68, 0.65), illumination * 0.72);
-                vec3 paleCloud = mix(vec3(0.55, 0.71, 0.77), vec3(0.98, 0.84, 0.80), illumination);
+                vec3 paleCloud = mix(vec3(0.29, 0.58, 0.78), vec3(0.92, 0.82, 0.87), illumination*0.75);
                 float rim = smoothstep(0.12, 0.44, slope) * smoothstep(0.22, 0.5, density);
                 vec3 mistColor = mix(paintedCloud, paleCloud, uCloudLighten);
                 mistColor += vec3(0.11, 0.08, 0.025) * rim;
@@ -205,7 +205,8 @@ export default function HomeMistTransition() {
           (descent < 1 || galleryRect.top > -window.innerHeight * HOME_DESCENT_SVH / 100);
         const arriving = Boolean(sky && heroArrival < 0.9);
         const heroVisible = !opening && hero.getBoundingClientRect().top < window.innerHeight && hero.getBoundingClientRect().bottom > 0;
-        const active = (heroVisible || (!gardenIntro && (opening || arriving)) || (progress > 0 && progress < 1) || inDescent) && !document.hidden && !motion.matches && !contextLost;
+        const handoff = gardenIntro && opening && introProgress > 0.85;
+        const active = (handoff || heroVisible || (!gardenIntro && (opening || arriving)) || (progress > 0 && progress < 1) || inDescent) && !document.hidden && !motion.matches && !contextLost;
         canvas.style.opacity = active && textureReady ? '1' : '0';
         canvas.style.backgroundColor = 'transparent';
         if (!active) { last = 0; return; }
@@ -221,18 +222,18 @@ export default function HomeMistTransition() {
         }
         const flightProgress = window.scrollY / window.innerHeight;
         const descentEnvelope = departure * (1 - THREE.MathUtils.smoothstep(descent, 0.2, 0.86));
-        const envelope = gardenIntro ? Math.max(heroVisible ? 0.38*(1-departure) : 0, descentEnvelope) : opening ? 1 : arriving ? 1-THREE.MathUtils.smoothstep(heroArrival,0,0.9) : descentEnvelope;
+        const envelope = gardenIntro ? Math.max(handoff ? 0.66*THREE.MathUtils.smoothstep(introProgress,0.85,0.97) : heroVisible ? 0.66*(1-departure) : 0, descentEnvelope*1.15) : opening ? 1 : arriving ? 1-THREE.MathUtils.smoothstep(heroArrival,0,0.9) : descentEnvelope;
         stirringUniforms.uCloudLighten.value = opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0, 1) * 0.3 :
           THREE.MathUtils.lerp(0.3, 1, THREE.MathUtils.smoothstep((Math.max(0, Math.min(1, progress)) + descent) / 2, 0, 0.8));
         stirringUniforms.uCloudEnvelope.value = envelope;
-        stirringUniforms.uCloudSides.value = heroVisible && progress <= 0 ? 0.82 : opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0.3, 1) :
+        stirringUniforms.uCloudSides.value = (handoff || heroVisible) && progress <= 0 ? 0.60 : opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0.3, 1) :
           1 - THREE.MathUtils.smoothstep(progress, 0.1, 1);
         const seam = opening || arriving ? hero.getBoundingClientRect().top : hero.getBoundingClientRect().bottom;
         stirringUniforms.uCloudSeam.value = 1 - seam / window.innerHeight;
         // Let the shader's spatial feather carry the bridge offscreen. Switching
         // it off at the viewport edge made the upper cloud patch vanish at once.
         // Fade it with the same descent envelope as the surrounding vapor.
-        stirringUniforms.uCloudSeamStrength.value = heroVisible && progress <= 0 ? 0 : opening ? 1 : envelope;
+        stirringUniforms.uCloudSeamStrength.value = (handoff || heroVisible) && progress <= 0 ? 0 : opening ? 1 : envelope;
         stirringUniforms.uCloudFlow.value = flightProgress * 0.65 + elapsed * 0.065;
         material.opacity = 1;
         renderer.render(scene, camera);

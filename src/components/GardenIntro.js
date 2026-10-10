@@ -112,7 +112,7 @@ export default function GardenIntro() {
         frame = 0;
         const p = Math.max(0,Math.min(1,window.scrollY/root.offsetHeight));
         // The wall around the portal stays opaque until the scene fills the screen.
-        root.style.setProperty('--doorway-surround', p < 1 ? '1' : '0');
+        root.style.setProperty('--doorway-surround', p < 0.45 ? '1' : '0');
         const active = p < 1 && !document.hidden && !motion.matches;
         surfaceRef.current.style.visibility = active ? 'visible' : 'hidden';
         if (!active || disposed) return;
@@ -131,11 +131,18 @@ export default function GardenIntro() {
         camera.lookAt(0,3.8+lift*4.2,camera.position.z-25);
         const reveal = smooth((p-0.12)/0.77);
         const targetTransform = media.style.transform || '';
+        const clonedImage = background.querySelector('img,video');
+        if (clonedImage) clonedImage.style.objectPosition = getComputedStyle(original).objectPosition;
+        if (original.tagName === 'VIDEO' && clonedImage?.readyState >= 2) {
+          // Both copies must reach the handoff on the same animation frame.
+          if (Math.abs(clonedImage.currentTime-original.currentTime)>0.08) clonedImage.currentTime=original.currentTime;
+          clonedImage.playbackRate=original.playbackRate;
+        }
         // Perspective growth follows the same forward travel as the dunes.
         // At arrival scale and position match the real hero exactly.
         const approach = 0.48 / (1-0.52*flight);
         background.style.transform = targetTransform + ` scale(${approach})`;
-        background.style.transformOrigin = '50% 46%';
+        background.style.transformOrigin = media.style.transformOrigin || '50% 50%';
         const edge = 18*(1-smooth((p-0.86)/0.10));
         background.style.maskImage = `radial-gradient(ellipse, #000 ${25+reveal*105}%, transparent ${65+reveal*100}%), linear-gradient(90deg, transparent, #000 ${edge}%, #000 ${100-edge}%, transparent), linear-gradient(0deg, transparent, #000 ${edge}%, #000 ${100-edge}%, transparent)`;
         background.style.maskComposite = 'intersect';
@@ -146,7 +153,7 @@ export default function GardenIntro() {
         copyRef.current.style.opacity = String(smooth((p-0.38)/0.24));
         const doorway = smooth(p/0.45);
         surfaceRef.current.style.clipPath = `inset(${10*(1-doorway)}% ${34*(1-doorway)}% ${-12-doorway*70}% round ${46*(1-doorway)}% ${46*(1-doorway)}% 0 0)`;
-        surfaceRef.current.style.opacity = String(1-smooth((p-0.97)/0.03));
+        surfaceRef.current.style.opacity = String(1-smooth((p-0.90)/0.10));
         const width=window.innerWidth,height=window.innerHeight;
         if (canvasRef.current.width !== Math.round(width*renderer.getPixelRatio()) || canvasRef.current.height !== Math.round(height*renderer.getPixelRatio())) {
           renderer.setSize(width,height,false); camera.aspect=width/height; camera.updateProjectionMatrix();
