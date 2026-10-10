@@ -165,7 +165,16 @@ export default function GardenIntro() {
       cleanup=()=>{cancelAnimationFrame(frame);window.removeEventListener('scroll',wake);window.removeEventListener('resize',wake);document.removeEventListener('visibilitychange',wake);motion.removeEventListener('change',wake);groundGeometry.dispose();groundMaterial.dispose();starsGeometry.dispose();starsMaterial.dispose();mistGeometry.dispose();mistMaterials.forEach(material=>material.dispose());renderer.dispose();background.remove();copy?.remove();};
       const image = background.querySelector('img');
       if (image && !image.complete) await new Promise(resolve => { image.onload=resolve;image.onerror=resolve; });
+      const video = background.querySelector('video');
+      if (video && video.readyState < 2) await new Promise(resolve => {
+        const finish=()=>{clearTimeout(timeout);video.removeEventListener('loadeddata',finish);video.removeEventListener('error',finish);resolve();};
+        const timeout=setTimeout(finish,8000);
+        video.addEventListener('loadeddata',finish,{once:true});video.addEventListener('error',finish,{once:true});
+        video.load();
+      });
       if (disposed) return;
+      // Paint the complete initial scene before releasing the automatic camera.
+      draw();
       root.dataset.ready='true';
       window.addEventListener('scroll',wake,{passive:true});window.addEventListener('resize',wake);
       document.addEventListener('visibilitychange',wake);motion.addEventListener('change',wake);wake();
