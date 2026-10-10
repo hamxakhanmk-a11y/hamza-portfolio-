@@ -38,16 +38,34 @@ export default function GardenIntro() {
       for (let i = 0; i < positions.count; i++) {
         const x = positions.getX(i), z = positions.getZ(i);
         const side = smooth((Math.abs(x) - 2) / 17);
-        const ridge = Math.sin(x * 0.17 + z * 0.12 + Math.sin(z * 0.055) * 1.8);
-        positions.setY(i, side * (2.7 + ridge * 2.2 + Math.sin(z * 0.21 - x * 0.08) * 0.9) - 0.6);
+        const phase = x*0.16+z*0.11+Math.sin(z*0.045)*1.7;
+        // Unequal slopes and narrow crests create wind-shaped ridges at several depths.
+        const ridge = Math.pow(0.5+0.5*Math.sin(phase), 2.8);
+        const secondary = Math.pow(0.5+0.5*Math.sin(z*0.23-x*0.09), 3);
+        positions.setY(i, side*(0.7+ridge*5.4+secondary*1.6)-0.6);
       }
       groundGeometry.computeVertexNormals();
-      const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xe6c48d, roughness: 0.94, transparent: true });
+      const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xdcb28a, roughness: 0.86, transparent: true });
+      const sandTime = { value: 0 };
+      groundMaterial.onBeforeCompile = shader => {
+        shader.uniforms.uSandTime = sandTime;
+        shader.vertexShader = 'varying vec3 vSand;\n'+shader.vertexShader;
+        shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvSand=position;');
+        shader.fragmentShader = 'varying vec3 vSand;uniform float uSandTime;\n'+shader.fragmentShader;
+        shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+          float ripple=sin(vSand.x*13.0+vSand.z*3.5+sin(vSand.z*0.8)*1.8);
+          float grain=fract(sin(dot(floor(vSand.xz*180.0),vec2(12.9898,78.233)))*43758.5453);
+          diffuseColor.rgb*=0.94+0.045*ripple+(grain-0.5)*0.06;
+          float sheen=pow(max(0.0,sin(vSand.x*0.24+vSand.z*0.16)),7.0);
+          diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.32,0.70,0.72),sheen*0.10);
+          float glint=step(0.997,grain)*pow(max(0.0,sin(uSandTime*1.8+vSand.x*4.0+vSand.z)),18.0);
+          diffuseColor.rgb+=vec3(0.40,0.34,0.22)*glint;`);
+      };
       const ground = new THREE.Mesh(groundGeometry, groundMaterial);
       ground.position.z = -65; scene.add(ground);
-      scene.add(new THREE.HemisphereLight(0xc5ddeb, 0x9b7145, 2.1));
-      const sun = new THREE.DirectionalLight(0xffe2ae, 3.1);
-      sun.position.set(-30, 22, -35); scene.add(sun);
+      scene.add(new THREE.HemisphereLight(0xa5cddd, 0x755542, 1.15));
+      const sun = new THREE.DirectionalLight(0xffdfb2, 2.7);
+      sun.position.set(-35, 12, -30); scene.add(sun);
       scene.fog = new THREE.Fog(0xd5c5aa, 30, 100);
       const starsGeometry = new THREE.BufferGeometry(), stars = [];
       for (let i = 0; i < 150; i++) {
@@ -58,6 +76,37 @@ export default function GardenIntro() {
       starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(stars, 3));
       const starsMaterial = new THREE.PointsMaterial({ color: 0xffeed3, size: 0.10, transparent: true, opacity: 0.65, depthWrite: false, fog: false });
       scene.add(new THREE.Points(starsGeometry, starsMaterial));
+      // Separate mist volumes drift upward at actual scene depths, retaining parallax.
+      const mistGeometry = new THREE.PlaneGeometry(1,1);
+      const mistMaterials = [], mistVolumes = [];
+      for (let i=0;i<10;i++) {
+        const material = new THREE.ShaderMaterial({
+          transparent:true, depthWrite:false, side:THREE.DoubleSide,
+          uniforms:{uTime:{value:0},uFade:{value:1},uSeed:{value:i*2.73}},
+          vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+          fragmentShader:`varying vec2 vUv;uniform float uTime,uFade,uSeed;
+            float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+            float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+            float fbm(vec2 p){return noise(p)*0.53+noise(p*2.03)*0.27+noise(p*4.1)*0.13+noise(p*8.2)*0.07;}
+            void main(){
+              vec2 q=vUv; q.x+=sin(q.y*7.0+uTime*0.22+uSeed)*0.07;
+              vec2 flow=vec2(q.x*5.0+uSeed,q.y*5.5-uTime*0.15);
+              float n=fbm(flow+vec2(fbm(flow+3.0),fbm(flow-2.0))*1.7);
+              float edge=pow(max(0.0,1.0-length((q-vec2(0.5,0.48))*vec2(2.2,1.85))),1.8);
+              float density=smoothstep(0.28,0.78,n)*edge;
+              vec3 color=mix(vec3(0.53,0.68,0.70),vec3(1.0,0.83,0.59),smoothstep(0.32,0.72,n));
+              float sparkle=pow(max(0.0,sin(q.x*85.0+q.y*64.0+uTime*0.7+uSeed)),32.0)*0.07;
+              gl_FragColor=vec4(color+sparkle,density*0.48*uFade);
+              #include <colorspace_fragment>
+            }`,
+        });
+        const plume=new THREE.Mesh(mistGeometry,material);
+        const side=i%2===0?-1:1;
+        plume.position.set(side*(9+(i%3)*3),6+(i%3)*2,-8-i*7);
+        plume.scale.set(15+(i%3)*3,18+(i%3)*4,1);
+        scene.add(plume); mistMaterials.push(material);mistVolumes.push(plume);
+      }
+      const started=performance.now();
       let frame = 0;
       function draw() {
         frame = 0;
@@ -68,6 +117,15 @@ export default function GardenIntro() {
         surfaceRef.current.style.visibility = active ? 'visible' : 'hidden';
         if (!active || disposed) return;
         const flight = smooth(p);
+        const time=(performance.now()-started)/1000;
+        sandTime.value=time;
+        for(let i=0;i<mistVolumes.length;i++) {
+          const plume=mistVolumes[i];
+          plume.material.uniforms.uTime.value=time;
+          plume.material.uniforms.uFade.value=1-smooth((p-0.72)/0.24);
+          plume.position.y=6+(i%3)*2+Math.sin(time*0.17+i)*0.65;
+          plume.quaternion.copy(camera.quaternion);
+        }
         const lift = smooth((p-0.55)/0.40);
         camera.position.set(Math.sin(flight*Math.PI)*0.7, 3.2+lift*1.2, 15-flight*66);
         camera.lookAt(0,3.8+lift*4.2,camera.position.z-25);
@@ -96,7 +154,7 @@ export default function GardenIntro() {
         frame=requestAnimationFrame(draw);
       }
       function wake(){ if (!frame && !disposed) frame=requestAnimationFrame(draw); }
-      cleanup=()=>{cancelAnimationFrame(frame);window.removeEventListener('scroll',wake);window.removeEventListener('resize',wake);document.removeEventListener('visibilitychange',wake);motion.removeEventListener('change',wake);groundGeometry.dispose();groundMaterial.dispose();starsGeometry.dispose();starsMaterial.dispose();renderer.dispose();background.remove();copy?.remove();};
+      cleanup=()=>{cancelAnimationFrame(frame);window.removeEventListener('scroll',wake);window.removeEventListener('resize',wake);document.removeEventListener('visibilitychange',wake);motion.removeEventListener('change',wake);groundGeometry.dispose();groundMaterial.dispose();starsGeometry.dispose();starsMaterial.dispose();mistGeometry.dispose();mistMaterials.forEach(material=>material.dispose());renderer.dispose();background.remove();copy?.remove();};
       const image = background.querySelector('img');
       if (image && !image.complete) await new Promise(resolve => { image.onload=resolve;image.onerror=resolve; });
       if (disposed) return;
