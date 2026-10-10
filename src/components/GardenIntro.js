@@ -45,7 +45,7 @@ export default function GardenIntro() {
         positions.setY(i, side*(0.7+ridge*5.4+secondary*1.6)-0.6);
       }
       groundGeometry.computeVertexNormals();
-      const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xdcb28a, roughness: 0.86, transparent: true });
+      const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xc98f9c, roughness: 0.86, transparent: true });
       const sandTime = { value: 0 };
       groundMaterial.onBeforeCompile = shader => {
         shader.uniforms.uSandTime = sandTime;
@@ -56,17 +56,17 @@ export default function GardenIntro() {
           float ripple=sin(vSand.x*13.0+vSand.z*3.5+sin(vSand.z*0.8)*1.8);
           float grain=fract(sin(dot(floor(vSand.xz*180.0),vec2(12.9898,78.233)))*43758.5453);
           diffuseColor.rgb*=0.94+0.045*ripple+(grain-0.5)*0.06;
-          float sheen=pow(max(0.0,sin(vSand.x*0.24+vSand.z*0.16)),7.0);
-          diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.32,0.70,0.72),sheen*0.10);
+          float sheen=pow(max(0.0,sin(vSand.x*0.24+vSand.z*0.16)),3.0);
+          diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.16,0.56,0.59),sheen*0.48);
           float glint=step(0.997,grain)*pow(max(0.0,sin(uSandTime*1.8+vSand.x*4.0+vSand.z)),18.0);
-          diffuseColor.rgb+=vec3(0.40,0.34,0.22)*glint;`);
+          diffuseColor.rgb+=mix(vec3(0.55,0.30,0.42),vec3(0.28,0.66,0.62),sheen)*glint;`);
       };
       const ground = new THREE.Mesh(groundGeometry, groundMaterial);
       ground.position.z = -65; scene.add(ground);
-      scene.add(new THREE.HemisphereLight(0xa5cddd, 0x755542, 1.15));
-      const sun = new THREE.DirectionalLight(0xffdfb2, 2.7);
+      scene.add(new THREE.HemisphereLight(0xb4d8e7, 0x624665, 1.15));
+      const sun = new THREE.DirectionalLight(0xffc9b0, 2.7);
       sun.position.set(-35, 12, -30); scene.add(sun);
-      scene.fog = new THREE.Fog(0xd5c5aa, 30, 100);
+      scene.fog = new THREE.Fog(0xbab2cc, 30, 100);
       const starsGeometry = new THREE.BufferGeometry(), stars = [];
       for (let i = 0; i < 150; i++) {
         const n = Math.sin(i * 127.1 + 32.7) * 43758.5453;
