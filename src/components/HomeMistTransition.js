@@ -223,9 +223,12 @@ export default function HomeMistTransition() {
         stirringUniforms.uCloudEnvelope.value = envelope;
         stirringUniforms.uCloudSides.value = opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0.3, 1) :
           1 - THREE.MathUtils.smoothstep(progress, 0.1, 1);
-        const seam = opening ? hero.getBoundingClientRect().top : hero.getBoundingClientRect().bottom;
+        const seam = opening || arriving ? hero.getBoundingClientRect().top : hero.getBoundingClientRect().bottom;
         stirringUniforms.uCloudSeam.value = 1 - seam / window.innerHeight;
-        stirringUniforms.uCloudSeamStrength.value = seam > 0 && seam < window.innerHeight ? (opening ? 1 : departure) : 0;
+        // Let the shader's spatial feather carry the bridge offscreen. Switching
+        // it off at the viewport edge made the upper cloud patch vanish at once.
+        // Fade it with the same descent envelope as the surrounding vapor.
+        stirringUniforms.uCloudSeamStrength.value = opening ? 1 : envelope;
         stirringUniforms.uCloudFlow.value = flightProgress * 0.65 + elapsed * 0.035;
         material.opacity = 1;
         renderer.render(scene, camera);
