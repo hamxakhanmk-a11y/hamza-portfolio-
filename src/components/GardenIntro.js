@@ -62,18 +62,26 @@ export default function GardenIntro() {
       function draw() {
         frame = 0;
         const p = Math.max(0,Math.min(1,window.scrollY/root.offsetHeight));
-        root.style.setProperty('--doorway-surround', String(1-smooth(p/0.45)));
+        // The wall around the portal stays opaque until the scene fills the screen.
+        root.style.setProperty('--doorway-surround', p < 1 ? '1' : '0');
         const active = p < 1 && !document.hidden && !motion.matches;
         surfaceRef.current.style.visibility = active ? 'visible' : 'hidden';
         if (!active || disposed) return;
         const flight = smooth(p);
-        camera.position.set(0, 3.2, 15 - flight * 66);
-        camera.lookAt(0,3.8,camera.position.z-25);
+        const lift = smooth((p-0.55)/0.40);
+        camera.position.set(Math.sin(flight*Math.PI)*0.7, 3.2+lift*1.2, 15-flight*66);
+        camera.lookAt(0,3.8+lift*4.2,camera.position.z-25);
         const reveal = smooth((p-0.12)/0.77);
         const targetTransform = media.style.transform || '';
-        background.style.transform = targetTransform;
-        background.style.maskImage = `radial-gradient(ellipse, #000 ${45 + reveal * 65}%, transparent ${75 + reveal * 65}%)`;
-        backdropRef.current.style.opacity = String(0.18 + reveal * 0.82);
+        // Perspective growth follows the same forward travel as the dunes.
+        // At arrival scale and position match the real hero exactly.
+        const approach = 0.48 / (1-0.52*flight);
+        background.style.transform = targetTransform + ` scale(${approach})`;
+        background.style.transformOrigin = '50% 46%';
+        const edge = 18*(1-smooth((p-0.86)/0.10));
+        background.style.maskImage = `radial-gradient(ellipse, #000 ${25+reveal*105}%, transparent ${65+reveal*100}%), linear-gradient(90deg, transparent, #000 ${edge}%, #000 ${100-edge}%, transparent), linear-gradient(0deg, transparent, #000 ${edge}%, #000 ${100-edge}%, transparent)`;
+        background.style.maskComposite = 'intersect';
+        backdropRef.current.style.opacity = String(0.65+reveal*0.35);
         groundMaterial.opacity = 1-smooth((p-0.55)/0.40);
         starsMaterial.opacity = 0.65 * (1-smooth((p-0.65)/0.30));
         copyRef.current.style.opacity = String(smooth((p-0.65)/0.28));
@@ -96,7 +104,7 @@ export default function GardenIntro() {
       window.addEventListener('scroll',wake,{passive:true});window.addEventListener('resize',wake);
       document.addEventListener('visibilitychange',wake);motion.addEventListener('change',wake);wake();
     }
-    const start = hero => initialize(hero).catch(()=>{root.dataset.ready='true';surfaceRef.current.style.visibility='hidden';});
+    const start = hero => initialize(hero).catch(()=>{if(disposed) return;cleanup?.();root.dataset.ready='true';root.style.setProperty('--doorway-surround','0');surfaceRef.current.style.visibility='hidden';});
     const hero=document.querySelector('.intro-embedded');
     if(hero) start(hero); else { observer=new MutationObserver(()=>{const found=document.querySelector('.intro-embedded');if(found){observer.disconnect();start(found);}});observer.observe(document.body,{childList:true,subtree:true}); }
     return ()=>{disposed=true;observer?.disconnect();cleanup?.();};
