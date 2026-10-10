@@ -1,5 +1,6 @@
 .opening { height: 100svh; background: #f8f4ed; }
-.surface { position: fixed; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; background: linear-gradient(180deg,#12475a,#6caaa9 62%,#ddd5b8); clip-path: ellipse(48% 58% at 50% 55%); }
+.opening::before { content: ''; position: fixed; inset: 0; z-index: 3; pointer-events: none; background: #f8f4ed; opacity: var(--doorway-surround, 1); }
+.surface { position: fixed; inset: 0; z-index: 4; overflow: hidden; pointer-events: none; background: linear-gradient(180deg,#071c36,#29485f 46%,#b9ae96 72%,#e3c795); clip-path: inset(10% 34% -12% round 46% 46% 0 0); }
 .backdrop, .copy, .trees { position: absolute; inset: 0; width: 100%; height: 100%; }
 .backdrop { z-index: 0; }
 .copy { z-index: 1; color: white; }

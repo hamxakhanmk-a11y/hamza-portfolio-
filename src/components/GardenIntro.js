@@ -32,56 +32,53 @@ export default function GardenIntro() {
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 100);
-      const texture = await new THREE.TextureLoader().loadAsync('/garden-intro/ocean-tree.webp');
-      if (disposed) { texture.dispose(); renderer.dispose(); return; }
-      texture.colorSpace = THREE.SRGBColorSpace;
-      const geometry = new THREE.PlaneGeometry(1, 1);
-      const materials = [], trees = [];
-      // Flat cutouts occupy real depth: near trees pass quickly; distant trees recede slowly.
-      for (const [x,z,height,flip,tint] of [[-4.7,3,8.8,1,0xffffff],[4.9,0,8.3,-1,0xf7f1e4],[-4.8,-7,7.2,-1,0xcfe9ea],[5.2,-13,7.4,1,0xe1f0ed],[-5.6,-21,6.8,1,0xc0dfe5],[5.8,-28,6.6,-1,0xd0e4e6],[-6.5,-36,6,-1,0xbcdce4],[6.8,-42,6,1,0xc6e1e6]]) {
-        const material = new THREE.MeshBasicMaterial({ map: texture, color: tint, transparent: true, alphaTest: 0.035, depthWrite: true, toneMapped: false });
-        materials.push(material);
-        const tree = new THREE.Mesh(geometry, material);
-        tree.scale.set(height * texture.image.width / texture.image.height * flip, height, 1);
-        tree.position.set(x,height/2,z);
-        scene.add(tree); trees.push(tree);
+      const groundGeometry = new THREE.PlaneGeometry(180, 200, 180, 200);
+      groundGeometry.rotateX(-Math.PI / 2);
+      const positions = groundGeometry.attributes.position;
+      for (let i = 0; i < positions.count; i++) {
+        const x = positions.getX(i), z = positions.getZ(i);
+        const side = smooth((Math.abs(x) - 2) / 17);
+        const ridge = Math.sin(x * 0.17 + z * 0.12 + Math.sin(z * 0.055) * 1.8);
+        positions.setY(i, side * (2.7 + ridge * 2.2 + Math.sin(z * 0.21 - x * 0.08) * 0.9) - 0.6);
       }
-      const groundGeometry = new THREE.PlaneGeometry(160,160);
-      const groundMaterial = new THREE.ShaderMaterial({
-        uniforms: { uFade: { value: 1 } }, transparent: true, depthWrite: false, toneMapped: false,
-        vertexShader: `varying vec3 vGround; void main(){vGround=(modelMatrix*vec4(position,1.0)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(vGround,1.0);}`,
-        fragmentShader: `varying vec3 vGround;uniform float uFade;
-          void main(){
-            float dune=sin(vGround.x*0.35+sin(vGround.z*0.18)*1.4)*0.5+0.5;
-            float grain=fract(sin(dot(floor(vGround.xz*140.0),vec2(12.98,78.23)))*43758.54);
-            vec3 sand=mix(vec3(0.66,0.63,0.51),vec3(0.88,0.84,0.70),dune*0.65+0.25);
-            sand+=(grain-0.5)*0.025;
-            float horizon=smoothstep(-60.0,-8.0,vGround.z);
-            gl_FragColor=vec4(sand,uFade*horizon);
-            #include <colorspace_fragment>
-          }`,
-      });
+      groundGeometry.computeVertexNormals();
+      const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xe6c48d, roughness: 0.94, transparent: true });
       const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-      ground.rotation.x = -Math.PI/2; ground.position.set(0,-0.04,-40); scene.add(ground);
+      ground.position.z = -65; scene.add(ground);
+      scene.add(new THREE.HemisphereLight(0xc5ddeb, 0x9b7145, 2.1));
+      const sun = new THREE.DirectionalLight(0xffe2ae, 3.1);
+      sun.position.set(-30, 22, -35); scene.add(sun);
+      scene.fog = new THREE.Fog(0xd5c5aa, 30, 100);
+      const starsGeometry = new THREE.BufferGeometry(), stars = [];
+      for (let i = 0; i < 150; i++) {
+        const n = Math.sin(i * 127.1 + 32.7) * 43758.5453;
+        const m = Math.sin(i * 311.7 + 14.3) * 19341.123;
+        stars.push((n - Math.floor(n) - 0.5) * 130, 8 + (m - Math.floor(m)) * 45, -85 - i % 35);
+      }
+      starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(stars, 3));
+      const starsMaterial = new THREE.PointsMaterial({ color: 0xffeed3, size: 0.10, transparent: true, opacity: 0.65, depthWrite: false, fog: false });
+      scene.add(new THREE.Points(starsGeometry, starsMaterial));
       let frame = 0;
       function draw() {
         frame = 0;
         const p = Math.max(0,Math.min(1,window.scrollY/root.offsetHeight));
+        root.style.setProperty('--doorway-surround', String(1-smooth(p/0.45)));
         const active = p < 1 && !document.hidden && !motion.matches;
         surfaceRef.current.style.visibility = active ? 'visible' : 'hidden';
         if (!active || disposed) return;
         const flight = smooth(p);
-        camera.position.set(0, 2.1, 15 - flight * 66);
-        camera.lookAt(0,2.15,camera.position.z-20);
+        camera.position.set(0, 3.2, 15 - flight * 66);
+        camera.lookAt(0,3.8,camera.position.z-25);
         const reveal = smooth((p-0.12)/0.77);
         const targetTransform = media.style.transform || '';
         background.style.transform = targetTransform;
         background.style.maskImage = `radial-gradient(ellipse, #000 ${45 + reveal * 65}%, transparent ${75 + reveal * 65}%)`;
-        backdropRef.current.style.opacity = String(0.42 + reveal * 0.58);
-        groundMaterial.uniforms.uFade.value = 1-smooth((p-0.20)/0.50);
-        for (const tree of trees) tree.material.opacity = 1-smooth((p-0.83)/0.15);
-        copyRef.current.style.opacity = String(smooth((p-0.12)/0.25));
-        surfaceRef.current.style.clipPath = `ellipse(${48+smooth(p/0.27)*105}% ${58+smooth(p/0.27)*100}% at 50% 55%)`;
+        backdropRef.current.style.opacity = String(0.18 + reveal * 0.82);
+        groundMaterial.opacity = 1-smooth((p-0.55)/0.40);
+        starsMaterial.opacity = 0.65 * (1-smooth((p-0.65)/0.30));
+        copyRef.current.style.opacity = String(smooth((p-0.65)/0.28));
+        const doorway = smooth(p/0.45);
+        surfaceRef.current.style.clipPath = `inset(${10*(1-doorway)}% ${34*(1-doorway)}% ${-12-doorway*70}% round ${46*(1-doorway)}% ${46*(1-doorway)}% 0 0)`;
         surfaceRef.current.style.opacity = String(1-smooth((p-0.97)/0.03));
         const width=window.innerWidth,height=window.innerHeight;
         if (canvasRef.current.width !== Math.round(width*renderer.getPixelRatio()) || canvasRef.current.height !== Math.round(height*renderer.getPixelRatio())) {
@@ -91,7 +88,7 @@ export default function GardenIntro() {
         frame=requestAnimationFrame(draw);
       }
       function wake(){ if (!frame && !disposed) frame=requestAnimationFrame(draw); }
-      cleanup=()=>{cancelAnimationFrame(frame);window.removeEventListener('scroll',wake);window.removeEventListener('resize',wake);document.removeEventListener('visibilitychange',wake);motion.removeEventListener('change',wake);geometry.dispose();groundGeometry.dispose();groundMaterial.dispose();materials.forEach(m=>m.dispose());texture.dispose();renderer.dispose();background.remove();copy?.remove();};
+      cleanup=()=>{cancelAnimationFrame(frame);window.removeEventListener('scroll',wake);window.removeEventListener('resize',wake);document.removeEventListener('visibilitychange',wake);motion.removeEventListener('change',wake);groundGeometry.dispose();groundMaterial.dispose();starsGeometry.dispose();starsMaterial.dispose();renderer.dispose();background.remove();copy?.remove();};
       const image = background.querySelector('img');
       if (image && !image.complete) await new Promise(resolve => { image.onload=resolve;image.onerror=resolve; });
       if (disposed) return;
