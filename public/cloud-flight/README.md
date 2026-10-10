@@ -71,3 +71,11 @@ subtle peach sunlit rims, pale turquoise sky, warm distant sunrise glow,
 natural atmospheric scattering and fine vapor wisps. No buildings, people,
 text, borders or watermark. Landscape composition inspired by the user's
 cloud reference.
+
+## Procedural sunlit clouds v7
+
+The photographic v3 background is no longer used. The original animated
+domain-warped vapor and transparent wisps are restored. Reference-inspired
+changes use smoother density interpolation, fuller billows, blue-teal recesses,
+upper-right directional lighting and restrained warm ivory rims. The gallery
+sky also returns to procedural clouds. No new image is used as a backdrop.

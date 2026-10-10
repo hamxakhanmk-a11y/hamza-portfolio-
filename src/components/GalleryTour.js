@@ -230,11 +230,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3d68b, metalness: 0.35, roughness: 0.4, toneMapped: false }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
       const glassMat = keep(new THREE.MeshBasicMaterial({ color: WALL, transparent: true, opacity: 0.35, toneMapped: false }));
-      // Continue the same sunlit cloud environment beyond the flight overlay.
-      const cloudEnvironment = keep(new THREE.TextureLoader().load('/cloud-flight/cloud-cumulus-v3.webp'));
-      cloudEnvironment.colorSpace = THREE.SRGBColorSpace;
+      // Procedural clouds drift independently of the gallery camera.
       const skyMat = keep(new THREE.ShaderMaterial({
-        uniforms: { uTime: { value: 0 }, uCloudEnvironment: { value: cloudEnvironment } },
+        uniforms: { uTime: { value: 0 } },
         vertexShader: gallerySkyVertex,
         fragmentShader: gallerySkyFragment,
         fog: false,
