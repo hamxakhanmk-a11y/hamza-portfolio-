@@ -3,9 +3,10 @@
 import { useEffect, useRef } from 'react';
 import styles from './HomeMistTransition.module.css';
 import { HOME_DESCENT_SVH } from '@/data/galleryTour';
+import GardenIntro from './GardenIntro';
 
 export function HomeSkyIntro() {
-  return <div className={styles.openingSky} data-home-sky aria-hidden="true" />;
+  return <GardenIntro />;
 }
 
 export default function HomeMistTransition() {
@@ -15,6 +16,7 @@ export default function HomeMistTransition() {
     const canvas = canvasRef.current;
     let hero = document.querySelector('.intro-embedded');
     const sky = document.querySelector('[data-home-sky]');
+    const gardenIntro = Boolean(sky?.hasAttribute('data-garden-intro'));
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (motion.matches) return;
     let disposed = false;
@@ -32,7 +34,7 @@ export default function HomeMistTransition() {
       let textureReady = false;
       const texture = new THREE.TextureLoader().load('/cloud-flight/cloud-mist-v2.webp', () => {
         textureReady = true;
-        if (sky) sky.dataset.ready = 'true';
+        if (sky && !gardenIntro) sky.dataset.ready = 'true';
         wake();
       }, undefined, () => {
         if (sky) sky.dataset.ready = 'true';
@@ -185,7 +187,7 @@ export default function HomeMistTransition() {
         hero.style.setProperty('--hero-edge', `${THREE.MathUtils.smoothstep(progress, 0, 0.2) * window.innerHeight * 0.4}px`);
         const skyHeight = sky?.offsetHeight || 1;
         const introProgress = Math.max(0, Math.min(1, window.scrollY / skyHeight));
-        hero.style.setProperty('--hero-arrival-edge', `${(1 - introProgress) * window.innerHeight * 0.5}px`);
+        hero.style.setProperty('--hero-arrival-edge', `${gardenIntro ? 0 : (1 - introProgress) * window.innerHeight * 0.5}px`);
         const heroArrival = Math.max(0, (window.scrollY - skyHeight) / window.innerHeight);
         const opening = Boolean(sky && sky.getBoundingClientRect().bottom > 0);
         const gallery = document.querySelector('[data-sky-descent]');
@@ -201,7 +203,7 @@ export default function HomeMistTransition() {
         const inDescent = galleryRect && galleryRect.top < window.innerHeight && galleryRect.bottom > 0 &&
           (descent < 1 || galleryRect.top > -window.innerHeight * HOME_DESCENT_SVH / 100);
         const arriving = Boolean(sky && heroArrival < 0.9);
-        const active = (opening || arriving || (progress > 0 && progress < 1) || inDescent) && !document.hidden && !motion.matches && !contextLost;
+        const active = ((!gardenIntro && (opening || arriving)) || (progress > 0 && progress < 1) || inDescent) && !document.hidden && !motion.matches && !contextLost;
         canvas.style.opacity = active && textureReady ? '1' : '0';
         canvas.style.backgroundColor = 'transparent';
         if (!active) { last = 0; return; }

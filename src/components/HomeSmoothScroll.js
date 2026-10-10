@@ -40,7 +40,7 @@ export default function HomeSmoothScroll() {
             introPending = false;
             introRunning = true;
             instance.scrollTo(sky.offsetTop + sky.offsetHeight, {
-              duration: 3.6,
+              duration: sky.hasAttribute('data-garden-intro') ? 6.2 : 3.6,
               force: true,
               lock: true,
               easing: (t) => t * t * (3 - 2 * t),

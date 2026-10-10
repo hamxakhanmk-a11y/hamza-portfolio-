@@ -1,0 +1,6 @@
+# Garden intro tree
+
+`ocean-tree.webp` is an AI-generated transparent cutout, rendered on planes at multiple depths in `GardenIntro.js`. Generated with the built-in image generation tool and converted to WebP with alpha preserved.
+
+Prompt:
+Use case stylized-concept. Asset type individual transparent tree sprite for a cinematic 3D website garden intro, not a full scene. One entire majestic umbrella-canopy tree standing alone, trunk and all foliage completely within the image with transparent margins. Three-quarter realistic sculptural botanical rendering inspired by elegant surreal resort website trees: broad layered rounded canopy of dense deep ocean blue and teal leaves, delicate turquoise illuminated leaf tips, richly detailed gently twisting warm brown trunk with visible spreading branches, soft ivory golden sunlight from upper right, natural dimensional shading. Tree is tall with wide canopy, ground-level camera, front view, full tree from canopy to roots. Actual fully transparent background. NO sky, scenery, ground plane, horizon, text, frames, scenery backdrop, pot or surrounding objects. Avoid cartoon geometry or flat painting. This is an isolated asset to be placed at several depths, foliage fine detailed with convincing volume.
