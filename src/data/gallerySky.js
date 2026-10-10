@@ -31,13 +31,13 @@ export const gallerySkyFragment = `
   void main() {
     vec3 direction = normalize(vSkyDirection);
     float height = clamp(direction.y * 0.5 + 0.5, 0.0, 1.0);
-    vec3 sky = mix(vec3(0.73, 0.89, 0.94), vec3(0.16, 0.52, 0.71), pow(height, 0.7));
+    vec3 sky = mix(vec3(0.77, 0.85, 0.94), vec3(0.18, 0.49, 0.71), pow(height, 0.7));
     vec3 p = direction * 18.0 + vec3(uTime * 0.11, 0.0, uTime * 0.025);
     vec3 warp = vec3(fbm(p * 0.7), fbm(p * 0.7 + 8.4), fbm(p * 0.7 + 21.2));
     float density = fbm(p + warp * 1.1);
     float cloud = smoothstep(0.37, 0.61, density);
     float light = fbm(p + warp * 1.1 + vec3(-0.12, 0.2, 0.0));
-    vec3 cloudColor = mix(vec3(0.28, 0.59, 0.70), vec3(1.0, 0.93, 0.73), clamp(0.55 + (density - light) * 5.0, 0.0, 1.0));
+    vec3 cloudColor = mix(vec3(0.32, 0.52, 0.72), vec3(0.98, 0.84, 0.86), clamp(0.55 + (density - light) * 5.0, 0.0, 1.0));
     sky = mix(sky, cloudColor, cloud);
     sky = mix(sky, vec3(0.86, 0.95, 0.96), pow(1.0 - height, 4.0) * 0.32);
     gl_FragColor = vec4(sky, 1.0);
