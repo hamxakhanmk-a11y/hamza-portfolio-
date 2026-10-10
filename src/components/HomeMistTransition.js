@@ -205,7 +205,7 @@ export default function HomeMistTransition() {
           (descent < 1 || galleryRect.top > -window.innerHeight * HOME_DESCENT_SVH / 100);
         const arriving = Boolean(sky && heroArrival < 0.9);
         const heroVisible = !opening && hero.getBoundingClientRect().top < window.innerHeight && hero.getBoundingClientRect().bottom > 0;
-        const handoff = gardenIntro && opening && introProgress > 0.85;
+        const handoff = gardenIntro && opening && introProgress > 0.68;
         const active = (handoff || heroVisible || (!gardenIntro && (opening || arriving)) || (progress > 0 && progress < 1) || inDescent) && !document.hidden && !motion.matches && !contextLost;
         canvas.style.opacity = active && textureReady ? '1' : '0';
         canvas.style.backgroundColor = 'transparent';
@@ -223,7 +223,7 @@ export default function HomeMistTransition() {
         const flightProgress = window.scrollY / window.innerHeight;
         const descentFade = 1-THREE.MathUtils.smoothstep(descent,0.55,1);
         const descentEnvelope = departure*descentFade;
-        const envelope = gardenIntro ? handoff ? 0.66*THREE.MathUtils.smoothstep(introProgress,0.85,0.97) : opening ? 0 : THREE.MathUtils.lerp(0.66,1.15,departure)*descentFade : opening ? 1 : arriving ? 1-THREE.MathUtils.smoothstep(heroArrival,0,0.9) : descentEnvelope;
+        const envelope = gardenIntro ? handoff ? 0.66*THREE.MathUtils.smoothstep(introProgress,0.68,0.90) : opening ? 0 : THREE.MathUtils.lerp(0.66,1.15,departure)*descentFade : opening ? 1 : arriving ? 1-THREE.MathUtils.smoothstep(heroArrival,0,0.9) : descentEnvelope;
         stirringUniforms.uCloudLighten.value = gardenIntro ? THREE.MathUtils.lerp(0.3,0.85,THREE.MathUtils.smoothstep((Math.max(0,progress)+descent)/2,0,0.9)) : opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0, 1) * 0.3 :
           THREE.MathUtils.lerp(0.3, 1, THREE.MathUtils.smoothstep((Math.max(0, Math.min(1, progress)) + descent) / 2, 0, 0.8));
         stirringUniforms.uCloudEnvelope.value = envelope;
