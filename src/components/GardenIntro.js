@@ -27,6 +27,8 @@ export default function GardenIntro() {
       backdropRef.current.append(background);
       const copy = hero.querySelector('.intro-positioned-copy')?.cloneNode(true);
       if (copy) copyRef.current.append(copy);
+      const heroCopy = hero.querySelector('.intro-canvas');
+      const previousCopyOpacity = heroCopy?.style.opacity || '';
       const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, alpha: true, antialias: true, powerPreference: 'low-power' });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -111,6 +113,9 @@ export default function GardenIntro() {
       function draw() {
         frame = 0;
         const p = Math.max(0,Math.min(1,window.scrollY/root.offsetHeight));
+        // Keep a single title visible: the live hero is still below the viewport
+        // during the approach, so crossfading both copies produces displaced text.
+        if (heroCopy) heroCopy.style.opacity = p < 1 ? '0' : previousCopyOpacity;
         // The wall around the portal stays opaque until the scene fills the screen.
         root.style.setProperty('--doorway-surround', p < 0.45 ? '1' : '0');
         const active = p < 1 && !document.hidden && !motion.matches;
@@ -153,7 +158,7 @@ export default function GardenIntro() {
         copyRef.current.style.opacity = String(smooth((p-0.38)/0.24));
         const doorway = smooth(p/0.45);
         surfaceRef.current.style.clipPath = `inset(${10*(1-doorway)}% ${34*(1-doorway)}% ${-12-doorway*70}% round ${46*(1-doorway)}% ${46*(1-doorway)}% 0 0)`;
-        surfaceRef.current.style.opacity = String(1-smooth((p-0.90)/0.10));
+        surfaceRef.current.style.opacity = '1';
         const width=window.innerWidth,height=window.innerHeight;
         if (canvasRef.current.width !== Math.round(width*renderer.getPixelRatio()) || canvasRef.current.height !== Math.round(height*renderer.getPixelRatio())) {
           renderer.setSize(width,height,false); camera.aspect=width/height; camera.updateProjectionMatrix();
@@ -162,7 +167,7 @@ export default function GardenIntro() {
         frame=requestAnimationFrame(draw);
       }
       function wake(){ if (!frame && !disposed) frame=requestAnimationFrame(draw); }
-      cleanup=()=>{cancelAnimationFrame(frame);window.removeEventListener('scroll',wake);window.removeEventListener('resize',wake);document.removeEventListener('visibilitychange',wake);motion.removeEventListener('change',wake);groundGeometry.dispose();groundMaterial.dispose();starsGeometry.dispose();starsMaterial.dispose();mistGeometry.dispose();mistMaterials.forEach(material=>material.dispose());renderer.dispose();background.remove();copy?.remove();};
+      cleanup=()=>{cancelAnimationFrame(frame);if(heroCopy)heroCopy.style.opacity=previousCopyOpacity;window.removeEventListener('scroll',wake);window.removeEventListener('resize',wake);document.removeEventListener('visibilitychange',wake);motion.removeEventListener('change',wake);groundGeometry.dispose();groundMaterial.dispose();starsGeometry.dispose();starsMaterial.dispose();mistGeometry.dispose();mistMaterials.forEach(material=>material.dispose());renderer.dispose();background.remove();copy?.remove();};
       const image = background.querySelector('img');
       if (image && !image.complete) await new Promise(resolve => { image.onload=resolve;image.onerror=resolve; });
       const video = background.querySelector('video');
@@ -192,3 +197,4 @@ export default function GardenIntro() {
     </div>
   </div>;
 }
+
