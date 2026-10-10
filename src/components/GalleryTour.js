@@ -1010,7 +1010,6 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       ref={rootRef}
       id="gallery-tour"
       data-sky-descent={descendFromSky ? 'true' : undefined}
-      data-water-surface-block
       className={`relative bg-[#f8f4ed] ${descendFromSky ? 'sky-gallery-tour' : ''}`}
       style={descendFromSky ? { '--tour-height': `${stopCount * STOP_SCREEN_SHARE}svh`, '--descent-height': `${HOME_DESCENT_SVH}svh` } : { height: `${stopCount * STOP_SCREEN_SHARE}svh` }}
       aria-label="Walk-through gallery of portfolio paintings"

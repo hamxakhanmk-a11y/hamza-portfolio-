@@ -80,20 +80,7 @@ export default function SiteMotion() {
             );
           });
 
-          gsap.utils.toArray('.living-image').forEach((image, index) => {
-            gsap.to(image, {
-              scale: 1.025,
-              y: index % 2 ? -5 : 5,
-              duration: 5.5 + (index % 3),
-              repeat: -1,
-              yoyo: true,
-              ease: 'sine.inOut',
-              transformOrigin: '50% 50%',
-            });
-          });
-
-          gsap.utils.toArray('.editorial-art-frame').forEach((frame, index) => {
-            const image = frame.querySelector('.artwork-inside-motion');
+          gsap.utils.toArray('.editorial-art-frame').forEach((frame) => {
             gsap.fromTo(frame,
               { autoAlpha: 0, y: 65 },
               {
@@ -104,17 +91,6 @@ export default function SiteMotion() {
                 scrollTrigger: { trigger: frame, start: 'top 86%', once: true },
               },
             );
-            if (image) {
-              gsap.to(image, {
-                scale: 1.035,
-                x: index % 2 ? 5 : -5,
-                duration: 7 + (index % 3),
-                repeat: -1,
-                yoyo: true,
-                ease: 'sine.inOut',
-                transformOrigin: '50% 50%',
-              });
-            }
           });
 
         });
