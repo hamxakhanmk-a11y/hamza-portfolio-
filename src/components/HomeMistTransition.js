@@ -126,18 +126,18 @@ export default function HomeMistTransition() {
                 float slope = clamp((broad - sunward) * 4.5, -0.45, 0.6);
                 float illumination = smoothstep(-0.22, 0.40, slope + vapor * 0.22);
                 float body = smoothstep(0.30, 0.65, broad);
-                vec3 shadedCloud = mix(vec3(0.08, 0.23, 0.32), vec3(0.38, 0.58, 0.66), body);
-                vec3 paintedCloud = mix(shadedCloud, vec3(0.91, 0.85, 0.75), illumination * 0.72);
-                vec3 paleCloud = mix(vec3(0.47, 0.66, 0.77), vec3(0.98, 0.97, 0.91), illumination);
+                vec3 shadedCloud = mix(vec3(0.07, 0.22, 0.38), vec3(0.32, 0.55, 0.76), body);
+                vec3 paintedCloud = mix(shadedCloud, vec3(0.96, 0.86, 0.63), illumination * 0.72);
+                vec3 paleCloud = mix(vec3(0.43, 0.65, 0.84), vec3(0.99, 0.96, 0.82), illumination);
                 float rim = smoothstep(0.12, 0.44, slope) * smoothstep(0.22, 0.5, density);
                 vec3 mistColor = mix(paintedCloud, paleCloud, uCloudLighten);
-                mistColor += vec3(0.11, 0.085, 0.045) * rim;
+                mistColor += vec3(0.11, 0.08, 0.025) * rim;
                 mistColor = mix(mistColor, wisps.rgb, wisps.a * 0.10);
                 diffuseColor *= vec4(mistColor, opacity);
               #endif
             `);
           };
-          material.customProgramCacheKey = () => 'continuous-sunlit-cloud-mist-v7';
+          material.customProgramCacheKey = () => 'continuous-sunlit-cloud-mist-v8';
           const mesh = new THREE.Mesh(geometry, material);
           mesh.scale.set(2, 2, 1);
           scene.add(mesh);

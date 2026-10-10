@@ -868,9 +868,14 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const placeCamera = s => {
         if (s < 0) {
           // Land on the forecourt facing the doors; the existing route then enters.
-          const flight = smootherstep(clamp01(1 + s / 3));
+          const descent = clamp01(1 + s / 3);
+          const flight = smootherstep(descent);
           camera.position.set(0, THREE.MathUtils.lerp(48, EYE, flight), THREE.MathUtils.lerp(12, 5.5, flight));
-          lookPoint.set(0, THREE.MathUtils.lerp(38, 2.2, flight), THREE.MathUtils.lerp(2, -8, flight));
+          // Ease the viewing angle itself, rather than two look-at coordinates.
+          // Keep a fixed sight distance so perspective does not accelerate the turn.
+          const arrivalPitch = Math.atan2(2.2 - EYE, 13.5);
+          const pitch = THREE.MathUtils.lerp(-Math.PI / 6, arrivalPitch, smootherstep(descent));
+          lookPoint.set(0, camera.position.y + Math.sin(pitch) * 24, camera.position.z - Math.cos(pitch) * 24);
           camera.lookAt(lookPoint);
           return;
         }
@@ -878,8 +883,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         positionCurve.getPoint(t, camera.position);
         targetCurve.getPoint(t, lookPoint);
         camera.lookAt(lookPoint);
-        camera.rotateY(sway.x);
-        camera.rotateX(sway.y);
+        const swayBlend = smootherstep(clamp01(s / 0.35));
+        camera.rotateY(sway.x * swayBlend);
+        camera.rotateX(sway.y * swayBlend);
         // the doors slide apart as the visitor comes in
         const open = smootherstep(clamp01((s - 0.02) / 0.3));
         for (const { door, side } of doors) door.position.x = side * 2.15 * open;
