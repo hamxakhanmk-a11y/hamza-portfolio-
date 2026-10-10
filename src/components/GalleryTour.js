@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TOUR_SLOTS, HOME_DESCENT_SVH } from '@/data/galleryTour';
 import { gallerySkyVertex, gallerySkyFragment } from '@/data/gallerySky';
-import { getRestoredArtworkImage } from '@/data/artworkImageRestoration';
+import { getRestoredArtworkImage, getGalleryArtworkRestoration } from '@/data/artworkImageRestoration';
 
 // A white 3D gallery the visitor glides through by scrolling, laid out like the reference film:
 // frosted glass doors open onto the entrance hall (arched window at the end, an open seating area beside it),
@@ -230,9 +230,11 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3d68b, metalness: 0.35, roughness: 0.4, toneMapped: false }));
       const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
       const glassMat = keep(new THREE.MeshBasicMaterial({ color: WALL, transparent: true, opacity: 0.35, toneMapped: false }));
-      // Soft cloud density drifts independently of the visitor's camera.
+      // Continue the same sunlit cloud environment beyond the flight overlay.
+      const cloudEnvironment = keep(new THREE.TextureLoader().load('/cloud-flight/cloud-cumulus-v3.webp'));
+      cloudEnvironment.colorSpace = THREE.SRGBColorSpace;
       const skyMat = keep(new THREE.ShaderMaterial({
-        uniforms: { uTime: { value: 0 } },
+        uniforms: { uTime: { value: 0 }, uCloudEnvironment: { value: cloudEnvironment } },
         vertexShader: gallerySkyVertex,
         fragmentShader: gallerySkyFragment,
         fog: false,
@@ -793,7 +795,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         group.rotation.y = place.yaw;
         scene.add(group);
         let texture;
-        const restoration = getRestoredArtworkImage(artwork.image_url);
+        const restoration = getGalleryArtworkRestoration(artwork.image_url) || getRestoredArtworkImage(artwork.image_url);
         try {
           texture = keep(await loader.loadAsync(optimizedImage(restoration?.src || artwork.image_url)));
         } catch {
@@ -803,12 +805,16 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         if (restoration) {
           const source = texture.image;
           const canvas = document.createElement('canvas');
-          canvas.width = 1024; canvas.height = 1024;
+          canvas.width = 1024;
+          canvas.height = restoration.crop ? Math.round(1024 * source.height * restoration.crop[3] / (source.width * restoration.crop[2])) : 1024;
           const ctx = canvas.getContext('2d');
           const blue = restoration.src.endsWith('1787070962764.jpg');
           const side = blue ? source.width * (949 / 1170) : Math.min(source.width, source.height);
           const cx = source.width * 0.5, cy = source.height * (blue ? 569.5 / 1153 : 0.5);
-          ctx.drawImage(source, cx - side / 2, cy - side / 2, side, side, 0, 0, 1024, 1024);
+          if (restoration.crop) {
+            const [x, y, w, h] = restoration.crop;
+            ctx.drawImage(source, x * source.width, y * source.height, w * source.width, h * source.height, 0, 0, canvas.width, canvas.height);
+          } else ctx.drawImage(source, cx - side / 2, cy - side / 2, side, side, 0, 0, 1024, 1024);
           texture = keep(new THREE.CanvasTexture(canvas));
         }
         texture.colorSpace = THREE.SRGBColorSpace;

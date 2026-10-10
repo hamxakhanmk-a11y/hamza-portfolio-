@@ -30,7 +30,7 @@ export default function HomeMistTransition() {
       const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
       camera.position.z = 1;
       let textureReady = false;
-      const texture = new THREE.TextureLoader().load('/cloud-flight/cloud-mist-v2.webp', () => {
+      const texture = new THREE.TextureLoader().load('/cloud-flight/cloud-cumulus-v3.webp', () => {
         textureReady = true;
         if (sky) sky.dataset.ready = 'true';
         wake();
@@ -51,6 +51,7 @@ export default function HomeMistTransition() {
         uCloudStrengths: { value: strengths },
         uCloudResolution: { value: resolution },
         uCloudFlow: { value: 0 },
+        uCloudFlight: { value: 0 },
         uCloudLighten: { value: 0 },
         uCloudEnvelope: { value: 1 },
         uCloudSides: { value: 0 },
@@ -70,29 +71,12 @@ export default function HomeMistTransition() {
               uniform float uCloudStrengths[8];
               uniform vec2 uCloudResolution;
               uniform float uCloudFlow;
+              uniform float uCloudFlight;
               uniform float uCloudLighten;
               uniform float uCloudEnvelope;
               uniform float uCloudSides;
               uniform float uCloudSeam;
               uniform float uCloudSeamStrength;
-              float cloudHash(vec2 p) {
-                return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-              }
-              float cloudNoise(vec2 p) {
-                vec2 cell = floor(p), f = fract(p);
-                f = f * f * (3.0 - 2.0 * f);
-                return mix(mix(cloudHash(cell), cloudHash(cell + vec2(1.0, 0.0)), f.x),
-                  mix(cloudHash(cell + vec2(0.0, 1.0)), cloudHash(cell + vec2(1.0)), f.x), f.y);
-              }
-              float cloudFbm(vec2 p) {
-                float value = 0.0, amplitude = 0.5;
-                for (int octave = 0; octave < 4; octave++) {
-                  value += amplitude * cloudNoise(p);
-                  p = mat2(1.6, -1.2, 1.2, 1.6) * p + 3.7;
-                  amplitude *= 0.5;
-                }
-                return value;
-              }
             `).replace('#include <map_fragment>', `
               #ifdef USE_MAP
                 vec2 screen = gl_FragCoord.xy / uCloudResolution.y;
@@ -105,38 +89,36 @@ export default function HomeMistTransition() {
                   displacement += influence * uCloudStrengths[i] *
                     (uCloudTrails[i].zw * 0.6 + curl * spin * 4.0);
                 }
-                vec2 field = (screen - displacement) * 3.0 - vec2(0.0, uCloudFlow);
-                float broad = cloudFbm(field);
-                float vapor = cloudFbm(field * 2.2 + vec2(broad * 1.8, broad));
-                vec2 center = vec2(uCloudResolution.x / uCloudResolution.y * 0.5, 0.5);
-                vec2 stirredUv = (screen - displacement - center) / vec2(1.5, 1.0) + 0.5;
-                vec4 wisps = texture2D(map, clamp(stirredUv + vec2((broad - 0.5) * 0.025, (vapor - 0.5) * 0.04), 0.0, 1.0));
-                vec4 distant = texture2D(map, clamp(stirredUv * 0.65 + vec2(0.17, 0.22 + uCloudFlow * 0.008), 0.0, 1.0));
-                float surrounding = smoothstep(0.12, 0.48, abs(vMapUv.x - 0.5));
-                float density = smoothstep(0.28, 0.69, broad * 0.5 + vapor * 0.3 + distant.a * 0.2);
-                float opacity = clamp(density * (0.85 + surrounding * 0.12) + wisps.a * 0.3, 0.0, 0.96) * uCloudEnvelope;
-                // Feather the actual section edge with the same cloud field on both sides.
-                float bridge = (1.0 - smoothstep(0.035, 0.38, abs(screen.y - uCloudSeam))) * uCloudSeamStrength;
+                // Photograph preserves actual cloud lobes, rim light and occlusion.
+                // Perspective expansion separates near banks from the distant horizon.
+                vec2 uv = gl_FragCoord.xy / uCloudResolution;
+                float aspect = uCloudResolution.x / uCloudResolution.y;
+                vec2 cover = vec2(min(aspect / 1.7778, 1.0), min(1.7778 / aspect, 1.0));
+                vec2 centered = uv - vec2(0.5, 0.52);
+                float flight = uCloudFlight;
+                float zoom = 1.0 + flight * 0.22;
+                vec2 farUv = centered * cover / zoom + vec2(0.5, 0.52 + flight * 0.045);
+                vec2 drift = vec2(sin(uCloudFlow * 0.15) * 0.002, 0.0);
+                vec3 distant = texture2D(map, clamp(farUv + drift - displacement * 0.015, 0.002, 0.998)).rgb;
+                vec2 nearUv = centered * cover / (zoom * 1.16) + vec2(0.5, 0.52 + flight * 0.075);
+                vec3 nearCloud = texture2D(map, clamp(nearUv + drift - displacement * 0.03, 0.002, 0.998)).rgb;
+                float banks = smoothstep(0.20, 0.48, abs(uv.x - 0.5));
+                float foreground = max(banks, 1.0 - smoothstep(0.02, 0.32, uv.y));
+                vec3 cloudColor = mix(distant, nearCloud, foreground * 0.24);
+                // Start in shaded teal; ivory light grows gradually during descent.
+                vec3 shaded = cloudColor * vec3(0.62, 0.76, 0.88);
+                vec3 daylight = mix(cloudColor, vec3(0.84, 0.94, 0.99), 0.16);
+                vec3 mistColor = mix(shaded, daylight, uCloudLighten);
+                float opacity = uCloudEnvelope;
+                float bridge = (1.0 - smoothstep(0.025, 0.36, abs(uv.y - uCloudSeam))) * uCloudSeamStrength;
                 opacity = mix(opacity, 1.0, bridge);
-                float sideClouds = smoothstep(0.20, 0.48, abs(vMapUv.x - 0.5));
-                opacity *= mix(1.0, sideClouds * 0.85, uCloudSides);
-                vec3 paintedCloud = mix(vec3(0.055, 0.20, 0.32), vec3(0.23, 0.57, 0.65), smoothstep(0.22, 0.68, vapor));
-                float rose = smoothstep(0.42, 0.66, cloudFbm(field * 0.55 + 8.3));
-                paintedCloud = mix(paintedCloud, vec3(0.76, 0.48, 0.58), rose * 0.48);
-                paintedCloud = mix(paintedCloud, vec3(0.84, 0.82, 0.73), smoothstep(0.65, 0.87, vapor) * 0.35);
-                vec3 paleCloud = mix(vec3(0.57, 0.76, 0.87), vec3(0.98, 0.99, 1.0), smoothstep(0.28, 0.65, vapor));
-                paleCloud = mix(paleCloud, wisps.rgb, wisps.a * 0.2);
-                vec3 mistColor = mix(paintedCloud, paleCloud, uCloudLighten);
-                // A second cloud layer and directional shading give the vapor depth.
-                float sunward = cloudFbm(field + vec2(-0.24, 0.32));
-                float rimLight = clamp((broad - sunward) * 2.0, -0.12, 0.2);
-                mistColor *= 0.94 + rimLight;
-                mistColor = mix(mistColor, wisps.rgb, wisps.a * 0.12);
+                float sideClouds = smoothstep(0.20, 0.49, abs(uv.x - 0.5));
+                opacity *= mix(1.0, sideClouds * 0.92, uCloudSides);
                 diffuseColor *= vec4(mistColor, opacity);
               #endif
             `);
           };
-          material.customProgramCacheKey = () => 'continuous-cloud-mist-v5';
+          material.customProgramCacheKey = () => 'sculpted-cloud-flight-v6';
           const mesh = new THREE.Mesh(geometry, material);
           mesh.scale.set(2, 2, 1);
           scene.add(mesh);
@@ -225,6 +207,7 @@ export default function HomeMistTransition() {
         const seam = opening ? hero.getBoundingClientRect().top : hero.getBoundingClientRect().bottom;
         stirringUniforms.uCloudSeam.value = 1 - seam / window.innerHeight;
         stirringUniforms.uCloudSeamStrength.value = seam > 0 && seam < window.innerHeight ? (opening ? 1 : departure) : 0;
+        stirringUniforms.uCloudFlight.value = opening || arriving ? introProgress : 1 + Math.max(0, Math.min(1, progress)) * 0.4 + descent * 0.7;
         stirringUniforms.uCloudFlow.value = flightProgress * 0.65 + elapsed * 0.035;
         material.opacity = 1;
         renderer.render(scene, camera);

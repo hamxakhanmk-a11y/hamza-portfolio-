@@ -53,3 +53,21 @@ upper left, cool pale blue shading in recesses, luminous white highlights.
 Moderate semitransparent fog density, irregular silhouette, natural atmospheric
 scattering. No sky background, scenery, ground, mountains, text, sun, or other
 objects. Genuine alpha transparency. Transparent falloff on all sides is essential.
+
+## Cumulus flight v3
+
+The intro and descending overlay now use cloud-cumulus-v3.webp, generated with
+the built-in imagegen tool and compressed to WebP (1672 × 941). The shader
+preserves its photographic lighting, uses gentle perspective expansion and
+foreground parallax, and progressively lifts shaded teal into ivory daylight.
+Hero-side masking and the shared seam feather remain continuous. This replaces
+the four-octave noise overlay with two image samples, avoiding heavy volumetric
+ray marching. The original assets remain available.
+
+Generation prompt: A realistic aerial photograph between towering cumulus
+clouds framing an open central corridor above a distant cloud sea. Sculpted
+white billows, intricate small lobes, teal blue shadowed undersides, ivory and
+subtle peach sunlit rims, pale turquoise sky, warm distant sunrise glow,
+natural atmospheric scattering and fine vapor wisps. No buildings, people,
+text, borders or watermark. Landscape composition inspired by the user's
+cloud reference.
