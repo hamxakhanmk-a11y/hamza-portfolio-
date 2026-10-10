@@ -37,7 +37,7 @@ export default function HomeMistTransition() {
         if (sky && !gardenIntro) sky.dataset.ready = 'true';
         wake();
       }, undefined, () => {
-        if (sky) sky.dataset.ready = 'true';
+        if (sky && !gardenIntro) sky.dataset.ready = 'true';
         wake();
       });
       texture.colorSpace = THREE.SRGBColorSpace;
@@ -108,6 +108,7 @@ export default function HomeMistTransition() {
                     (uCloudTrails[i].zw * 0.6 + curl * spin * 4.0);
                 }
                 vec2 field = (screen - displacement) * 2.7 - vec2(0.0, uCloudFlow);
+                field += vec2(sin(field.y*1.7+uCloudFlow)*0.18, cos(field.x*1.3-uCloudFlow)*0.10);
                 float broad = cloudFbm(field);
                 float vapor = cloudFbm(field * 2.0 + vec2(broad * 1.4, broad * 0.8));
                 vec2 center = vec2(uCloudResolution.x / uCloudResolution.y * 0.5, 0.5);
@@ -128,9 +129,9 @@ export default function HomeMistTransition() {
                 float slope = clamp((broad - sunward) * 4.5, -0.45, 0.6);
                 float illumination = smoothstep(-0.22, 0.40, slope + vapor * 0.22);
                 float body = smoothstep(0.30, 0.65, broad);
-                vec3 shadedCloud = mix(vec3(0.06, 0.25, 0.35), vec3(0.25, 0.57, 0.69), body);
-                vec3 paintedCloud = mix(shadedCloud, vec3(0.96, 0.86, 0.63), illumination * 0.72);
-                vec3 paleCloud = mix(vec3(0.31, 0.63, 0.74), vec3(0.99, 0.94, 0.75), illumination);
+                vec3 shadedCloud = mix(vec3(0.29, 0.22, 0.39), vec3(0.27, 0.59, 0.63), body);
+                vec3 paintedCloud = mix(shadedCloud, vec3(0.94, 0.68, 0.65), illumination * 0.72);
+                vec3 paleCloud = mix(vec3(0.55, 0.71, 0.77), vec3(0.98, 0.84, 0.80), illumination);
                 float rim = smoothstep(0.12, 0.44, slope) * smoothstep(0.22, 0.5, density);
                 vec3 mistColor = mix(paintedCloud, paleCloud, uCloudLighten);
                 mistColor += vec3(0.11, 0.08, 0.025) * rim;
@@ -139,7 +140,7 @@ export default function HomeMistTransition() {
               #endif
             `);
           };
-          material.customProgramCacheKey = () => 'continuous-ocean-sunlit-cloud-mist-v9';
+          material.customProgramCacheKey = () => 'continuous-mystical-flowing-mist-v10';
           const mesh = new THREE.Mesh(geometry, material);
           mesh.scale.set(2, 2, 1);
           scene.add(mesh);
@@ -203,7 +204,8 @@ export default function HomeMistTransition() {
         const inDescent = galleryRect && galleryRect.top < window.innerHeight && galleryRect.bottom > 0 &&
           (descent < 1 || galleryRect.top > -window.innerHeight * HOME_DESCENT_SVH / 100);
         const arriving = Boolean(sky && heroArrival < 0.9);
-        const active = ((!gardenIntro && (opening || arriving)) || (progress > 0 && progress < 1) || inDescent) && !document.hidden && !motion.matches && !contextLost;
+        const heroVisible = !opening && hero.getBoundingClientRect().top < window.innerHeight && hero.getBoundingClientRect().bottom > 0;
+        const active = (heroVisible || (!gardenIntro && (opening || arriving)) || (progress > 0 && progress < 1) || inDescent) && !document.hidden && !motion.matches && !contextLost;
         canvas.style.opacity = active && textureReady ? '1' : '0';
         canvas.style.backgroundColor = 'transparent';
         if (!active) { last = 0; return; }
@@ -218,20 +220,20 @@ export default function HomeMistTransition() {
           renderer.getDrawingBufferSize(resolution);
         }
         const flightProgress = window.scrollY / window.innerHeight;
-        const envelope = opening ? 1 : arriving ? 1 - THREE.MathUtils.smoothstep(heroArrival, 0, 0.9) :
-          departure * (1 - THREE.MathUtils.smoothstep(descent, 0.2, 0.86));
+        const descentEnvelope = departure * (1 - THREE.MathUtils.smoothstep(descent, 0.2, 0.86));
+        const envelope = gardenIntro ? Math.max(heroVisible ? 0.38*(1-departure) : 0, descentEnvelope) : opening ? 1 : arriving ? 1-THREE.MathUtils.smoothstep(heroArrival,0,0.9) : descentEnvelope;
         stirringUniforms.uCloudLighten.value = opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0, 1) * 0.3 :
           THREE.MathUtils.lerp(0.3, 1, THREE.MathUtils.smoothstep((Math.max(0, Math.min(1, progress)) + descent) / 2, 0, 0.8));
         stirringUniforms.uCloudEnvelope.value = envelope;
-        stirringUniforms.uCloudSides.value = opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0.3, 1) :
+        stirringUniforms.uCloudSides.value = heroVisible && progress <= 0 ? 0.82 : opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0.3, 1) :
           1 - THREE.MathUtils.smoothstep(progress, 0.1, 1);
         const seam = opening || arriving ? hero.getBoundingClientRect().top : hero.getBoundingClientRect().bottom;
         stirringUniforms.uCloudSeam.value = 1 - seam / window.innerHeight;
         // Let the shader's spatial feather carry the bridge offscreen. Switching
         // it off at the viewport edge made the upper cloud patch vanish at once.
         // Fade it with the same descent envelope as the surrounding vapor.
-        stirringUniforms.uCloudSeamStrength.value = opening ? 1 : envelope;
-        stirringUniforms.uCloudFlow.value = flightProgress * 0.65 + elapsed * 0.035;
+        stirringUniforms.uCloudSeamStrength.value = heroVisible && progress <= 0 ? 0 : opening ? 1 : envelope;
+        stirringUniforms.uCloudFlow.value = flightProgress * 0.65 + elapsed * 0.065;
         material.opacity = 1;
         renderer.render(scene, camera);
         frame = requestAnimationFrame(draw);

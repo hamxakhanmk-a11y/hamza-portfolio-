@@ -142,7 +142,8 @@ export default function GardenIntro() {
         backdropRef.current.style.opacity = String(0.65+reveal*0.35);
         groundMaterial.opacity = 1-smooth((p-0.55)/0.40);
         starsMaterial.opacity = 0.65 * (1-smooth((p-0.65)/0.30));
-        copyRef.current.style.opacity = String(smooth((p-0.65)/0.28));
+        // Lettering is behind the terrain, so the departing crests uncover it.
+        copyRef.current.style.opacity = String(smooth((p-0.38)/0.24));
         const doorway = smooth(p/0.45);
         surfaceRef.current.style.clipPath = `inset(${10*(1-doorway)}% ${34*(1-doorway)}% ${-12-doorway*70}% round ${46*(1-doorway)}% ${46*(1-doorway)}% 0 0)`;
         surfaceRef.current.style.opacity = String(1-smooth((p-0.97)/0.03));
