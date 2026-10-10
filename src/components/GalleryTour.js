@@ -7,7 +7,7 @@ import { gallerySkyVertex, gallerySkyFragment } from '@/data/gallerySky';
 import { getRestoredArtworkImage, getGalleryArtworkRestoration } from '@/data/artworkImageRestoration';
 
 // A white 3D gallery the visitor glides through by scrolling, laid out like the reference film:
-// frosted glass doors open onto the entrance hall (arched window at the end, an open seating area beside it),
+// a circular fountain welcomes visitors into the open entrance hall (arched window and seating beyond),
 // a corridor turns into the great hall (oval skylights, benches, paintings in pairs), the side
 // hall leads to a wide flight of stairs, and at the top the route turns into the glass hall.
 // Paintings are fixed objects on the walls, so they never move; the camera does the walking.
@@ -136,7 +136,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
   const stopsFor = ids => ids.filter(id => hung.some(entry => entry.slot === id)).map(paintingStop);
   // Face each painting at its new position, keeping the connecting corridors and stairs.
   const PATH = [
-    ...BASE_PATH.slice(0, 2),
+    BASE_PATH[0],
+    { pos: [1.9, EYE, 1], look: [0, 2.2, -8] }, // pass beside the fountain
+    BASE_PATH[1],
     ...stopsFor([1, 2, 3, 4, 5, 6]),
     ...BASE_PATH.slice(5, 8),
     ...stopsFor([7, 9, 8, 10, 11, 13, 12, 14]),
@@ -228,8 +230,6 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const stepMat = floorMat;
       const columnMat = wallMat;
       const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3d68b, metalness: 0.35, roughness: 0.4, toneMapped: false }));
-      const frameMat = keep(new THREE.MeshBasicMaterial({ color: 0xcfcbc4, toneMapped: false }));
-      const glassMat = keep(new THREE.MeshBasicMaterial({ color: WALL, transparent: true, opacity: 0.35, toneMapped: false }));
       // Procedural clouds drift independently of the gallery camera.
       const skyMat = keep(new THREE.ShaderMaterial({
         uniforms: { uTime: { value: 0 } },
@@ -407,24 +407,51 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       wallX(4, 0, -16, 0, 6, [-13, -15.2, 3.2]); // doorway to the corridor
       ceiling(-4, 4, 0, -16, 6);
       archedWindowWall(-4, 4, 0, 6, -16, 1.6, 1.0, 3.4);
-      // frosted glass front with sliding doors
-      block(-4, 4, 3.4, 6, -0.03, 0.03, glassMat, { cast: false });
-      block(-4, -2.2, 0, 3.4, -0.03, 0.03, glassMat, { cast: false });
-      block(2.2, 4, 0, 3.4, -0.03, 0.03, glassMat, { cast: false });
-      for (const x of [-4, -2.2, 2.2, 4]) block(x - 0.07, x + 0.07, 0, 6, -0.07, 0.07, frameMat, { cast: false });
-      block(-4, 4, 3.33, 3.47, -0.07, 0.07, frameMat, { cast: false });
-      const doors = [-1, 1].map(side => {
-        const door = new THREE.Group();
-        const pane = new THREE.Mesh(keep(new THREE.BoxGeometry(2.2, 3.4, 0.05)), glassMat);
-        pane.position.set(side * 1.1, 1.7, 0);
-        const bar = new THREE.Mesh(keep(new THREE.BoxGeometry(0.1, 3.4, 0.12)), frameMat);
-        bar.position.set(side * 0.03, 1.7, 0);
-        const handle = new THREE.Mesh(keep(new THREE.BoxGeometry(0.04, 1.1, 0.14)), frameMat);
-        handle.position.set(side * 0.22, 1.25, 0.08);
-        door.add(pane, bar, handle);
-        scene.add(door);
-        return { door, side };
-      });
+      // Open entrance with a low ivory-stone circular fountain.
+      // Its centre is at z=1; the camera follows the clear aisle on its right.
+      add(new THREE.CylinderGeometry(1.2, 1.24, 0.12, 64), floorMat, [0, 0.06, 1]);
+      const basinProfile = [[0.98, 0.16], [1.08, 0.20], [1.13, 0.43], [1.13, 0.54],
+        [1.08, 0.61], [1.01, 0.61], [0.96, 0.54], [0.96, 0.29], [0, 0.29]];
+      add(new THREE.LatheGeometry(basinProfile.map(([r, y]) => new THREE.Vector2(r, y)), 64), wallMat, [0, 0, 1]);
+      add(new THREE.TorusGeometry(1.055, 0.055, 12, 64), floorMat, [0, 0.59, 1], { rotation: [Math.PI / 2, 0, 0] });
+      add(new THREE.CylinderGeometry(0.14, 0.22, 0.46, 32), wallMat, [0, 0.72, 1]);
+      const upperProfile = [[0.12, 0.9], [0.28, 0.94], [0.37, 1.04], [0.37, 1.09], [0.32, 1.1], [0.10, 1.02]];
+      add(new THREE.LatheGeometry(upperProfile.map(([r, y]) => new THREE.Vector2(r, y)), 48), wallMat, [0, 0, 1]);
+      const fountainWater = keep(new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 } },
+        vertexShader: `
+          varying vec3 vWaterPosition;
+          void main() {
+            vWaterPosition = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform float uTime;
+          varying vec3 vWaterPosition;
+          void main() {
+            float radius = length(vWaterPosition.xy);
+            float ripple = sin(radius * 42.0 - uTime * 2.8) * 0.5 + 0.5;
+            float glint = pow(max(0.0, sin(vWaterPosition.x * 17.0 + vWaterPosition.y * 23.0 - uTime * 1.6)), 18.0);
+            vec3 water = mix(vec3(0.39, 0.66, 0.72), vec3(0.72, 0.86, 0.87), ripple * 0.4);
+            water += vec3(0.28, 0.24, 0.16) * glint;
+            gl_FragColor = vec4(water, 0.88);
+            #include <colorspace_fragment>
+          }
+        `,
+        transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+      }));
+      add(new THREE.CircleGeometry(0.965, 64), fountainWater, [0, 0.49, 1], { rotation: [-Math.PI / 2, 0, 0], cast: false });
+      add(new THREE.CircleGeometry(0.3, 48), fountainWater, [0, 1.065, 1], { rotation: [-Math.PI / 2, 0, 0], cast: false });
+      // Four narrow falling streams return water from the upper bowl to the basin.
+      for (let i = 0; i < 4; i++) {
+        const angle = i * Math.PI / 2;
+        const points = [[0.30, 1.08], [0.40, 1.05], [0.50, 0.85], [0.56, 0.50]].map(([r, y]) =>
+          new THREE.Vector3(Math.cos(angle) * r, y, 1 + Math.sin(angle) * r));
+        add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 16, 0.018, 6, false), fountainWater, [0, 0, 0], { cast: false });
+      }
+      const jet = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 1.06, 1), new THREE.Vector3(0, 1.32, 1), new THREE.Vector3(0.07, 1.38, 1), new THREE.Vector3(0.16, 1.07, 1)]);
+      add(new THREE.TubeGeometry(jet, 20, 0.018, 6, false), fountainWater, [0, 0, 0], { cast: false });
       const stairSide = (length, rise, position, yaw = 0) => {
         const shape = new THREE.Shape();
         shape.moveTo(0, 0); shape.lineTo(length, 0); shape.lineTo(length, rise + 1.0);
@@ -548,13 +575,10 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
 
       // Batch stationary architecture by material and shadow settings. The reflective
       // floor renders this scene again, so reducing draw calls benefits both passes.
-      // Sliding doors stay separate because their transforms change during the tour.
       scene.updateMatrixWorld(true);
-      const doorGroups = new Set(doors.map(entry => entry.door));
       const batches = new Map();
       scene.traverse(mesh => {
         if (!mesh.isMesh || Array.isArray(mesh.material) || mesh.material.transparent || mesh.material.isShaderMaterial) return;
-        for (let parent = mesh.parent; parent; parent = parent.parent) if (doorGroups.has(parent)) return;
         const key = mesh.material.uuid + ':' + mesh.castShadow + ':' + mesh.receiveShadow;
         if (!batches.has(key)) batches.set(key, []);
         batches.get(key).push(mesh);
@@ -867,7 +891,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const sway = { x: 0, y: 0, tx: 0, ty: 0 };
       const placeCamera = s => {
         if (s < 0) {
-          // Land on the forecourt facing the doors; the existing route then enters.
+          // Land on the forecourt facing the fountain; the route then enters.
           const descent = clamp01(1 + s / 3);
           const flight = smootherstep(descent);
           camera.position.set(0, THREE.MathUtils.lerp(48, EYE, flight), THREE.MathUtils.lerp(12, 5.5, flight));
@@ -886,9 +910,6 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const swayBlend = smootherstep(clamp01(s / 0.35));
         camera.rotateY(sway.x * swayBlend);
         camera.rotateX(sway.y * swayBlend);
-        // the doors slide apart as the visitor comes in
-        const open = smootherstep(clamp01((s - 0.02) / 0.3));
-        for (const { door, side } of doors) door.position.x = side * 2.15 * open;
       };
 
       // ── Loop ──
@@ -937,7 +958,10 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const delta = Math.min(elapsed, 0.25);
         lastTime = now;
         if (!visible) return;
-        if (!reducedMotion) skyMat.uniforms.uTime.value += elapsed;
+        if (!reducedMotion) {
+          skyMat.uniforms.uTime.value += elapsed;
+          fountainWater.uniforms.uTime.value += elapsed;
+        }
         // critically damped glide towards the scroll position
         current += (target - current) * (reducedMotion ? 1 : 1 - Math.exp(-delta * 6.5));
         if (Math.abs(target - current) < 0.002) current = target; // settle fully: no long, barely-moving tail
@@ -1032,7 +1056,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       <div className="sticky top-0 h-[100svh] overflow-hidden">
         <div ref={hostRef} className="gallery-tour-scene absolute inset-0" style={{ cursor: hovering ? 'pointer' : 'default' }} />
 
-        {/* Title card over the doors, as the film opens */}
+        {/* Title card over the fountain courtyard, as the film opens */}
         <div className={`pointer-events-none absolute inset-x-0 top-[22%] flex flex-col items-center text-center transition-opacity duration-700 ${status === 'ready' && !descending && stop === 0 ? 'opacity-100' : 'opacity-0'}`}>
           <p className="text-4xl font-light tracking-[0.2em] text-[#4a4a48] sm:text-6xl" style={{ fontFamily: 'var(--font-cormorant)' }}>{artistName.toUpperCase()}</p>
           <p className="mt-3 text-[11px] uppercase tracking-[0.45em] text-[#ed7189]">Portfolio</p>
