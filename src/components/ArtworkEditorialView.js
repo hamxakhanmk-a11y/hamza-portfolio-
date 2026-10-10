@@ -51,12 +51,13 @@ export default function ArtworkEditorialView({ artwork, images, whatsappNumber }
 
           {cover && (
             <figure className="editorial-art-frame mx-auto max-w-5xl">
-              <div className={`relative ${roundArtwork ? 'aspect-square h-[90%] max-h-[90%] max-w-[90%]' : 'h-full w-full'}`}>
+              <div className={`relative ${roundArtwork ? 'editorial-round-box' : 'h-full w-full'}`}>
                 <Image
                   src={restoration?.src || cover.image_url}
                   alt={artwork.title}
                   fill
                   sizes="(max-width: 1024px) 90vw, 900px"
+                  loading="eager"
                   fetchPriority="high"
                   className={`artwork-inside-motion ${roundArtwork ? 'rounded-full object-cover' : 'object-contain'}`}
                   style={restoration ? { clipPath: restoration.clipPath, scale: restoration.scale } : undefined}

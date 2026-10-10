@@ -431,6 +431,9 @@ body {
   max-width: 90%;
   max-height: 90%;
 }
+/* round works sit in a true square sized by the frame's shorter side, so the circle is never stretched */
+.editorial-art-frame:has(> .editorial-round-box) { container-type: size; }
+.editorial-round-box { width: min(90cqw, 90cqh); aspect-ratio: 1; }
 
 @keyframes artwork-inside-breathe {
   from { transform: scale(1); }

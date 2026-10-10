@@ -1014,7 +1014,7 @@ export default function AdminPage() {
           return (
             <div className="flex flex-col gap-7">
               <div>
-                <p className="mb-2 text-xs uppercase tracking-[0.25em] text-neutral-400">Portfolio Page</p>
+                <p className="mb-2 text-xs uppercase tracking-[0.25em] text-neutral-400">Home Page</p>
                 <h2 className="text-4xl font-light" style={{ fontFamily: 'var(--font-cormorant)' }}>3D Gallery</h2>
                 <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-500">
                   Choose which painting hangs in each place of the walk-through gallery, room by room in the order visitors reach them.
@@ -1029,7 +1029,7 @@ export default function AdminPage() {
                   {notHung.length > 0 && <> · <strong className="font-medium text-neutral-900">{notHung.length}</strong> portfolio {notHung.length === 1 ? 'painting is' : 'paintings are'} not in the gallery</>}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <a href="/portfolio" target="_blank" rel="noreferrer" className="border border-neutral-200 px-4 py-2 text-[11px] uppercase tracking-[0.14em] text-neutral-600 hover:border-neutral-700 hover:text-neutral-900">View gallery ↗</a>
+                  <a href="/#gallery-tour" target="_blank" rel="noreferrer" className="border border-neutral-200 px-4 py-2 text-[11px] uppercase tracking-[0.14em] text-neutral-600 hover:border-neutral-700 hover:text-neutral-900">View gallery ↗</a>
                   <button onClick={resetTourArrangement} className="border border-neutral-200 px-4 py-2 text-[11px] uppercase tracking-[0.14em] text-neutral-600 hover:border-neutral-700 hover:text-neutral-900">Reset to default</button>
                 </div>
               </div>
