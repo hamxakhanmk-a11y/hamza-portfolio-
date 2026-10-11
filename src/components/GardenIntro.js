@@ -112,6 +112,8 @@ export default function GardenIntro() {
       let frame = 0;
       function draw() {
         frame = 0;
+        // a frame can still arrive after navigating away; its elements are gone by then
+        if (disposed || !surfaceRef.current) return;
         const p = Math.max(0,Math.min(1,window.scrollY/root.offsetHeight));
         // Keep a single title visible: the live hero is still below the viewport
         // during the approach, so crossfading both copies produces displaced text.
