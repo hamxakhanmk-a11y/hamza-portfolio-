@@ -32,13 +32,15 @@ export default function SiteMotion() {
           });
         });
 
+        // Reveals fade with opacity only (not visibility), so content waiting to be revealed stays in the
+        // keyboard's Tab order and visible to screen readers; focusing it scrolls it in and reveals it.
         mediaQuery.add('(prefers-reduced-motion: no-preference)', () => {
           const headings = gsap.utils.toArray('main h1, main h2').filter((heading) => !heading.closest('.intro-shell'));
           headings.forEach((heading) => {
             gsap.fromTo(heading,
-              { autoAlpha: 0, y: 42, rotateX: -7, transformOrigin: '50% 100%' },
+              { opacity: 0, y: 42, rotateX: -7, transformOrigin: '50% 100%' },
               {
-                autoAlpha: 1,
+                opacity: 1,
                 y: 0,
                 rotateX: 0,
                 duration: 0.9,
@@ -51,9 +53,9 @@ export default function SiteMotion() {
           const sections = gsap.utils.toArray('main > section:not(.intro-shell):not(#gallery-tour), main > footer, main article > header, [data-gsap-reveal]');
           sections.forEach((section) => {
             gsap.fromTo(section,
-              { autoAlpha: 0, y: 34 },
+              { opacity: 0, y: 34 },
               {
-                autoAlpha: 1,
+                opacity: 1,
                 y: 0,
                 duration: 0.85,
                 ease: 'power2.out',
@@ -67,9 +69,9 @@ export default function SiteMotion() {
             const cards = Array.from(grid.children).filter((child) => child.matches('a, article, figure'));
             if (!cards.length) return;
             gsap.fromTo(cards,
-              { autoAlpha: 0, y: 46, scale: 0.975 },
+              { opacity: 0, y: 46, scale: 0.975 },
               {
-                autoAlpha: 1,
+                opacity: 1,
                 y: 0,
                 scale: 1,
                 duration: 0.8,
@@ -82,9 +84,9 @@ export default function SiteMotion() {
 
           gsap.utils.toArray('.editorial-art-frame').forEach((frame) => {
             gsap.fromTo(frame,
-              { autoAlpha: 0, y: 65 },
+              { opacity: 0, y: 65 },
               {
-                autoAlpha: 1,
+                opacity: 1,
                 y: 0,
                 duration: 1,
                 ease: 'power3.out',
