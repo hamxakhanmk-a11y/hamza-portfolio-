@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import 'lenis/dist/lenis.css';
 import { isHistoryTraversal } from '@/lib/scrollHistory';
+import { introState, startIntro, cancelIntro, finishIntro } from '@/lib/homeIntro';
 
 export default function HomeSmoothScroll() {
   useEffect(() => {
@@ -10,8 +11,11 @@ export default function HomeSmoothScroll() {
     let disposed = false;
     let instance;
     let frame;
-    // the automatic opening plays on arrival, not when coming Back to the page
-    let introPending = window.scrollY < 80 && !isHistoryTraversal();
+    // The automatic opening plays once per page load (first visit or refresh), from the top. Coming back
+    // to Home from another page, or arriving already scrolled, skips it and takes it out of the layout.
+    let introPending = introState() === 'pending' && window.scrollY < 80 && !isHistoryTraversal() && !motion.matches;
+    if (introPending) startIntro();
+    else finishIntro();
     let introRunning = false;
     let readyAt;
 
@@ -46,7 +50,12 @@ export default function HomeSmoothScroll() {
               force: true,
               lock: true,
               easing: (t) => t * t * (3 - 2 * t),
-              onComplete: () => { introRunning = false; instance?.start(); },
+              onComplete: () => {
+                introRunning = false;
+                // the opening is over: remove it so it can't be scrolled back into, keeping the view still
+                finishIntro(y => { instance?.resize(); instance?.scrollTo(y, { immediate: true, force: true }); });
+                instance?.start();
+              },
             });
           }
         }
@@ -66,6 +75,7 @@ export default function HomeSmoothScroll() {
     window.addEventListener('touchmove', takeOver, { passive: false });
     window.addEventListener('keydown', takeOver);
     return () => {
+      if (introPending) cancelIntro();
       disposed = true; stop(); motion.removeEventListener('change', preferenceChanged);
       window.removeEventListener('wheel', takeOver);
       window.removeEventListener('touchmove', takeOver);

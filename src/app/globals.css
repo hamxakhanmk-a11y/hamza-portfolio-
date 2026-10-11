@@ -463,3 +463,6 @@ body {
   .nav-flow-indicator::before,
   .nav-flow-link { animation: none !important; transition: none !important; }
 }
+
+/* After the home page's automatic opening has played, it leaves the layout so it can't be scrolled back into. */
+html[data-intro-done="true"] [data-home-sky] { display: none; }

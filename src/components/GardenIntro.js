@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import styles from './GardenIntro.module.css';
+import { introState } from '@/lib/homeIntro';
 
 const smooth = t => { const x = Math.max(0, Math.min(1, t)); return x * x * x * (x * (x * 6 - 15) + 10); };
 
@@ -14,7 +15,8 @@ export default function GardenIntro() {
   useEffect(() => {
     const root = rootRef.current;
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (motion.matches) { root.dataset.ready = 'true'; return; }
+    // the opening has already played in this visit: it stays out of the layout
+    if (motion.matches || introState() === 'done') { root.dataset.ready = 'true'; return; }
     let disposed = false, cleanup, observer;
     async function initialize(hero) {
       const media = hero.querySelector('.intro-media');
@@ -114,7 +116,8 @@ export default function GardenIntro() {
         frame = 0;
         // a frame can still arrive after navigating away; its elements are gone by then
         if (disposed || !surfaceRef.current) return;
-        const p = Math.max(0,Math.min(1,window.scrollY/root.offsetHeight));
+        // once the opening is taken out of the layout it has no height: treat it as fully passed
+        const p = root.offsetHeight ? Math.max(0,Math.min(1,window.scrollY/root.offsetHeight)) : 1;
         // Keep a single title visible: the live hero is still below the viewport
         // during the approach, so crossfading both copies produces displaced text.
         if (heroCopy) heroCopy.style.opacity = p < 1 ? '0' : previousCopyOpacity;

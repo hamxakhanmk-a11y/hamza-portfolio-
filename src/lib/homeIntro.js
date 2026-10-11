@@ -1,0 +1,33 @@
+// The home page's automatic opening plays once per page load: on a first visit or a refresh, but not
+// when coming back to Home from another page. Once it has played, the opening is taken out of the
+// layout so the visitor can't scroll back up into it. This state lives in memory, so a reload resets it.
+
+let state = 'pending'; // pending → running → done
+
+export function introState() {
+  return state;
+}
+
+export function startIntro() {
+  state = 'running';
+}
+
+// The page went away before the opening began moving (or React re-ran the effect): it hasn't played yet.
+export function cancelIntro() {
+  if (state === 'running') state = 'pending';
+}
+
+// Remove the opening from the layout. Pass the current scroll position to keep the view exactly
+// where it is (everything below the opening moves up by its height, and so does the scroll).
+export function finishIntro(scrollTo) {
+  state = 'done';
+  const root = document.documentElement;
+  if (root.dataset.introDone === 'true') return;
+  const sky = document.querySelector('[data-home-sky]');
+  const removed = sky ? sky.offsetTop + sky.offsetHeight : 0;
+  const y = window.scrollY;
+  root.dataset.introDone = 'true';
+  const target = Math.max(0, y - removed);
+  window.scrollTo({ top: target, left: 0, behavior: 'instant' });
+  scrollTo?.(target);
+}
