@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import 'lenis/dist/lenis.css';
+import { isHistoryTraversal } from '@/lib/scrollHistory';
 
 export default function HomeSmoothScroll() {
   useEffect(() => {
@@ -9,7 +10,8 @@ export default function HomeSmoothScroll() {
     let disposed = false;
     let instance;
     let frame;
-    let introPending = window.scrollY < 80;
+    // the automatic opening plays on arrival, not when coming Back to the page
+    let introPending = window.scrollY < 80 && !isHistoryTraversal();
     let introRunning = false;
     let readyAt;
 
