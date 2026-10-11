@@ -16,7 +16,7 @@ const EYE = 1.7;
 const UPPER = 4.2; // first-floor level
 const UPPER_EYE = UPPER + EYE;
 const HANG = 2.1; // painting centre height above its floor
-const STOP_SCREEN_SHARE = 90; // svh of scrolling per camera stop
+const STOP_SCREEN_SHARE = 110; // svh of scrolling per camera stop
 const WALL_T = 0.3;
 
 // Bright off-white throughout; stable contact shadows define the architecture.
@@ -848,23 +848,32 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const stopToKey = s => {
         const i = Math.min(Math.floor(s), stopKeys.length - 2);
         const f = Math.min(1, s - i);
-        return stopKeys[i] + (stopKeys[i + 1] - stopKeys[i]) * dwell(f);
+        const samples=intervalTravel[i];
+        const distance=dwell(f)*samples[samples.length-1];
+        let sample=0;
+        while(sample<samples.length-2 && distance>samples[sample+1]) sample++;
+        const fraction=(distance-samples[sample])/Math.max(0.00001,samples[sample+1]-samples[sample]);
+        return stopKeys[i]+(stopKeys[i+1]-stopKeys[i])*(sample+fraction)/(samples.length-1);
       };
       // Give longer passages and larger turns more scroll distance, rather
       // than making every interval finish in the same amount of scrolling.
       const routeWeights = [0];
+      const intervalTravel=[];
       for (let i=0;i<stopKeys.length-1;i++) {
         let length=0;
+        const samples=[0];
         let previous=positionCurve.getPoint(stopKeys[i]/segments);
         let previousDirection=targetCurve.getPoint(stopKeys[i]/segments).sub(previous).normalize();
         for(let sample=1;sample<=32;sample++) {
           const t=(stopKeys[i]+(stopKeys[i+1]-stopKeys[i])*sample/32)/segments;
           const position=positionCurve.getPoint(t);
           const direction=targetCurve.getPoint(t).sub(position).normalize();
-          length+=position.distanceTo(previous)+previousDirection.angleTo(direction)*4;
+          length+=position.distanceTo(previous)+previousDirection.angleTo(direction)*9;
+          samples.push(length);
           previous=position;previousDirection=direction;
         }
         routeWeights.push(routeWeights[i]+Math.max(4,length));
+        intervalTravel.push(samples);
       }
       const scrollToStop = progress => {
         const distance=progress*routeWeights[routeWeights.length-1];
@@ -906,6 +915,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       let visible = true;
       let frameId = 0;
       let lastTime = performance.now();
+      let cameraRotation=null;
 
       const readScroll = () => {
         const root = rootRef.current;
@@ -948,7 +958,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         }
         // critically damped glide towards the scroll position
         const step=(target-current)*(reducedMotion?1:1-Math.exp(-delta*5));
-        current += reducedMotion ? step : THREE.MathUtils.clamp(step,-delta*1.4,delta*1.4);
+        current += reducedMotion ? step : THREE.MathUtils.clamp(step,-delta*0.85,delta*0.85);
         if (Math.abs(target - current) < 0.002) current = target; // settle fully: no long, barely-moving tail
         // the pointer's gentle pull; it settles completely, so the picture is perfectly still at rest
         sway.x += (sway.tx - sway.x) * Math.min(1, delta * 2);
@@ -956,6 +966,11 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         if (Math.abs(sway.tx - sway.x) < 0.00005) sway.x = sway.tx;
         if (Math.abs(sway.ty - sway.y) < 0.00005) sway.y = sway.ty;
         placeCamera(current);
+        // Cap angular travel separately: switching walls should be a gradual
+        // turn even where the look-at spline passes close to the camera.
+        if (!cameraRotation || reducedMotion) cameraRotation=camera.quaternion.clone();
+        else cameraRotation.rotateTowards(camera.quaternion,delta*0.85);
+        camera.quaternion.copy(cameraRotation);
         if (descendFromSky) rootRef.current.dataset.descent = String(clamp01(1 + current / 3));
         floorReflections[0].visible = current >= 0 && camera.position.y < UPPER + 0.5;
         floorReflections[1].visible = current >= 0 && camera.position.y >= UPPER + 0.5;
