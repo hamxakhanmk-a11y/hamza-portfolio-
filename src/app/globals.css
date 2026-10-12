@@ -386,15 +386,13 @@ body {
 }
 .nav-flow-link--active { transform: scale(1.07); opacity: 1; }
 
-.nav-flow-tabs--mobile .nav-flow-indicator {
-  top: 0;
-  bottom: auto;
-  left: .75rem;
-  right: .75rem;
-  width: auto;
-  height: var(--nav-flow-h, 0px);
-  transform: translate3d(0, var(--nav-flow-y, 0px), 0);
+/* If the six tabs still don't fit (very narrow phones), the row scrolls sideways without a scrollbar. */
+.nav-flow-tabs {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
+.nav-flow-tabs::-webkit-scrollbar { display: none; }
 
 @keyframes nav-liquid-tab-morph {
   0% { border-radius: 999px; filter: saturate(1) blur(0); }

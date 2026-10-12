@@ -14,16 +14,14 @@ const links = [
 ];
 
 export default function Navbar() {
-  const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [pendingHref, setPendingHref] = useState(null);
   const [flowing, setFlowing] = useState(false);
   const [flowReady, setFlowReady] = useState(false);
   const pathname = usePathname();
-  const desktopNavRef = useRef(null);
-  const mobileNavRef = useRef(null);
+  const navRef = useRef(null);
   const flowTimer = useRef(null);
-  const overlayHero = pathname === '/' && !scrolled && !open;
+  const overlayHero = pathname === '/' && !scrolled;
   const currentHref = pendingHref || links.find(({ href }) => (
     href === '/' ? pathname === '/' : pathname.startsWith(href)
   ))?.href || '/';
@@ -48,31 +46,22 @@ export default function Navbar() {
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       setPendingHref(null);
-      setOpen(false);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
 
   useEffect(() => {
-    const positionIndicator = (container, mobile = false) => {
-      if (!container) return false;
-      const active = container.querySelector('.nav-flow-link--active');
-      if (!active || active.offsetParent === null) return false;
-
-      if (mobile) {
-        container.style.setProperty('--nav-flow-y', `${active.offsetTop}px`);
-        container.style.setProperty('--nav-flow-h', `${active.offsetHeight}px`);
-      } else {
-        container.style.setProperty('--nav-flow-x', `${active.offsetLeft}px`);
-        container.style.setProperty('--nav-flow-w', `${active.offsetWidth}px`);
-      }
-      return true;
-    };
-
     const syncIndicators = () => {
-      const positioned = positionIndicator(desktopNavRef.current);
-      const positionedMobile = positionIndicator(mobileNavRef.current, true);
-      if (positioned || positionedMobile) setFlowReady(true);
+      const container = navRef.current;
+      const active = container?.querySelector('.nav-flow-link--active');
+      if (!active || active.offsetParent === null) return;
+      container.style.setProperty('--nav-flow-x', `${active.offsetLeft}px`);
+      container.style.setProperty('--nav-flow-w', `${active.offsetWidth}px`);
+      // on the narrowest phones the row scrolls sideways: keep the current page's tab in view
+      if (container.scrollWidth > container.clientWidth) {
+        container.scrollLeft = active.offsetLeft - (container.clientWidth - active.offsetWidth) / 2;
+      }
+      setFlowReady(true);
     };
 
     const frame = window.requestAnimationFrame(syncIndicators);
@@ -81,7 +70,7 @@ export default function Navbar() {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('resize', syncIndicators);
     };
-  }, [currentHref, open]);
+  }, [currentHref]);
 
   useEffect(() => () => {
     window.clearTimeout(flowTimer.current);
@@ -92,7 +81,6 @@ export default function Navbar() {
 
     window.clearTimeout(flowTimer.current);
     setPendingHref(href);
-    setOpen(false);
     setFlowing(false);
 
     window.requestAnimationFrame(() => {
@@ -114,37 +102,10 @@ export default function Navbar() {
         scrolled || !overlayHero ? 'shadow-sm' : ''
       }`}
     >
-      <div data-hero-scroll-bypass className="relative flex min-h-12 items-center justify-between px-4 sm:px-6 md:hidden">
-        <Link
-          href="/"
-          prefetch={true}
-          className="text-xs uppercase tracking-[0.15em]"
-        >
-          Home
-        </Link>
-
-        {/* Mobile hamburger */}
-        <button
-          className={`absolute right-4 flex h-11 w-11 flex-col items-center justify-center gap-[5px] rounded-full sm:right-6 md:hidden ${
-            overlayHero ? 'bg-[#022d47]/35 backdrop-blur-sm' : 'bg-white/80'
-          }`}
-          onClick={() => setOpen(!open)}
-          aria-label="Toggle menu"
-          aria-expanded={open}
-        >
-          <span className={`block h-px w-6 transition-all duration-300 ${overlayHero ? 'bg-white' : 'bg-neutral-700'}`}
-            style={{ transform: open ? 'rotate(45deg) translate(4px, 4px)' : 'none' }} />
-          <span className={`block h-px w-6 transition-all duration-300 ${overlayHero ? 'bg-white' : 'bg-neutral-700'}`}
-            style={{ opacity: open ? 0 : 1 }} />
-          <span className={`block h-px w-6 transition-all duration-300 ${overlayHero ? 'bg-white' : 'bg-neutral-700'}`}
-            style={{ transform: open ? 'rotate(-45deg) translate(4px, -4px)' : 'none' }} />
-        </button>
-      </div>
-
-      {/* Single-row desktop navigation. */}
+      {/* One row of tabs on every screen; on tablets and phones they shrink so all six fit. */}
       <nav
-        ref={desktopNavRef}
-        className={`nav-flow-tabs hidden md:flex justify-center gap-4 py-1.5 px-6 ${flowReady ? 'nav-flow-tabs--ready' : ''} ${flowing ? 'is-flowing' : ''}`}
+        ref={navRef}
+        className={`nav-flow-tabs flex justify-between gap-1 px-2 py-1.5 sm:justify-center sm:gap-2 sm:px-4 lg:gap-4 lg:px-6 ${flowReady ? 'nav-flow-tabs--ready' : ''} ${flowing ? 'is-flowing' : ''}`}
       >
         <span className="nav-flow-indicator" aria-hidden="true" />
         {links.map(({ label, href }) => (
@@ -154,36 +115,13 @@ export default function Navbar() {
             prefetch={true}
             onNavigate={() => changePage(href)}
             aria-current={currentHref === href ? 'page' : undefined}
-            className={`nav-flow-link px-4 py-2 text-xs tracking-[0.25em] uppercase ${currentHref === href ? 'nav-flow-link--active' : ''}`}
+            className={`nav-flow-link shrink-0 px-[clamp(0.45rem,1.7vw,0.85rem)] py-2 text-[clamp(8.5px,2.35vw,11px)] uppercase tracking-[0.06em] sm:tracking-[0.14em] lg:px-4 lg:text-xs lg:tracking-[0.25em] ${currentHref === href ? 'nav-flow-link--active' : ''}`}
             style={{ color: currentHref === href || overlayHero ? '#fffaf2' : 'var(--color-ocean)' }}
           >
             {label}
           </Link>
         ))}
       </nav>
-
-      {/* Mobile dropdown */}
-      {open && (
-        <nav
-          ref={mobileNavRef}
-          className={`nav-flow-tabs nav-flow-tabs--mobile flex max-h-[calc(100svh-3rem)] flex-col items-center gap-1 overflow-x-hidden overflow-y-auto border-t border-[#27a8c7]/15 bg-[#fffaf2] py-3 md:hidden ${flowReady ? 'nav-flow-tabs--ready' : ''} ${flowing ? 'is-flowing' : ''}`}
-        >
-          <span className="nav-flow-indicator" aria-hidden="true" />
-          {links.map(({ label, href }) => (
-            <Link
-              key={label}
-              href={href}
-              prefetch={true}
-              onNavigate={() => changePage(href)}
-              aria-current={currentHref === href ? 'page' : undefined}
-              className={`nav-flow-link w-full py-3 text-center text-xs uppercase tracking-[0.25em] ${currentHref === href ? 'nav-flow-link--active' : ''}`}
-              style={{ color: currentHref === href ? '#fffaf2' : 'var(--color-ocean)' }}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
-      )}
     </header>
   );
 }
