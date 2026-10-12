@@ -134,6 +134,21 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
     return { pos, look: [...place.pos], stop: { bay: [id] } };
   };
   const stopsFor = ids => ids.filter(id => hung.some(entry => entry.slot === id)).map(paintingStop);
+  const hallStops = stopsFor([7, 9, 8, 10, 11, 13, 12, 14]);
+  let hallCrossings = 0;
+  const hallPath = hallStops.flatMap((key, index) => {
+    const previous = hallStops[index - 1];
+    if (!previous || Math.sign(previous.look[2] - previous.pos[2]) === Math.sign(key.look[2] - key.pos[2])) return [key];
+    const crossing = hallCrossings++;
+    const x = (previous.pos[0] + key.pos[0]) / 2;
+    // Only the first crossing looks through the skylight. Later crossings
+    // turn along the hall, with alternating near and far viewpoints.
+    const z = crossing === 0 ? -14.1 : crossing % 2 ? -13.5 : -14.7;
+    return [{
+      pos: [x, EYE, z],
+      look: crossing === 0 ? [x + 2, 6.5, z] : [x + (crossing % 2 ? 9 : 5), HANG, z],
+    }, key];
+  });
   // Face each painting at its new position, keeping the connecting corridors and stairs.
   const PATH = [
     BASE_PATH[0],
@@ -141,7 +156,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
     BASE_PATH[1],
     ...stopsFor([1, 2, 3, 4, 5, 6]),
     ...BASE_PATH.slice(5, 8),
-    ...stopsFor([7, 9, 8, 10, 11, 13, 12, 14]),
+    ...hallPath,
     BASE_PATH[16],
     ...stopsFor([15, 16, 17]),
     ...BASE_PATH.slice(18, 22),
@@ -916,6 +931,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       let frameId = 0;
       let lastTime = performance.now();
       let cameraRotation = null;
+      let paintingHoldUntil = 0;
 
       const readScroll = () => {
         const root = rootRef.current;
@@ -958,7 +974,15 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         }
         // critically damped glide towards the scroll position
         const step=(target-current)*(reducedMotion?1:1-Math.exp(-delta*5));
-        current += reducedMotion ? step : THREE.MathUtils.clamp(step,-delta*1.4,delta*1.4);
+        const next = current + (reducedMotion ? step : THREE.MathUtils.clamp(step,-delta*1.4,delta*1.4));
+        const boundary = next > current ? Math.floor(current) + 1 : Math.ceil(current) - 1;
+        const crossed = next > current ? next >= boundary : next <= boundary;
+        // Fast scrolling still presents each painting before moving on. Hold
+        // until the turn catches up, then give the canvas a brief clear view.
+        if (!reducedMotion && crossed && tourStops[boundary]?.kind === 'bay') {
+          current = boundary;
+          paintingHoldUntil = now + 450;
+        } else if (reducedMotion || now >= paintingHoldUntil) current = next;
         if (Math.abs(target - current) < 0.002) current = target; // settle fully: no long, barely-moving tail
         // the pointer's gentle pull; it settles completely, so the picture is perfectly still at rest
         sway.x += (sway.tx - sway.x) * Math.min(1, delta * 2);
@@ -970,6 +994,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         // translation. Initialize at the restored position to avoid a return spin.
         if (!cameraRotation || reducedMotion) cameraRotation = camera.quaternion.clone();
         else cameraRotation.rotateTowards(camera.quaternion, delta * 1.8);
+        if (!reducedMotion && paintingHoldUntil > now && cameraRotation.angleTo(camera.quaternion) > 0.01) paintingHoldUntil = now + 450;
         camera.quaternion.copy(cameraRotation);
         if (descendFromSky) rootRef.current.dataset.descent = String(clamp01(1 + current / 3));
         floorReflections[0].visible = current >= 0 && camera.position.y < UPPER + 0.5;
