@@ -53,7 +53,14 @@ export default function HomeSmoothScroll() {
               onComplete: () => {
                 introRunning = false;
                 // the opening is over: remove it so it can't be scrolled back into, keeping the view still
-                finishIntro(y => { instance?.resize(); instance?.scrollTo(y, { immediate: true, force: true }); });
+                finishIntro(y => {
+                  instance?.resize();
+                  instance?.scrollTo(y, { immediate: true, force: true });
+                  // Removing the opening changes every trigger's document position.
+                  // Re-measure before the next paint so the hero stays at its first frame.
+                  ScrollTrigger.refresh();
+                  ScrollTrigger.update();
+                });
                 instance?.start();
               },
             });

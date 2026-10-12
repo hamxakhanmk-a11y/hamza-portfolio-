@@ -120,7 +120,8 @@ export default function GardenIntro() {
         const p = root.offsetHeight ? Math.max(0,Math.min(1,window.scrollY/root.offsetHeight)) : 1;
         // Keep a single title visible: the live hero is still below the viewport
         // during the approach, so crossfading both copies produces displaced text.
-        if (heroCopy) heroCopy.style.opacity = p < 1 ? '0' : previousCopyOpacity;
+        const handoff = smooth((p - 0.94) / 0.06);
+        if (heroCopy) heroCopy.style.opacity = handoff > 0 ? String(handoff) : '0';
         // The wall around the portal stays opaque until the scene fills the screen.
         root.style.setProperty('--doorway-surround', p < 0.45 ? '1' : '0');
         const active = p < 1 && !document.hidden && !motion.matches;
@@ -163,7 +164,9 @@ export default function GardenIntro() {
         copyRef.current.style.opacity = String(smooth((p-0.38)/0.24));
         const doorway = smooth(p/0.45);
         surfaceRef.current.style.clipPath = `inset(${10*(1-doorway)}% ${34*(1-doorway)}% ${-12-doorway*70}% round ${46*(1-doorway)}% ${46*(1-doorway)}% 0 0)`;
-        surfaceRef.current.style.opacity = '1';
+        // Reveal the live hero gradually instead of swapping the masked clone
+        // for the live media in one frame when the opening leaves the layout.
+        surfaceRef.current.style.opacity = String(1 - handoff);
         const width=window.innerWidth,height=window.innerHeight;
         if (canvasRef.current.width !== Math.round(width*renderer.getPixelRatio()) || canvasRef.current.height !== Math.round(height*renderer.getPixelRatio())) {
           renderer.setSize(width,height,false); camera.aspect=width/height; camera.updateProjectionMatrix();
