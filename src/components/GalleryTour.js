@@ -848,13 +848,20 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const stopToKey = s => {
         const i = Math.min(Math.floor(s), stopKeys.length - 2);
         const f = Math.min(1, s - i);
-        return stopKeys[i] + (stopKeys[i + 1] - stopKeys[i]) * dwell(f);
+        const samples = intervalTravel[i];
+        const distance = dwell(f) * samples[samples.length - 1];
+        let sample = 0;
+        while (sample < samples.length - 2 && distance > samples[sample + 1]) sample++;
+        const fraction = (distance - samples[sample]) / Math.max(0.00001, samples[sample + 1] - samples[sample]);
+        return stopKeys[i] + (stopKeys[i + 1] - stopKeys[i]) * (sample + fraction) / (samples.length - 1);
       };
       // Give longer passages and larger turns more scroll distance, rather
       // than making every interval finish in the same amount of scrolling.
       const routeWeights = [0];
+      const intervalTravel = [];
       for (let i=0;i<stopKeys.length-1;i++) {
         let length=0;
+        const samples = [0];
         let previous=positionCurve.getPoint(stopKeys[i]/segments);
         let previousDirection=targetCurve.getPoint(stopKeys[i]/segments).sub(previous).normalize();
         for(let sample=1;sample<=32;sample++) {
@@ -862,9 +869,11 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
           const position=positionCurve.getPoint(t);
           const direction=targetCurve.getPoint(t).sub(position).normalize();
           length+=position.distanceTo(previous)+previousDirection.angleTo(direction)*4;
+          samples.push(length);
           previous=position;previousDirection=direction;
         }
         routeWeights.push(routeWeights[i]+Math.max(4,length));
+        intervalTravel.push(samples);
       }
       const scrollToStop = progress => {
         const distance=progress*routeWeights[routeWeights.length-1];
@@ -906,6 +915,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       let visible = true;
       let frameId = 0;
       let lastTime = performance.now();
+      let cameraRotation = null;
 
       const readScroll = () => {
         const root = rootRef.current;
@@ -956,6 +966,11 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         if (Math.abs(sway.tx - sway.x) < 0.00005) sway.x = sway.tx;
         if (Math.abs(sway.ty - sway.y) < 0.00005) sway.y = sway.ty;
         placeCamera(current);
+        // Keep turns comfortable without extending the scroll route or slowing
+        // translation. Initialize at the restored position to avoid a return spin.
+        if (!cameraRotation || reducedMotion) cameraRotation = camera.quaternion.clone();
+        else cameraRotation.rotateTowards(camera.quaternion, delta * 1.8);
+        camera.quaternion.copy(cameraRotation);
         if (descendFromSky) rootRef.current.dataset.descent = String(clamp01(1 + current / 3));
         floorReflections[0].visible = current >= 0 && camera.position.y < UPPER + 0.5;
         floorReflections[1].visible = current >= 0 && camera.position.y >= UPPER + 0.5;
