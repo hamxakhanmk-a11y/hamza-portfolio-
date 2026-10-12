@@ -24,10 +24,18 @@ export function finishIntro(scrollTo) {
   const root = document.documentElement;
   if (root.dataset.introDone === 'true') return;
   const sky = document.querySelector('[data-home-sky]');
-  const removed = sky ? sky.offsetTop + sky.offsetHeight : 0;
+  const removedHeight = sky?.offsetHeight || 0;
+  const banner = document.querySelector('.intro-embedded');
+  const before = banner?.getBoundingClientRect().top;
   const y = window.scrollY;
+  const previousAnchor = root.style.overflowAnchor;
+  root.style.overflowAnchor = 'none';
   root.dataset.introDone = 'true';
-  const target = Math.max(0, y - removed);
+  // Measure the actual layout change; offsetTop is relative to an offset
+  // parent and isn't necessarily the amount removed from the document.
+  const shift = banner && before != null ? banner.getBoundingClientRect().top - before : -removedHeight;
+  const target = Math.max(0, y + shift);
   window.scrollTo({ top: target, left: 0, behavior: 'instant' });
   scrollTo?.(target);
+  requestAnimationFrame(() => { root.style.overflowAnchor = previousAnchor; });
 }
