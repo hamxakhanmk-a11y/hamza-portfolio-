@@ -13,9 +13,10 @@ import { useEffect, useRef } from 'react';
 //
 // Liquid: every droplet is splatted as soft blobs into a small "field" canvas, stretched along the way it
 // moves (like a real drop in flight); a WebGL pass thresholds the field, so nearby blobs merge like liquid,
-// and shades it in flat vivid blues with lighter layers where it is thick and small glints of light.
+// and shades it as water in the tabs' blues.
 
-const FIELD_SCALE = 0.35;
+const FIELD_SCALE = 0.35; // field resolution, before rounding up to a power of two for its mipmaps
+const pow2 = x => 2 ** Math.ceil(Math.log2(Math.max(2, x)));
 const T = {
   dropStart: 0.25, impact: 1.05, swirlStart: 1.85, swirlEnd: 3.05, burst: 3.1,
   stagger: 0.08, flight: 0.68, grow: 0.3, fade: 0.45, reveal: 1.2, rise: 1.6, letterGap: 0.07,
@@ -30,25 +31,40 @@ const easeOutBack = x => 1 + 2.2 * (x - 1) ** 3 + 1.2 * (x - 1) ** 2;
 const rand = (a, b) => a + Math.random() * (b - a);
 
 const VERTEX = `attribute vec2 p; varying vec2 uv; void main() { uv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }`;
+// Water in the tabs' colours (deep #063a5b → #0879aa → #1a9fc5 with a pale cyan shimmer). Blurred copies
+// of the field (its mipmaps) give each shape a smooth rounded surface, so it reads as a body of water: a
+// bright glint where light hits, a thin darker outline, light gathering inside the far edge, a little
+// see-through where thin, and a slow shimmer moving across it.
 const FRAGMENT = `precision mediump float;
-uniform sampler2D field; uniform vec2 texel; varying vec2 uv;
-float f(vec2 o) { return texture2D(field, uv + o).r; }
+uniform sampler2D field; uniform vec2 texel; uniform float time; varying vec2 uv;
+float f(vec2 o, float blur) { return texture2D(field, uv + o, blur).r; }
 void main() {
-  float v = f(vec2(0.0));
+  float v = f(vec2(0.0), 0.0);
   float a = smoothstep(0.44, 0.52, v);
   if (a <= 0.0) { gl_FragColor = vec4(0.0); return; }
-  float gx = f(vec2(texel.x, 0.0)) - f(vec2(-texel.x, 0.0));
-  float gy = f(vec2(0.0, texel.y)) - f(vec2(0.0, -texel.y));
-  vec3 n = normalize(vec3(-gx * 2.2, -gy * 2.2, 1.0));
-  vec3 light = normalize(vec3(-0.45, 0.6, 0.75));
+  float height = clamp(f(vec2(0.0), 3.5) * 0.55 + f(vec2(0.0), 5.0) * 0.45, 0.0, 1.0);
+  vec2 d = texel * 2.5;
+  float hx = f(vec2(d.x, 0.0), 3.5) - f(vec2(-d.x, 0.0), 3.5);
+  float hy = f(vec2(0.0, d.y), 3.5) - f(vec2(0.0, -d.y), 3.5);
+  float ex = f(vec2(texel.x, 0.0), 0.0) - f(vec2(-texel.x, 0.0), 0.0);
+  float ey = f(vec2(0.0, texel.y), 0.0) - f(vec2(0.0, -texel.y), 0.0);
+  vec3 n = normalize(vec3(-(hx * 3.0 + ex * 1.4), -(hy * 3.0 + ey * 1.4), 1.0));
+  vec3 light = normalize(vec3(-0.5, 0.55, 0.7));
   float diffuse = max(dot(n, light), 0.0);
-  float spec = pow(max(dot(reflect(-light, n), vec3(0.0, 0.0, 1.0)), 0.0), 60.0);
-  vec3 base = vec3(0.06, 0.40, 1.0), lighter = vec3(0.30, 0.66, 1.0), rim = vec3(0.03, 0.22, 0.72);
-  float thick = smoothstep(0.8, 1.0, v); // overlapping, thicker liquid reads lighter
-  vec3 col = mix(base, lighter, clamp(thick * 0.55 + (diffuse - 0.55) * 0.6, 0.0, 1.0));
-  col = mix(rim, col, smoothstep(0.46, 0.62, v));
-  col += vec3(spec * 0.9);
-  gl_FragColor = vec4(col * a, a);
+  float spec = pow(max(dot(reflect(-light, n), vec3(0.0, 0.0, 1.0)), 0.0), 90.0);
+  float sheen = pow(max(dot(reflect(-light, n), vec3(0.0, 0.0, 1.0)), 0.0), 12.0);
+  float rim = 1.0 - smoothstep(0.46, 0.6, v);
+  float through = pow(1.0 - n.z, 1.2) * max(dot(normalize(n.xy + 0.0001), -light.xy), 0.0);
+  vec3 deep = vec3(0.024, 0.227, 0.357), ocean = vec3(0.031, 0.475, 0.667), sea = vec3(0.102, 0.624, 0.773);
+  vec3 cyan = vec3(0.22, 0.74, 0.97), pale = vec3(0.73, 0.90, 0.99);
+  vec3 col = mix(sea, ocean, smoothstep(0.35, 1.0, height));   // thicker water looks deeper
+  col = mix(col, deep, (1.0 - diffuse) * 0.45);
+  col += cyan * through * 0.7 + pale * sheen * 0.18;
+  float band = sin(dot(gl_FragCoord.xy, vec2(0.011, 0.004)) - time * 2.2) * 0.5 + 0.5;
+  col = mix(col, pale, pow(band, 6.0) * height * 0.25);
+  col = mix(col, deep * 0.7, rim * 0.75);
+  float alpha = a * mix(0.75, 0.95, smoothstep(0.3, 0.9, height));
+  gl_FragColor = vec4(col * alpha + vec3(spec) * a, min(1.0, alpha + spec * a));
 }`;
 
 function createRenderer(canvas, field) {
@@ -74,16 +90,19 @@ function createRenderer(canvas, field) {
   gl.enableVertexAttribArray(p);
   gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
   gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   const texel = gl.getUniformLocation(program, 'texel');
-  return () => {
+  const time = gl.getUniformLocation(program, 'time');
+  return seconds => {
+    gl.uniform1f(time, seconds);
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.uniform2f(texel, 1 / field.width, 1 / field.height);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, field);
+    gl.generateMipmap(gl.TEXTURE_2D);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -138,13 +157,15 @@ export default function SplashIntro() {
     const render = createRenderer(canvas, field);
     const flat = render ? null : canvas.getContext('2d');
 
+    let fx = FIELD_SCALE, fy = FIELD_SCALE;
     let w = 0, h = 0, C = { x: 0, y: 0 }, G = 0, R = 0, tabs = [], frame = 0, t = 0, last = 0;
     let revealAt = 0, textAt = 0, stage = 'liquid';
     const resize = () => {
       w = window.innerWidth; h = window.innerHeight;
       const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
-      field.width = Math.ceil(w * FIELD_SCALE); field.height = Math.ceil(h * FIELD_SCALE);
+      field.width = pow2(w * FIELD_SCALE); field.height = pow2(h * FIELD_SCALE);
+      fx = field.width / w; fy = field.height / h;
       C = { x: w / 2, y: h * 0.52 };
       R = Math.min(w, h) * 0.22;
       G = C.y + R * 0.75; // the "ground" the raindrop lands on
@@ -166,8 +187,8 @@ export default function SplashIntro() {
     const blob = (x, y, r, strength = 1) => {
       if (r <= 0.3) return;
       fctx.globalAlpha = strength;
-      const s = r * 2 * FIELD_SCALE;
-      fctx.drawImage(sprite, x * FIELD_SCALE - s, y * FIELD_SCALE - s, s * 2, s * 2);
+      const sx = r * 2 * fx, sy = r * 2 * fy;
+      fctx.drawImage(sprite, x * fx - sx, y * fy - sy, sx * 2, sy * 2);
     };
     // A drop in motion: a round head with a tapering tail stretched back along its velocity.
     const streak = (x, y, vx, vy, r, strength = 1) => {
@@ -311,11 +332,11 @@ export default function SplashIntro() {
         pill(tab.x, tab.y, Math.max(ph, tab.h * 0.9 + (tab.w - tab.h * 0.9) * easeOutBack(k)), ph, 1 - fade);
       });
 
-      if (render) render();
+      if (render) render(t);
       else {
         flat.setTransform(canvas.width / w, 0, 0, canvas.height / h, 0, 0);
         flat.clearRect(0, 0, w, h);
-        flat.fillStyle = '#1a6dff';
+        flat.fillStyle = '#0879aa';
         flat.beginPath();
         drops.forEach(d => { flat.moveTo(d.x + d.r, d.y); flat.arc(d.x, d.y, d.r, 0, Math.PI * 2); });
         if (core) { flat.moveTo(C.x + core, C.y); flat.arc(C.x, C.y, core, 0, Math.PI * 2); }

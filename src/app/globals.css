@@ -474,7 +474,7 @@ html[data-splash] .splash-intro {
   position: fixed;
   inset: 0;
   z-index: 45; /* under the navbar, so the real tabs can appear over the liquid that forms them */
-  background: radial-gradient(ellipse at 50% 52%, #0a4a73 0%, #032c48 55%, #011827 100%);
+  background: radial-gradient(ellipse at 50% 52%, #073c5f 0%, #022339 55%, #01121f 100%);
   -webkit-mask-image: radial-gradient(circle at 50% 52%, transparent var(--splash-hole), #000 calc(var(--splash-hole) + 160px));
   mask-image: radial-gradient(circle at 50% 52%, transparent var(--splash-hole), #000 calc(var(--splash-hole) + 160px));
 }
