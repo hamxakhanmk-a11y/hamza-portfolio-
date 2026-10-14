@@ -17,6 +17,7 @@ export default function HomeSmoothScroll() {
       return { start, end: start + element.offsetHeight - window.innerHeight };
     };
     const consume = event => { event.preventDefault(); event.stopImmediatePropagation(); };
+    const splashing = () => Boolean(document.documentElement.dataset.splash); // the opening is still playing
     const descend = () => {
       const gallery = document.getElementById('gallery-tour');
       if (!instance || busy) return;
@@ -50,6 +51,7 @@ export default function HomeSmoothScroll() {
       });
     };
     const wheel = event => {
+      if (splashing()) { consume(event); return; }
       if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
       const now = performance.now(), gap = now - lastWheel;
       lastWheel = now;
@@ -60,12 +62,14 @@ export default function HomeSmoothScroll() {
       navigate(Math.sign(event.deltaY), event);
     };
     const key = event => {
+      if (splashing()) { consume(event); return; }
       if (event.target.closest('input, textarea, select, [contenteditable="true"]') || event.altKey || event.ctrlKey || event.metaKey) return;
       const direction = ['ArrowDown', 'PageDown', ' '].includes(event.key) ? (event.shiftKey ? -1 : 1) : ['ArrowUp', 'PageUp'].includes(event.key) ? -1 : 0;
       if (direction) navigate(direction, event);
     };
     const touchStart = event => { touchY = event.touches[0]?.clientY; touchHandled = false; };
     const touchMove = event => {
+      if (splashing()) { consume(event); return; }
       const y = event.touches[0]?.clientY;
       const range = bounds();
       if (touchHandled && range && window.scrollY <= range.end + 2) { consume(event); return; }

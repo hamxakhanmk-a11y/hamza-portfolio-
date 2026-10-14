@@ -7,12 +7,14 @@ import Contact from "@/components/Contact";
 import CommissionInquiry from "@/components/CommissionInquiry";
 import HomeMistTransition from "@/components/HomeMistTransition";
 import HomeSmoothScroll from "@/components/HomeSmoothScroll";
+import SplashIntro from "@/components/SplashIntro";
 import mistStyles from "@/components/HomeMistTransition.module.css";
 
 export default function Home() {
   return (
     <>
       <main className={mistStyles.journey}>
+        <SplashIntro />
         <HomeSmoothScroll />
         <Hero />
         <HomeMistTransition />

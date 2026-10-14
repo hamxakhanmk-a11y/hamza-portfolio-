@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { splashDone } from '@/lib/splash';
 import { useRouter } from 'next/navigation';
 import { TOUR_SLOTS, HOME_DESCENT_SVH } from '@/data/galleryTour';
 import { gallerySkyVertex, gallerySkyFragment } from '@/data/gallerySky';
@@ -177,6 +178,8 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
     let cleanup = () => {};
 
     (async () => {
+      await splashDone(); // build the scene after the opening, so it doesn't stutter
+      if (disposed) return;
       const [THREE, { RoomEnvironment }, { Reflector }, { mergeGeometries }] = await Promise.all([
         import('three'),
         import('three/addons/environments/RoomEnvironment.js'),

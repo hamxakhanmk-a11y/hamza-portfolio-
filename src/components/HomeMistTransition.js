@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { splashDone } from '@/lib/splash';
 import styles from './HomeMistTransition.module.css';
 import { HOME_DESCENT_SVH } from '@/data/galleryTour';
 import GardenIntro from './GardenIntro';
@@ -23,6 +24,8 @@ export default function HomeMistTransition() {
     let cleanup;
 
     async function initialize() {
+      await splashDone(); // build the scene after the opening, so it doesn't stutter
+      if (disposed) return;
       const THREE = await import('three');
       if (disposed) return;
       const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, powerPreference: 'low-power' });

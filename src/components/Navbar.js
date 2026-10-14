@@ -105,7 +105,7 @@ export default function Navbar() {
       {/* One row of tabs on every screen; on tablets and phones they shrink so all six fit. */}
       <nav
         ref={navRef}
-        className={`nav-flow-tabs flex justify-between gap-1 px-2 py-1.5 sm:justify-center sm:gap-2 sm:px-4 lg:gap-4 lg:px-6 ${flowReady ? 'nav-flow-tabs--ready' : ''} ${flowing ? 'is-flowing' : ''}`}
+        className={`nav-flow-tabs flex justify-between gap-[3px] px-1.5 py-1.5 sm:justify-center sm:gap-2 sm:px-4 lg:gap-4 lg:px-6 ${flowReady ? 'nav-flow-tabs--ready' : ''} ${flowing ? 'is-flowing' : ''}`}
       >
         <span className="nav-flow-indicator" aria-hidden="true" />
         {links.map(({ label, href }) => (
@@ -115,7 +115,7 @@ export default function Navbar() {
             prefetch={true}
             onNavigate={() => changePage(href)}
             aria-current={currentHref === href ? 'page' : undefined}
-            className={`nav-flow-link shrink-0 px-[clamp(0.45rem,1.7vw,0.85rem)] py-2 text-[clamp(8.5px,2.35vw,11px)] uppercase tracking-[0.06em] sm:tracking-[0.14em] lg:px-4 lg:text-xs lg:tracking-[0.25em] ${currentHref === href ? 'nav-flow-link--active' : ''}`}
+            className={`nav-flow-link shrink-0 px-[clamp(0.25rem,1.3vw,0.85rem)] py-2 text-[clamp(7.5px,2.1vw,11px)] uppercase tracking-[0.04em] sm:tracking-[0.14em] lg:px-4 lg:text-xs lg:tracking-[0.25em] ${currentHref === href ? 'nav-flow-link--active' : ''}`}
             style={{ color: currentHref === href || overlayHero ? '#fffaf2' : 'var(--color-ocean)' }}
           >
             {label}
