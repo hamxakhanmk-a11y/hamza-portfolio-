@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 // The home page's opening on a fresh visit (first arrival or refresh): on a navy screen a raindrop of vivid
 // blue liquid falls and splashes on the ground, the splash is swept up into a wide circular swirl that
 // closes into a ball, and the ball bursts into six streams that fly up and become the page tabs. The navy
-// then opens up to reveal the hero, and the letters of the title rise one by one from the bottom into place.
+// then opens up to reveal the hero, and the title rises whole from the bottom into place.
 //
 // The layout's head script marks <html data-splash="pending"> before the first paint on a full load of
 // "/", so client-side visits to Home never replay it. The stages are driven through that attribute
@@ -19,7 +19,7 @@ const FIELD_SCALE = 0.35; // field resolution, before rounding up to a power of 
 const pow2 = x => 2 ** Math.ceil(Math.log2(Math.max(2, x)));
 const T = {
   dropStart: 0.25, impact: 1.05, swirlStart: 1.85, swirlEnd: 3.05, burst: 3.1,
-  stagger: 0.08, flight: 0.68, grow: 0.3, fade: 0.45, reveal: 1.2, rise: 1.6, letterGap: 0.07,
+  stagger: 0.08, flight: 0.68, grow: 0.3, fade: 0.45, reveal: 1.1, rise: 1.4,
 };
 const STREAM = 16; // droplets per tab stream
 
@@ -149,7 +149,7 @@ export default function SplashIntro() {
     const root = document.documentElement;
     if (root.dataset.splash !== 'pending') return;
     root.dataset.splash = 'liquid';
-    root.dataset.splashPlayed = 'true'; // stays: the title's letters keep their rise-from-below animation
+    root.dataset.splashPlayed = 'true'; // stays: the title keeps its rise-from-below animation
     const overlay = rootRef.current, canvas = canvasRef.current;
     const field = document.createElement('canvas');
     const fctx = field.getContext('2d');
@@ -343,22 +343,21 @@ export default function SplashIntro() {
         flat.fill();
       }
 
-      // 5. Once every tab has formed (and the hero picture has loaded), open the navy up onto the hero,
-      // then the title's letters rise from the bottom into place.
-      const formedAt = (tabs.length ? tabs[tabs.length - 1].landsAt : T.burst + T.flight) + T.grow;
-      if (!revealAt && t >= formedAt && (heroReady() || t > formedAt + 0.6)) {
+      // 5. As the last stream lands, open the navy up onto the hero (giving its picture a moment to load
+      // if it hasn't yet), then the title rises from the bottom into place.
+      const lastLanding = tabs.length ? tabs[tabs.length - 1].landsAt : T.burst + T.flight;
+      if (!revealAt && t >= lastLanding && (heroReady() || t > lastLanding + 0.3)) {
         revealAt = t;
         root.dataset.splash = stage = 'reveal';
       }
       if (revealAt) {
-        const k = easeInOut(clamp01((t - revealAt) / T.reveal));
-        overlay.style.setProperty('--splash-hole', `${-160 + k * (Math.hypot(w, h) * 0.6 + 320)}px`);
-        if (stage === 'reveal' && t - revealAt >= 0.5) {
+        const k = easeOut(clamp01((t - revealAt) / T.reveal));
+        overlay.style.setProperty('--splash-hole', `${-40 + k * (Math.hypot(w, h) * 0.6 + 200)}px`);
+        if (stage === 'reveal' && t - revealAt >= 0.3) {
           root.dataset.splash = stage = 'text';
           textAt = t;
         }
-        const letters = document.querySelectorAll('.intro-letter-line span').length;
-        if (textAt && t - textAt >= T.rise + letters * T.letterGap + 0.1 && t - revealAt >= T.reveal) {
+        if (textAt && t - textAt >= T.rise + 0.1 && t - revealAt >= T.reveal) {
           delete root.dataset.splash;
           stage = 'done';
           return;
