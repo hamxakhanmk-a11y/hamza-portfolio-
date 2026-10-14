@@ -2,20 +2,24 @@
 
 import { useEffect, useRef } from 'react';
 
-// The home page's opening on a fresh visit (first arrival or refresh): on a navy screen a raindrop of glossy
-// blue liquid falls and splashes on the ground, the splash is swept up into a circular swirl that closes
-// into a ball, and the ball bursts into six streams that fly up and become the page tabs. The navy then
-// opens up to reveal the hero, and the hero's title rises from the bottom into place.
+// The home page's opening on a fresh visit (first arrival or refresh): on a navy screen a raindrop of vivid
+// blue liquid falls and splashes on the ground, the splash is swept up into a wide circular swirl that
+// closes into a ball, and the ball bursts into six streams that fly up and become the page tabs. The navy
+// then opens up to reveal the hero, and the letters of the title rise one by one from the bottom into place.
 //
 // The layout's head script marks <html data-splash="pending"> before the first paint on a full load of
 // "/", so client-side visits to Home never replay it. The stages are driven through that attribute
 // (pending → liquid → reveal → text → removed) and styled in globals.css.
 //
-// Liquid: every droplet is splatted as a soft blob into a small "field" canvas; a WebGL pass thresholds
-// the field (so nearby blobs merge like liquid) and shades it with a glossy highlight.
+// Liquid: every droplet is splatted as soft blobs into a small "field" canvas, stretched along the way it
+// moves (like a real drop in flight); a WebGL pass thresholds the field, so nearby blobs merge like liquid,
+// and shades it in flat vivid blues with lighter layers where it is thick and small glints of light.
 
 const FIELD_SCALE = 0.35;
-const T = { dropStart: 0.15, impact: 0.7, swirlStart: 1.2, swirlEnd: 2.0, burst: 2.05, stagger: 0.06, flight: 0.46, grow: 0.22, fade: 0.35, reveal: 0.95 };
+const T = {
+  dropStart: 0.25, impact: 1.05, swirlStart: 1.85, swirlEnd: 3.05, burst: 3.1,
+  stagger: 0.08, flight: 0.68, grow: 0.3, fade: 0.45, reveal: 1.2, rise: 1.6, letterGap: 0.07,
+};
 const STREAM = 16; // droplets per tab stream
 
 const clamp01 = x => Math.max(0, Math.min(1, x));
@@ -31,18 +35,19 @@ uniform sampler2D field; uniform vec2 texel; varying vec2 uv;
 float f(vec2 o) { return texture2D(field, uv + o).r; }
 void main() {
   float v = f(vec2(0.0));
-  float a = smoothstep(0.42, 0.54, v);
+  float a = smoothstep(0.44, 0.52, v);
   if (a <= 0.0) { gl_FragColor = vec4(0.0); return; }
   float gx = f(vec2(texel.x, 0.0)) - f(vec2(-texel.x, 0.0));
   float gy = f(vec2(0.0, texel.y)) - f(vec2(0.0, -texel.y));
-  vec3 n = normalize(vec3(-gx * 2.6, -gy * 2.6, 1.0));
-  float h = smoothstep(0.45, 1.0, v);
+  vec3 n = normalize(vec3(-gx * 2.2, -gy * 2.2, 1.0));
   vec3 light = normalize(vec3(-0.45, 0.6, 0.75));
   float diffuse = max(dot(n, light), 0.0);
-  float spec = pow(max(dot(reflect(-light, n), vec3(0.0, 0.0, 1.0)), 0.0), 22.0);
-  vec3 deep = vec3(0.02, 0.27, 0.58), bright = vec3(0.12, 0.62, 0.95);
-  vec3 col = mix(deep, bright, clamp(h * 0.55 + diffuse * 0.5, 0.0, 1.0));
-  col = mix(col, deep * 0.75, (1.0 - h) * 0.35) + spec * 0.85;
+  float spec = pow(max(dot(reflect(-light, n), vec3(0.0, 0.0, 1.0)), 0.0), 60.0);
+  vec3 base = vec3(0.06, 0.40, 1.0), lighter = vec3(0.30, 0.66, 1.0), rim = vec3(0.03, 0.22, 0.72);
+  float thick = smoothstep(0.8, 1.0, v); // overlapping, thicker liquid reads lighter
+  vec3 col = mix(base, lighter, clamp(thick * 0.55 + (diffuse - 0.55) * 0.6, 0.0, 1.0));
+  col = mix(rim, col, smoothstep(0.46, 0.62, v));
+  col += vec3(spec * 0.9);
   gl_FragColor = vec4(col * a, a);
 }`;
 
@@ -125,6 +130,7 @@ export default function SplashIntro() {
     const root = document.documentElement;
     if (root.dataset.splash !== 'pending') return;
     root.dataset.splash = 'liquid';
+    root.dataset.splashPlayed = 'true'; // stays: the title's letters keep their rise-from-below animation
     const overlay = rootRef.current, canvas = canvasRef.current;
     const field = document.createElement('canvas');
     const fctx = field.getContext('2d');
@@ -132,14 +138,15 @@ export default function SplashIntro() {
     const render = createRenderer(canvas, field);
     const flat = render ? null : canvas.getContext('2d');
 
-    let w = 0, h = 0, C = { x: 0, y: 0 }, G = 0, R = 0, tabs = [], frame = 0, t = 0, last = 0, revealAt = 0, stage = 'liquid';
+    let w = 0, h = 0, C = { x: 0, y: 0 }, G = 0, R = 0, tabs = [], frame = 0, t = 0, last = 0;
+    let revealAt = 0, textAt = 0, stage = 'liquid';
     const resize = () => {
       w = window.innerWidth; h = window.innerHeight;
       const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
       field.width = Math.ceil(w * FIELD_SCALE); field.height = Math.ceil(h * FIELD_SCALE);
       C = { x: w / 2, y: h * 0.52 };
-      R = Math.min(w, h) * 0.17;
+      R = Math.min(w, h) * 0.22;
       G = C.y + R * 0.75; // the "ground" the raindrop lands on
       tabs = measureTabs();
       tabs.forEach((tab, i) => {
@@ -152,7 +159,7 @@ export default function SplashIntro() {
     resize();
 
     const drops = []; // free droplets: the ground splash, the swirl and the splash-back at the tabs
-    let splashStarted = false, swirlStarted = false;
+    let splashStarted = false, swirlStarted = false, sprayed = 0;
     const streamJitter = Array.from({ length: tabs.length * STREAM }, () => [rand(-1, 1), rand(-1, 1)]);
     const splashed = new Set();
 
@@ -161,6 +168,17 @@ export default function SplashIntro() {
       fctx.globalAlpha = strength;
       const s = r * 2 * FIELD_SCALE;
       fctx.drawImage(sprite, x * FIELD_SCALE - s, y * FIELD_SCALE - s, s * 2, s * 2);
+    };
+    // A drop in motion: a round head with a tapering tail stretched back along its velocity.
+    const streak = (x, y, vx, vy, r, strength = 1) => {
+      const speed = Math.hypot(vx, vy);
+      const length = Math.min(r * 5, speed * 0.045);
+      if (length < r * 0.4) { blob(x, y, r, strength); return; }
+      const ux = vx / speed, uy = vy / speed, n = Math.ceil(length / (r * 0.4));
+      for (let i = n; i >= 0; i--) {
+        const k = i / n;
+        blob(x - ux * length * k, y - uy * length * k, r * (1 - 0.65 * k), strength * (i ? 0.72 : 0.9));
+      }
     };
     const pill = (cx, cy, pw, ph, strength) => {
       // a capsule drawn as a row of overlapping blobs
@@ -180,88 +198,108 @@ export default function SplashIntro() {
       fctx.fillRect(0, 0, field.width, field.height);
       fctx.globalCompositeOperation = 'lighter';
 
-      // 1. A raindrop falls and hits the ground below the centre.
+      // 1. A raindrop falls, stretching as it speeds up, and hits the ground below the centre.
       if (t >= T.dropStart && t < T.impact) {
-        const y = -R * 0.4 + (G + R * 0.4) * easeIn(clamp01((t - T.dropStart) / (T.impact - T.dropStart)));
-        const r = R * 0.16;
-        blob(C.x, y, r); // a teardrop: round body, thinning tail above it
-        blob(C.x, y - r * 0.9, r * 0.62);
-        blob(C.x, y - r * 1.6, r * 0.34);
+        const span = T.impact - T.dropStart, k = clamp01((t - T.dropStart) / span), fall = G + R * 0.5;
+        streak(C.x, -R * 0.5 + fall * easeIn(k), 0, (fall * 3 * k * k) / span, R * 0.11);
       }
-      // 2. It splashes on the ground: a crown of droplets flies up and out and skips along the ground,
+      // 2. It splashes on the ground: a crown of drops flies up and out and skips along the ground,
       // a puddle spreads, and a small jet bounces up from where it hit.
       if (t >= T.impact && !splashStarted) {
         splashStarted = true;
-        for (let n = 0; n < 46; n++) {
-          const angle = Math.PI * (0.08 + 0.84 * Math.random()), speed = R * rand(2.8, 6);
-          drops.push({ x: C.x + rand(-6, 6), y: G, vx: Math.cos(angle) * speed * 1.25, vy: -Math.sin(angle) * speed, r: R * rand(0.035, 0.09) });
+        for (let n = 0; n < 54; n++) {
+          const angle = Math.PI * (0.06 + 0.88 * Math.random()), speed = R * rand(2.2, 4.8);
+          const big = n < 8;
+          drops.push({ x: C.x + rand(-8, 8), y: G, vx: Math.cos(angle) * speed * 1.35, vy: -Math.sin(angle) * speed, r: R * (big ? rand(0.07, 0.1) : rand(0.025, 0.065)) });
         }
       }
       if (splashStarted && !swirlStarted) {
         drops.forEach(d => {
-          d.vy += R * 12 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.vx *= Math.exp(-1.2 * dt);
-          if (d.y > G) { d.y = G; d.vy *= -0.35; d.vx *= 0.7; }
+          d.vy += R * 9 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.vx *= Math.exp(-1.1 * dt);
+          if (d.y > G) { d.y = G; d.vy *= -0.3; d.vx *= 0.75; }
         });
-        const k = clamp01((t - T.impact) / 0.5);
-        pill(C.x, G, R * (0.3 + 2 * easeOut(k)), R * 0.11 * (1 - 0.5 * k), 1);
-        const jet = clamp01((t - T.impact - 0.05) / 0.35);
+        const k = clamp01((t - T.impact) / 0.7);
+        pill(C.x, G, R * (0.3 + 2.4 * easeOut(k)), R * 0.1 * (1 - 0.5 * k), 1);
+        const jet = clamp01((t - T.impact - 0.06) / 0.5);
         if (jet > 0 && jet < 1) {
-          const height = R * 0.9 * Math.sin(Math.PI * jet);
-          for (let n = 0; n <= 4; n++) blob(C.x, G - height * n / 4, R * (0.07 - 0.008 * n));
+          const height = R * 0.85 * Math.sin(Math.PI * jet);
+          for (let n = 0; n <= 5; n++) blob(C.x, G - height * n / 5, R * (0.06 - 0.006 * n));
         }
       }
-      // 3. The splash is swept up into a circular swirl round the centre, which closes into one ball.
+      // 3. The splash is swept up into a wide circular swirl round the centre, which then closes into a ball.
       if (t >= T.swirlStart && !swirlStarted) {
         swirlStarted = true;
-        const width = R * 2.3;
-        for (let n = 0; n < 12; n++) drops.push({ x: C.x - width / 2 + width * n / 11, y: G, r: R * 0.07 }); // the puddle lifts too
-        drops.forEach(d => { d.angle = Math.atan2(d.y - C.y, d.x - C.x); d.radius = Math.hypot(d.x - C.x, d.y - C.y); d.r0 = d.r; });
+        const width = R * 2.6;
+        for (let n = 0; n < 14; n++) drops.push({ x: C.x - width / 2 + width * n / 13, y: G, r: R * 0.06 }); // the puddle lifts too
+        for (let n = 0; n < 3; n++) drops.push({ x: C.x + Math.cos(n * 2.1) * R, y: C.y + Math.sin(n * 2.1) * R, r: R * 0.1 }); // heavier strokes lead the swirl
+        drops.forEach(d => {
+          d.angle = Math.atan2(d.y - C.y, d.x - C.x); d.radius = Math.hypot(d.x - C.x, d.y - C.y); d.r0 = d.r;
+          d.ring = R * 1.2 * rand(0.75, 1.25); // a broken ring of strokes, not one smooth band
+        });
       }
       if (swirlStarted && t < T.swirlEnd) {
         const k = clamp01((t - T.swirlStart) / (T.swirlEnd - T.swirlStart));
         drops.forEach(d => {
-          d.angle += dt * (5 + 5 * k);
-          // first gathered onto a ring round the centre, then the ring closes
-          const radius = k < 0.55 ? d.radius + (R - d.radius) * easeOut(k / 0.55) : R * (1 - easeIn((k - 0.55) / 0.45));
+          if (d.life) return;
+          const px = d.x, py = d.y;
+          d.angle += dt * (3.2 + 4 * k);
+          // first gathered onto a wide ring, then the ring closes in
+          const radius = k < 0.55 ? d.radius + (d.ring - d.radius) * easeOut(k / 0.55) : d.ring * (1 - easeIn((k - 0.55) / 0.45));
           d.x = C.x + Math.cos(d.angle) * radius; d.y = C.y + Math.sin(d.angle) * radius;
-          d.r = d.r0 * (1 + 0.5 * Math.sin(Math.PI * k));
+          if (dt) { d.vx = (d.x - px) / dt; d.vy = (d.y - py) / dt; }
+          d.r = d.r0 * (1 + 0.4 * Math.sin(Math.PI * k));
         });
+      }
+      // fine spray flung off the spinning ring
+      if (swirlStarted && t < T.swirlEnd - 0.25) {
+        const ring = drops.filter(d => !d.life);
+        for (const due = Math.floor((t - T.swirlStart) * 45); sprayed < due && ring.length; sprayed++) {
+          const d = ring[Math.floor(Math.random() * ring.length)], out = rand(30, 110);
+          const ox = Math.cos(d.angle), oy = Math.sin(d.angle);
+          drops.push({ x: d.x, y: d.y, vx: (d.vx || 0) * 0.55 + ox * out, vy: (d.vy || 0) * 0.55 + oy * out, r: R * rand(0.012, 0.032), r0: R * rand(0.012, 0.032), age: 0, life: rand(0.5, 0.9), spray: true });
+        }
       }
       if (swirlStarted && t >= T.swirlEnd) {
         for (let i = drops.length - 1; i >= 0; i--) if (!drops[i].life) drops.splice(i, 1);
       }
-      // splash-back droplets at the tabs fall and shrink
+      // spray drifts and splash-back droplets at the tabs fall; both shrink away
       drops.forEach(d => {
         if (!d.life) return;
-        d.age += dt; d.vy += 900 * dt; d.x += d.vx * dt; d.y += d.vy * dt;
+        d.age += dt;
+        if (d.spray) { const drag = Math.exp(-1.6 * dt); d.vx *= drag; d.vy *= drag; } else d.vy += 900 * dt;
+        d.x += d.vx * dt; d.y += d.vy * dt;
         d.r = d.r0 * (1 - clamp01(d.age / d.life));
       });
       for (let i = drops.length - 1; i >= 0; i--) if (drops[i].life && drops[i].age >= drops[i].life) drops.splice(i, 1);
 
-      drops.forEach(d => blob(d.x, d.y, d.r));
+      drops.forEach(d => streak(d.x, d.y, d.vx || 0, d.vy || 0, d.r));
 
       // the ball: grows as the swirl closes, swells, then empties into the streams
       let core = 0;
-      if (t >= T.swirlEnd - 0.3 && t < T.burst + 0.05) core = R * 0.42 * easeOut(clamp01((t - T.swirlEnd + 0.3) / 0.35));
-      else if (t >= T.burst + 0.05) core = R * 0.5 * (1 - easeIn(clamp01((t - T.burst - 0.05) / 0.4)));
+      if (t >= T.swirlEnd - 0.4 && t < T.burst + 0.05) core = R * 0.36 * easeOut(clamp01((t - T.swirlEnd + 0.4) / 0.45));
+      else if (t >= T.burst + 0.05) core = R * 0.42 * (1 - easeIn(clamp01((t - T.burst - 0.05) / 0.55)));
       blob(C.x, C.y, core);
 
       // 4. Six streams fly up; each lands, spreads into its tab and hands over to the real tab.
       tabs.forEach((tab, i) => {
         for (let j = 0; j < STREAM; j++) {
-          const begin = T.burst + i * T.stagger + j * 0.016;
+          const begin = T.burst + i * T.stagger + j * 0.02;
           const u = (t - begin) / T.flight;
           const key = i * STREAM + j;
           if (u >= 1 && j % 4 === 0 && !splashed.has(key)) {
             splashed.add(key);
-            for (let n = 0; n < 3; n++) drops.push({ x: tab.x, y: tab.y, vx: rand(-160, 160), vy: rand(-220, -60), r: tab.h * rand(0.08, 0.16), r0: tab.h * rand(0.08, 0.16), age: 0, life: rand(0.3, 0.5) });
+            for (let n = 0; n < 3; n++) drops.push({ x: tab.x, y: tab.y, vx: rand(-160, 160), vy: rand(-220, -60), r: tab.h * rand(0.08, 0.16), r0: tab.h * rand(0.08, 0.16), age: 0, life: rand(0.35, 0.6) });
           }
           if (u <= 0 || u >= 1) continue;
           const e = easeInOut(u), [jx, jy] = streamJitter[key] || [0, 0];
           const x0 = C.x + jx * R * 0.12, y0 = C.y + jy * R * 0.12;
           const x = (1 - e) ** 2 * x0 + 2 * (1 - e) * e * tab.control.x + e * e * tab.x;
           const y = (1 - e) ** 2 * y0 + 2 * (1 - e) * e * tab.control.y + e * e * tab.y;
-          blob(x, y, Math.max(tab.h * 0.14, tab.h * (0.5 - j * 0.022)));
+          // direction of travel along the curve, for the stretch
+          const speed = (u < 0.5 ? 4 * u : 4 * (1 - u)) / T.flight;
+          const vx = (2 * (1 - e) * (tab.control.x - x0) + 2 * e * (tab.x - tab.control.x)) * speed;
+          const vy = (2 * (1 - e) * (tab.control.y - y0) + 2 * e * (tab.y - tab.control.y)) * speed;
+          streak(x, y, vx, vy, Math.min(R * 0.1, Math.max(tab.h * 0.14, tab.h * (0.48 - j * 0.02))));
         }
         const grow = (t - tab.landsAt) / T.grow;
         if (grow < 0) return;
@@ -277,14 +315,15 @@ export default function SplashIntro() {
       else {
         flat.setTransform(canvas.width / w, 0, 0, canvas.height / h, 0, 0);
         flat.clearRect(0, 0, w, h);
-        flat.fillStyle = '#1a9fd8';
+        flat.fillStyle = '#1a6dff';
         flat.beginPath();
         drops.forEach(d => { flat.moveTo(d.x + d.r, d.y); flat.arc(d.x, d.y, d.r, 0, Math.PI * 2); });
         if (core) { flat.moveTo(C.x + core, C.y); flat.arc(C.x, C.y, core, 0, Math.PI * 2); }
         flat.fill();
       }
 
-      // 5. Once every tab has formed (and the hero picture has loaded), open the navy up onto the hero.
+      // 5. Once every tab has formed (and the hero picture has loaded), open the navy up onto the hero,
+      // then the title's letters rise from the bottom into place.
       const formedAt = (tabs.length ? tabs[tabs.length - 1].landsAt : T.burst + T.flight) + T.grow;
       if (!revealAt && t >= formedAt && (heroReady() || t > formedAt + 0.6)) {
         revealAt = t;
@@ -293,8 +332,12 @@ export default function SplashIntro() {
       if (revealAt) {
         const k = easeInOut(clamp01((t - revealAt) / T.reveal));
         overlay.style.setProperty('--splash-hole', `${-160 + k * (Math.hypot(w, h) * 0.6 + 320)}px`);
-        if (stage === 'reveal' && t - revealAt >= 0.35) root.dataset.splash = stage = 'text';
-        if (t - revealAt >= T.reveal + 0.1) {
+        if (stage === 'reveal' && t - revealAt >= 0.5) {
+          root.dataset.splash = stage = 'text';
+          textAt = t;
+        }
+        const letters = document.querySelectorAll('.intro-letter-line span').length;
+        if (textAt && t - textAt >= T.rise + letters * T.letterGap + 0.1 && t - revealAt >= T.reveal) {
           delete root.dataset.splash;
           stage = 'done';
           return;
