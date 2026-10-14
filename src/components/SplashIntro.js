@@ -35,7 +35,11 @@ const VERTEX = `attribute vec2 p; varying vec2 uv; void main() { uv = p * 0.5 + 
 // of the field (its mipmaps) give each shape a smooth rounded surface, so it reads as a body of water: a
 // bright glint where light hits, a thin darker outline, light gathering inside the far edge, a little
 // see-through where thin, and a slow shimmer moving across it.
-const FRAGMENT = `precision mediump float;
+const FRAGMENT = `#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float; // phones default to low-precision maths, which flattens the shading
+#else
+precision mediump float;
+#endif
 uniform sampler2D field; uniform vec2 texel; uniform float time; varying vec2 uv;
 float f(vec2 o, float blur) { return texture2D(field, uv + o, blur).r; }
 void main() {
@@ -392,6 +396,9 @@ export default function SplashIntro() {
 
   return (
     <div ref={rootRef} className="splash-intro" aria-hidden="true">
+      {/* The navy and its opening circle are a separate layer from the water: Safari doesn't repaint a WebGL
+          canvas inside a masked element until the mask changes, so on iPhones the water stayed invisible. */}
+      <div className="splash-backdrop" />
       <canvas ref={canvasRef} />
     </div>
   );
