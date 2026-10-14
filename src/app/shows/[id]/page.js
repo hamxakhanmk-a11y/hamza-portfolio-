@@ -3,16 +3,14 @@ export const dynamic = 'force-dynamic';
 import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
 import ShowEditorialView from '@/components/ShowEditorialView';
+import { loadOne } from '@/lib/loadOne';
 
 async function getShow(id) {
-  try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
-    const { data } = await supabase.from('shows').select('*').eq('id', id).single();
-    return data || null;
-  } catch { return null; }
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+  return loadOne(() => supabase.from('shows').select('*').eq('id', id));
 }
 
 async function getShowImages(id) {

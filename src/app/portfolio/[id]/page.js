@@ -4,21 +4,18 @@ import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
 import ArtworkEditorialView from '@/components/ArtworkEditorialView';
 import { siteConfig } from '@/data/config';
+import { loadOne } from '@/lib/loadOne';
 
 async function getArtwork(id) {
-  try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
-    const { data } = await supabase
-      .from('artworks')
-      .select('*')
-      .eq('id', id)
-      .eq('show_on_website', true)
-      .single();
-    return data || null;
-  } catch { return null; }
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+  return loadOne(() => supabase
+    .from('artworks')
+    .select('*')
+    .eq('id', id)
+    .eq('show_on_website', true));
 }
 
 async function getExtraImages(id) {

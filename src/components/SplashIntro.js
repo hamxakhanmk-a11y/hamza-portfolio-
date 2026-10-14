@@ -360,6 +360,7 @@ export default function SplashIntro() {
         if (textAt && t - textAt >= T.rise + 0.1 && t - revealAt >= T.reveal) {
           delete root.dataset.splash;
           stage = 'done';
+          canvas.getContext('webgl')?.getExtension('WEBGL_lose_context')?.loseContext(); // phones allow only a few
           return;
         }
       }
