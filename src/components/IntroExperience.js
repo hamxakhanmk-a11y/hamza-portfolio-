@@ -79,7 +79,6 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
             .to(scenes[index], { autoAlpha: 0, yPercent: -3, duration: 0.25 }, at)
             .to(scenes[index + 1], { autoAlpha: 1, yPercent: 0, duration: 0.35 }, at + 0.45);
         });
-        timeline.to({}, { duration: 0.25 });
       }, rootRef);
     }
 
@@ -88,7 +87,7 @@ export default function IntroExperience({ heroImage, cameraStages, heroText }) {
   }, [stage1X, stage1Y, stage1Zoom, stage2X, stage2Y, stage2Zoom, stage3X, stage3Y, stage3Zoom, stage4X, stage4Y, stage4Zoom]);
 
   return (
-    <section ref={rootRef} className="intro-shell intro-embedded" aria-label="Featured artwork introduction">
+    <section ref={rootRef} data-hero-stages className="intro-shell intro-embedded" aria-label="Featured artwork introduction">
       <div className="intro-sticky">
         <div ref={mediaRef} className="intro-media" aria-hidden="true">
           {heroImage ? (

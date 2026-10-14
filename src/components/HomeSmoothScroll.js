@@ -2,91 +2,115 @@
 
 import { useEffect } from 'react';
 import 'lenis/dist/lenis.css';
-import { isHistoryTraversal } from '@/lib/scrollHistory';
-import { introState, startIntro, cancelIntro, finishIntro } from '@/lib/homeIntro';
+import { HOME_DESCENT_SVH } from '@/data/galleryTour';
 
 export default function HomeSmoothScroll() {
   useEffect(() => {
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let disposed = false;
-    let instance;
-    let frame;
-    // The automatic opening plays once per page load (first visit or refresh), from the top. Coming back
-    // to Home from another page, or arriving already scrolled, skips it and takes it out of the layout.
-    let introPending = introState() === 'pending' && window.scrollY < 80 && !isHistoryTraversal() && !motion.matches;
-    if (introPending) startIntro();
-    else finishIntro();
-    let introRunning = false;
-    let readyAt;
-
-    async function start() {
-      if (motion.matches || instance) return;
-      const [{ default: Lenis }, scrollModule] = await Promise.all([
-        import('lenis'), import('gsap/ScrollTrigger'),
-      ]);
-      if (disposed || motion.matches || instance) return;
-      const ScrollTrigger = scrollModule.ScrollTrigger || scrollModule.default;
-      instance = new Lenis({
-        lerp: 0.22,
-        smoothWheel: true,
-        wheelMultiplier: 1.15,
-        syncTouch: false,
-        touchMultiplier: 1,
-        anchors: true,
-        prevent: (element) => Boolean(element.closest('[role="dialog"], [data-lenis-prevent]')),
+    let disposed = false, instance, frame;
+    let busy = false, landing = false, waitingForGallery = false, lastWheel = -Infinity, releaseAt = 0;
+    let touchY = null, touchHandled = false;
+    const bounds = () => {
+      const element = document.querySelector('[data-hero-stages]');
+      if (!element) return null;
+      const start = window.scrollY + element.getBoundingClientRect().top;
+      return { start, end: start + element.offsetHeight - window.innerHeight };
+    };
+    const consume = event => { event.preventDefault(); event.stopImmediatePropagation(); };
+    const descend = () => {
+      const gallery = document.getElementById('gallery-tour');
+      if (!instance || busy) return;
+      if (!gallery) { instance.scrollTo(document.getElementById('gallery') || bounds()?.end + window.innerHeight, { duration: 1.5 }); return; }
+      if (gallery.dataset.ready !== 'true') { waitingForGallery = true; return; }
+      waitingForGallery = false;
+      busy = true;
+      instance.scrollTo(window.scrollY + gallery.getBoundingClientRect().top + window.innerHeight * HOME_DESCENT_SVH / 100, {
+        duration: 8, lock: true, force: true,
+        easing: t => t * t * t * (t * (t * 6 - 15) + 10),
+        onComplete: () => { landing = true; },
       });
+    };
+    const navigate = (direction, event) => {
+      if (!instance || motion.matches) return;
+      const range = bounds();
+      if (!range) return;
+      if (busy || waitingForGallery) { consume(event); return; }
+      const y = window.scrollY;
+      if (y < range.start - 2 || y > range.end + 2) return;
+      const stage = Math.round((y - range.start) / Math.max(1, range.end - range.start) * 3);
+      if (direction < 0 && stage === 0) return;
+      consume(event);
+      if (performance.now() < releaseAt) return;
+      if (direction > 0 && stage === 3) { descend(); return; }
+      busy = true;
+      instance.scrollTo(range.start + Math.min(3, Math.max(0, stage + direction)) * (range.end - range.start) / 3, {
+        duration: 1.15, lock: true, force: true,
+        easing: t => t * t * (3 - 2 * t),
+        onComplete: () => { busy = false; releaseAt = performance.now() + 180; },
+      });
+    };
+    const wheel = event => {
+      if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      const now = performance.now(), gap = now - lastWheel;
+      lastWheel = now;
+      const range = bounds();
+      if (!motion.matches && (busy || waitingForGallery || (range && window.scrollY <= range.end + 2 && window.scrollY >= range.start - 2 && gap < 180))) {
+        consume(event); return;
+      }
+      navigate(Math.sign(event.deltaY), event);
+    };
+    const key = event => {
+      if (event.target.closest('input, textarea, select, [contenteditable="true"]') || event.altKey || event.ctrlKey || event.metaKey) return;
+      const direction = ['ArrowDown', 'PageDown', ' '].includes(event.key) ? (event.shiftKey ? -1 : 1) : ['ArrowUp', 'PageUp'].includes(event.key) ? -1 : 0;
+      if (direction) navigate(direction, event);
+    };
+    const touchStart = event => { touchY = event.touches[0]?.clientY; touchHandled = false; };
+    const touchMove = event => {
+      const y = event.touches[0]?.clientY;
+      const range = bounds();
+      if (touchHandled && range && window.scrollY <= range.end + 2) { consume(event); return; }
+      if (touchY == null || y == null || Math.abs(touchY - y) < 20) return;
+      navigate(Math.sign(touchY - y), event);
+      touchHandled = event.defaultPrevented;
+      touchY = y;
+    };
+    const enter = event => {
+      if (event.target.closest('a[href="#gallery-tour"]') && !motion.matches) {
+        consume(event); descend();
+      }
+    };
+    async function start() {
+      const [{ default: Lenis }, module] = await Promise.all([import('lenis'), import('gsap/ScrollTrigger')]);
+      if (disposed) return;
+      const ScrollTrigger = module.ScrollTrigger || module.default;
+      instance = new Lenis({ lerp: 0.22, smoothWheel: !motion.matches, wheelMultiplier: 1.15, syncTouch: false, anchors: true,
+        prevent: element => Boolean(element.closest('[role="dialog"], [data-lenis-prevent]')) });
       instance.on('scroll', ScrollTrigger.update);
-      if (introPending) instance.stop();
-      const tick = (time) => {
-        instance?.raf(time);
-        const sky = document.querySelector('[data-home-sky]');
-        if (introPending && sky?.dataset.ready === 'true') {
-          readyAt ??= time;
-          if (time - readyAt > 250) {
-            introPending = false;
-            introRunning = true;
-            instance.scrollTo(sky.offsetTop + sky.offsetHeight, {
-              duration: sky.hasAttribute('data-garden-intro') ? 6.2 : 3.6,
-              force: true,
-              lock: true,
-              easing: (t) => t * t * (3 - 2 * t),
-              onComplete: () => {
-                introRunning = false;
-                // the opening is over: remove it so it can't be scrolled back into, keeping the view still
-                finishIntro(y => {
-                  instance?.resize();
-                  instance?.scrollTo(y, { immediate: true, force: true });
-                  // Removing the opening changes every trigger's document position.
-                  // Re-measure before the next paint so the hero stays at its first frame.
-                  ScrollTrigger.refresh();
-                  ScrollTrigger.update();
-                });
-                instance?.start();
-              },
-            });
-          }
+      const tick = time => {
+        instance.raf(time);
+        if (waitingForGallery && document.getElementById('gallery-tour')?.dataset.ready !== 'false') {
+          waitingForGallery = false; descend();
+        }
+        if (landing && Number(document.getElementById('gallery-tour')?.dataset.descent) >= 0.999) {
+          landing = false; busy = false; releaseAt = performance.now() + 180;
         }
         frame = requestAnimationFrame(tick);
       };
       frame = requestAnimationFrame(tick);
     }
-    function stop() { cancelAnimationFrame(frame); instance?.destroy(); instance = null; }
-    function takeOver(event) {
-      if (event.type === 'keydown' && !['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) return;
-      if (!motion.matches && (introPending || introRunning)) event.preventDefault();
-    }
-    function preferenceChanged() { if (motion.matches) stop(); else start(); }
+    window.addEventListener('wheel', wheel, { passive: false, capture: true });
+    window.addEventListener('keydown', key, true);
+    window.addEventListener('touchstart', touchStart, { passive: true, capture: true });
+    window.addEventListener('touchmove', touchMove, { passive: false, capture: true });
+    window.addEventListener('click', enter, true);
     start();
-    motion.addEventListener('change', preferenceChanged);
-    window.addEventListener('wheel', takeOver, { passive: false });
-    window.addEventListener('touchmove', takeOver, { passive: false });
-    window.addEventListener('keydown', takeOver);
     return () => {
-      if (introPending) cancelIntro();
-      disposed = true; stop(); motion.removeEventListener('change', preferenceChanged);
-      window.removeEventListener('wheel', takeOver);
-      window.removeEventListener('touchmove', takeOver);
-      window.removeEventListener('keydown', takeOver);
+      disposed = true; cancelAnimationFrame(frame); instance?.destroy();
+      window.removeEventListener('wheel', wheel, true);
+      window.removeEventListener('keydown', key, true);
+      window.removeEventListener('touchstart', touchStart, true);
+      window.removeEventListener('touchmove', touchMove, true);
+      window.removeEventListener('click', enter, true);
     };
   }, []);
   return null;

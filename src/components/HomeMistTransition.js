@@ -16,7 +16,7 @@ export default function HomeMistTransition() {
     const canvas = canvasRef.current;
     let hero = document.querySelector('.intro-embedded');
     const sky = document.querySelector('[data-home-sky]');
-    const gardenIntro = Boolean(sky?.hasAttribute('data-garden-intro'));
+    const gardenIntro = !sky || Boolean(sky.hasAttribute('data-garden-intro'));
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (motion.matches) return;
     let disposed = false;

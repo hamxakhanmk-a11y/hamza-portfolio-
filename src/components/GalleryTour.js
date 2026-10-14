@@ -1072,6 +1072,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
     <section
       ref={rootRef}
       id="gallery-tour"
+      data-ready={status === 'ready' ? 'true' : 'false'}
       data-sky-descent={descendFromSky ? 'true' : undefined}
       className={`relative bg-[#f8f4ed] ${descendFromSky ? 'sky-gallery-tour' : ''}`}
       style={descendFromSky ? { '--tour-height': `${stopCount * STOP_SCREEN_SHARE}svh`, '--descent-height': `${HOME_DESCENT_SVH}svh` } : { height: `${stopCount * STOP_SCREEN_SHARE}svh` }}
