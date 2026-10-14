@@ -18,16 +18,21 @@ export default function HomeSmoothScroll() {
     };
     const consume = event => { event.preventDefault(); event.stopImmediatePropagation(); };
     const splashing = () => Boolean(document.documentElement.dataset.splash); // the opening is still playing
-    const descend = () => {
+    // The "Enter the Collection" button asks for a quicker glide that visibly starts moving at once, so a
+    // visitor who clicks sees it respond; scrolling past the last stage keeps the slow cinematic descent.
+    let quickDescent = false;
+    const descend = (quick = quickDescent) => {
       const gallery = document.getElementById('gallery-tour');
+      quickDescent = quick;
       if (!instance || busy) return;
       if (!gallery) { instance.scrollTo(document.getElementById('gallery') || bounds()?.end + window.innerHeight, { duration: 1.5 }); return; }
       if (gallery.dataset.ready !== 'true') { waitingForGallery = true; return; }
       waitingForGallery = false;
       busy = true;
+      quickDescent = false;
       instance.scrollTo(window.scrollY + gallery.getBoundingClientRect().top + window.innerHeight * HOME_DESCENT_SVH / 100, {
-        duration: 8, lock: true, force: true,
-        easing: t => t * t * t * (t * (t * 6 - 15) + 10),
+        duration: quick ? 4.5 : 8, lock: true, force: true,
+        easing: quick ? (t => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2)) : (t => t * t * t * (t * (t * 6 - 15) + 10)),
         onComplete: () => { landing = true; },
       });
     };
@@ -80,7 +85,7 @@ export default function HomeSmoothScroll() {
     };
     const enter = event => {
       if (event.target.closest('a[href="#gallery-tour"]') && !motion.matches) {
-        consume(event); descend();
+        consume(event); descend(true);
       }
     };
     async function start() {
