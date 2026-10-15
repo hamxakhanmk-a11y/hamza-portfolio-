@@ -253,7 +253,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3d68b, metalness: 0.35, roughness: 0.4, toneMapped: false }));
       // Procedural clouds drift independently of the gallery camera.
       const skyMat = keep(new THREE.ShaderMaterial({
-        uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uMoon: { value: new THREE.Vector3(0.96, 0.24, -0.14) } }, // low, straight down the great hall, so it shows
+        uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uMoon: { value: new THREE.Vector3(-0.42, 0.74, -0.52) } }, // high, so moonlight falls through every roof and the end windows
         vertexShader: gallerySkyVertex,
         fragmentShader: gallerySkyFragment,
         fog: false,
@@ -263,9 +263,10 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       }));
       const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
       const canvasEdgeMat = keep(new THREE.MeshBasicMaterial({ color: 0xf2ece2, toneMapped: false }));
-      // Each painting has a brass picture lamp, switched off by day; at night it lights, with a warm pool of
-      // light on the wall and floor. The light is painted glows (additive), not real-time lights, so phones
-      // keep their frame rate; the glows are hidden by day.
+      // Each painting has a modern picture light (a slim black bar on a small round wall mount), switched off
+      // by day; at night a warm line glows along its underside and its light fans down over the painting,
+      // with a pool on the floor. The light is painted glows (additive), not real-time lights, so phones keep
+      // their frame rate; the glows are hidden by day.
       const glowTexture = (cx, cy, stops) => {
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = 256;
@@ -277,12 +278,89 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         return canvasTexture(canvas);
       };
       const nightGlow = (map, opacity) => keep(new THREE.MeshBasicMaterial({ map, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending, fog: false, userData: { night: opacity } }));
-      const wallGlowMat = nightGlow(glowTexture(128, 118, [[0, 0.9], [0.3, 0.6], [0.62, 0.2], [0.9, 0]]), 0.9);
+      // the light falling from the lamp: brightest just under the bar, widening and fading down the wall
+      const fanTexture = () => {
+        const w = 128, h = 256, canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d'), image = ctx.createImageData(w, h);
+        for (let y = 0; y < h; y++) {
+          const v = y / (h - 1);
+          const fade = Math.min(1, v / 0.06) * Math.pow(1 - v, 1.6); // zero at the top and bottom edges
+          const spread = 0.16 + 0.3 * v; // the beam widens as it falls
+          for (let x = 0; x < w; x++) {
+            const u = (x / (w - 1) - 0.5) / spread;
+            const a = fade * Math.exp(-u * u * 2.2) * (1 - Math.pow(Math.abs(x / (w - 1) - 0.5) * 2, 6));
+            const i = (y * w + x) * 4;
+            image.data[i] = 255; image.data[i + 1] = 210; image.data[i + 2] = 155; image.data[i + 3] = Math.round(255 * Math.max(0, a));
+          }
+        }
+        ctx.putImageData(image, 0, 0);
+        return canvasTexture(canvas);
+      };
+      const lineTexture = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        const across = ctx.createLinearGradient(0, 0, 0, 32);
+        [[0, 0], [0.42, 0.55], [0.5, 1], [0.58, 0.55], [1, 0]].forEach(([at, a]) => across.addColorStop(at, `rgba(255,226,180,${a})`));
+        ctx.fillStyle = across; ctx.fillRect(0, 0, 256, 32);
+        ctx.globalCompositeOperation = 'destination-in'; // and fade out at both ends
+        const along = ctx.createLinearGradient(0, 0, 256, 0);
+        [[0, 0], [0.08, 1], [0.92, 1], [1, 0]].forEach(([at, a]) => along.addColorStop(at, `rgba(0,0,0,${a})`));
+        ctx.fillStyle = along; ctx.fillRect(0, 0, 256, 32);
+        return canvasTexture(canvas);
+      };
+      const wallGlowMat = nightGlow(fanTexture(), 1);
+      wallGlowMat.color.setRGB(2.1, 1.75, 1.35); // brighter than white: it has to show warm against the moonlit wall
+      const haloMat = nightGlow(glowTexture(128, 128, [[0, 0.55], [0.4, 0.2], [0.95, 0]]), 0.6);
       const floorPoolMat = nightGlow(glowTexture(128, 128, [[0, 0.65], [0.45, 0.25], [0.95, 0]]), 0.5);
-      const bulbMat = nightGlow(glowTexture(128, 128, [[0, 1], [0.25, 0.75], [0.95, 0]]), 1);
-      const brassMat = keep(new THREE.MeshStandardMaterial({ color: 0xb8924f, metalness: 0.6, roughness: 0.35 }));
-      const nightMats = [wallGlowMat, floorPoolMat, bulbMat];
+      const bulbMat = nightGlow(lineTexture(), 1);
+      const lampBodyMat = keep(new THREE.MeshStandardMaterial({ color: 0x17181b, metalness: 0.35, roughness: 0.42 }));
+      const nightMats = [wallGlowMat, haloMat, floorPoolMat, bulbMat];
       const nightMeshes = []; // hidden outright by day, so they cost nothing
+      // Sparkles: tiny twinkling glitter, only at night. Each point drifts on its own (or falls, behind the
+      // paintings), wrapping round its box; additive, so it lightens like light catching dust.
+      const sparkleMats = [];
+      const sparkles = (count, box, { fall = 0, size = 1, warm = 0.5 } = {}) => {
+        const [x0, x1, y0, y1, z0, z1] = box;
+        const position = new Float32Array(count * 3), seed = new Float32Array(count);
+        for (let i = 0; i < count; i++) {
+          position.set([x0 + Math.random() * (x1 - x0), y0 + Math.random() * (y1 - y0), z0 + Math.random() * (z1 - z0)], i * 3);
+          seed[i] = Math.random();
+        }
+        const geometry = keep(new THREE.BufferGeometry());
+        geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
+        geometry.setAttribute('seed', new THREE.BufferAttribute(seed, 1));
+        const material = keep(new THREE.ShaderMaterial({
+          uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uFall: { value: fall }, uSize: { value: size * renderer.getPixelRatio() }, uWarm: { value: warm }, uLow: { value: y0 }, uSpan: { value: y1 - y0 } },
+          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+          vertexShader: `attribute float seed; uniform float uTime, uFall, uSize, uLow, uSpan; varying float vSeed, vTwinkle;
+            void main() {
+              vec3 p = position;
+              float t = uTime * (0.6 + seed * 0.8);
+              p.y = uLow + mod(p.y - uLow - t * uFall, uSpan);
+              p.x += sin(t * 0.7 + seed * 40.0) * 0.12; p.z += cos(t * 0.5 + seed * 25.0) * 0.08 * step(uFall, 0.0);
+              p.y += sin(t * 0.9 + seed * 17.0) * 0.1 * step(uFall, 0.0);
+              vSeed = seed; vTwinkle = pow(0.5 + 0.5 * sin(uTime * (1.5 + seed * 3.0) + seed * 60.0), 3.0);
+              vec4 mv = modelViewMatrix * vec4(p, 1.0);
+              gl_PointSize = uSize * (2.0 + 4.0 * seed) * (12.0 / max(1.0, -mv.z));
+              gl_Position = projectionMatrix * mv;
+            }`,
+          fragmentShader: `uniform float uNight, uWarm; varying float vSeed, vTwinkle;
+            void main() {
+              vec2 c = gl_PointCoord - 0.5; float d = length(c);
+              float core = smoothstep(0.5, 0.0, d); float rays = max(0.0, 1.0 - abs(c.x) * 14.0) * max(0.0, 1.0 - abs(c.y) * 2.2) + max(0.0, 1.0 - abs(c.y) * 14.0) * max(0.0, 1.0 - abs(c.x) * 2.2);
+              vec3 tint = mix(vec3(0.7, 0.85, 1.0), vec3(1.0, 0.86, 0.6), step(1.0 - uWarm, vSeed));
+              gl_FragColor = vec4(tint, (core * core * 0.9 + rays * 0.35) * (0.25 + 0.75 * vTwinkle) * uNight);
+            }`,
+        }));
+        sparkleMats.push(material);
+        const points = new THREE.Points(geometry, material);
+        points.frustumCulled = false;
+        points.visible = false;
+        nightMeshes.push(points);
+        return points;
+      };
       const faceMats = [];
 
       const add = (geometry, material, position, options = {}) => {
@@ -876,36 +954,52 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         shade.position.set(0.03, -0.07, 0.014); // behind the canvas (which starts at 0.02), clear of the wall
         shade.renderOrder = 1;
         group.add(shade);
-        // the night picture light: a slim brass lamp over the frame, its bulb glow, and the warm pools it casts
-        const lampY = height / 2 + 0.2;
-        const bar = new THREE.Mesh(keep(new THREE.BoxGeometry(Math.min(width * 0.6, 1.1), 0.07, 0.08)), brassMat);
-        bar.position.set(0, lampY, 0.3);
-        group.add(bar);
-        for (const side of [-1, 1]) {
-          const arm = new THREE.Mesh(keep(new THREE.BoxGeometry(0.045, 0.045, 0.26)), brassMat);
-          arm.position.set(side * Math.min(width * 0.2, 0.35), lampY + 0.01, 0.13);
-          group.add(arm);
-        }
-        const bulb = new THREE.Mesh(keep(new THREE.PlaneGeometry(Math.min(width * 0.75, 1.3), 0.3)), bulbMat);
-        // in front of the bar (its face is at 0.34): the two must never share a depth, or they flicker
-        bulb.position.set(0, lampY - 0.07, 0.4);
+        // the picture light: a small round wall mount above the frame, a short arm, and a slim black bar
+        // reaching out over the painting; at night a warm line glows under the bar and its light fans down
+        const lampY = height / 2 + 0.16, barLength = Math.min(Math.max(width * 0.95, 0.7), 1.7);
+        const mount = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.04, 0.04, 0.09, 24)), lampBodyMat);
+        mount.rotation.x = Math.PI / 2;
+        mount.position.set(0, lampY + 0.12, 0.045);
+        const armFrom = new THREE.Vector3(0, lampY + 0.12, 0.09), armTo = new THREE.Vector3(0, lampY, 0.25);
+        const arm = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.013, 0.013, armFrom.distanceTo(armTo), 12)), lampBodyMat);
+        arm.position.copy(armFrom).add(armTo).multiplyScalar(0.5);
+        arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), armTo.clone().sub(armFrom).normalize());
+        const bar = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.017, 0.017, barLength, 16)), lampBodyMat);
+        bar.rotation.z = Math.PI / 2;
+        bar.position.set(0, lampY, 0.26);
+        group.add(mount, arm, bar);
+        // the glowing line sits clearly in front of and below the bar, never at the bar's own depth (it flickered)
+        const bulb = new THREE.Mesh(keep(new THREE.PlaneGeometry(barLength * 1.02, 0.07)), bulbMat);
+        bulb.position.set(0, lampY - 0.03, 0.3);
         bulb.renderOrder = 3;
         group.add(bulb);
-        const glow = new THREE.Mesh(keep(new THREE.PlaneGeometry(width * 2.6 + 1.2, height * 2.6 + 1.2)), wallGlowMat);
-        glow.position.set(0, 0.3, 0.016);
+        const halo = new THREE.Mesh(keep(new THREE.PlaneGeometry(barLength + 0.5, 0.5)), haloMat);
+        halo.position.set(0, lampY - 0.04, 0.02);
+        halo.renderOrder = 2;
+        group.add(halo);
+        const fanHeight = height + 0.9;
+        const glow = new THREE.Mesh(keep(new THREE.PlaneGeometry(barLength * 1.7 + 0.4, fanHeight)), wallGlowMat);
+        glow.position.set(0, lampY - fanHeight / 2 + 0.02, 0.016);
         glow.renderOrder = 2;
         group.add(glow);
+        // glitter drifting down the wall behind and around the painting (it passes behind the canvas)
+        group.add(sparkles(narrow ? 26 : 44, [-width / 2 - 0.55, width / 2 + 0.55, -height / 2 - 0.5, lampY, 0.02, 0.05], { fall: 0.12, size: 0.85, warm: 0.75 }));
         const pool = new THREE.Mesh(keep(new THREE.PlaneGeometry(width * 1.6 + 0.6, 2.2)), floorPoolMat);
         pool.rotation.x = -Math.PI / 2;
         pool.position.set(0, (slot >= 18 ? UPPER : 0) - place.pos[1] + 0.02, 1.15);
         pool.renderOrder = 2;
         group.add(pool);
-        for (const mesh of [bulb, glow, pool]) {
+        for (const mesh of [bulb, halo, glow, pool]) {
           mesh.visible = false;
           nightMeshes.push(mesh);
         }
       }));
       if (disposed) return;
+      // fairy dust floating through the halls at night
+      for (const box of [[-3.6, 3.6, 0.4, 5.6, -15.6, -0.5], [10.5, 43.5, 0.4, 6.6, -18.7, -9.5], [44.5, 61.5, 0.4, 6.6, -17.7, -10.5], [62.5, 78, 0.4, TOP - 0.4, -17.7, -10.5], [70.8, 78, UPPER + 0.4, TOP - 0.4, -49.5, -18.5]]) {
+        const volume = (box[1] - box[0]) * (box[3] - box[2]) * (box[5] - box[4]);
+        scene.add(sparkles(Math.round(volume * (narrow ? 0.18 : 0.3)), box, { size: 0.7, warm: 0.25 }));
+      }
 
       // ── Camera path ──
       const V = v => new THREE.Vector3(...v);
@@ -993,7 +1087,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const lerp = THREE.MathUtils.lerp;
       const tone = hex => new THREE.Color(hex);
       const DAY = { ambient: tone(0xfffcf5), sky: tone(0xf5f9ff), ground: tone(0xfff8ed), sun: tone(0xfff8eb), fog: tone(FOG), lamp: tone(0xffffff), face: tone(0xffffff) };
-      const NIGHT = { ambient: tone(0x5a74b8), sky: tone(0x2a4280), ground: tone(0x0c1324), sun: tone(0xc4d3ff), fog: tone(0x070d1a), lamp: tone(0xffd9a0), face: tone(0xfff1de) };
+      const NIGHT = { ambient: tone(0x5a74b8), sky: tone(0x2a4280), ground: tone(0x0c1324), sun: tone(0x8fa6ff), fog: tone(0x070d1a), lamp: tone(0xffd9a0), face: tone(0xfff1de) };
       const SUN_AT = sun.position.clone();
       const MOON_AT = skyMat.uniforms.uMoon.value.clone().normalize().multiplyScalar(80).add(sun.target.position);
       const applyNight = k => {
@@ -1005,7 +1099,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         hemisphere.intensity = lerp(1.15, 0.05, k);
         // the sun swings round to the moon's place, so moonbeams fall from where the moon shows in the sky
         sun.color.lerpColors(DAY.sun, NIGHT.sun, k);
-        sun.intensity = lerp(2.6, 0.85, k);
+        sun.intensity = lerp(2.6, 1.05, k);
         sun.position.lerpVectors(SUN_AT, MOON_AT, k);
         scene.background.lerpColors(DAY.fog, NIGHT.fog, k);
         scene.fog.color.copy(scene.background);
@@ -1015,6 +1109,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         lampMat.color.lerpColors(DAY.lamp, NIGHT.lamp, k);
         for (const material of shimmerMaterials) material.uniforms.uStrength.value = material.userData.base * (1 - 0.85 * k);
         for (const material of nightMats) material.opacity = material.userData.night * k;
+        for (const material of sparkleMats) material.uniforms.uNight.value = k;
         for (const mesh of nightMeshes) mesh.visible = k > 0.001;
         for (const material of faceMats) material.color.lerpColors(DAY.face, NIGHT.face, k);
       };
@@ -1129,6 +1224,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         floorReflections[0].visible = current >= 0 && camera.position.y < UPPER + 0.5;
         floorReflections[1].visible = current >= 0 && camera.position.y >= UPPER + 0.5;
         if (!reducedMotion) for (const material of shimmerMaterials) material.uniforms.uTime.value += elapsed;
+        if (!reducedMotion && nightMix > 0) for (const material of sparkleMats) material.uniforms.uTime.value += elapsed;
         renderer.render(scene, camera);
         const nearest = Math.max(0, Math.round(current));
         const isDescending = current < -0.01;

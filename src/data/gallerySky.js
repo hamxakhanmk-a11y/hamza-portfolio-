@@ -45,11 +45,22 @@ export const gallerySkyFragment = `
     if (uNight > 0.0) {
       // night: deep navy, small twinkling stars, a soft moon with a halo, and faint silvery clouds
       // (colours here are linear light; the screen brightens them, so they're kept very low)
-      vec3 night = mix(vec3(0.014, 0.024, 0.06), vec3(0.002, 0.004, 0.015), pow(height, 0.6));
-      vec3 grid = direction * 320.0, cell = floor(grid);
-      float star = step(0.9972, hash(cell)) * (1.0 - smoothstep(0.08, 0.32, length(fract(grid) - 0.5)));
-      float twinkle = 0.55 + 0.45 * sin(uTime * 1.7 + hash(cell + 3.1) * 40.0);
-      night += vec3(0.85, 0.9, 1.0) * star * twinkle * smoothstep(0.42, 0.62, height);
+      vec3 night = mix(vec3(0.02, 0.045, 0.12), vec3(0.003, 0.006, 0.022), pow(height, 0.55));
+      // a glowing Milky Way band across the sky, mottled with dust
+      float band = exp(-pow(dot(direction, normalize(vec3(0.35, 0.55, 0.76))), 2.0) / 0.035);
+      float dust = fbm(direction * 9.0 + 4.0);
+      night += vec3(0.05, 0.08, 0.2) * band * smoothstep(0.3, 0.75, dust) * 1.4 + vec3(0.04, 0.03, 0.09) * band * 0.5;
+      // stars in three sizes; far more of them inside the Milky Way
+      float stars = 0.0;
+      for (int layer = 0; layer < 3; layer++) {
+        float scale = layer == 0 ? 520.0 : layer == 1 ? 260.0 : 120.0;
+        float rarity = layer == 0 ? 0.985 - band * 0.03 : layer == 1 ? 0.9955 - band * 0.006 : 0.9988;
+        vec3 grid = direction * scale, cell = floor(grid);
+        float point = 1.0 - smoothstep(0.05, layer == 2 ? 0.45 : 0.3, length(fract(grid) - 0.5));
+        float twinkle = 0.5 + 0.5 * sin(uTime * (1.2 + hash(cell + 7.0) * 2.0) + hash(cell + 3.1) * 40.0);
+        stars += step(rarity, hash(cell + float(layer) * 11.0)) * point * mix(0.55, 1.0, twinkle) * (layer == 0 ? 0.35 : layer == 1 ? 0.75 : 1.4);
+      }
+      night += vec3(0.8, 0.88, 1.0) * stars * smoothstep(0.38, 0.6, height);
       float m = dot(direction, normalize(uMoon));
       night = mix(night, vec3(0.97, 0.95, 0.88), smoothstep(0.99905, 0.99935, m));
       night += vec3(0.16, 0.2, 0.34) * (pow(max(m, 0.0), 220.0) * 0.9 + pow(max(m, 0.0), 30.0) * 0.18 + pow(max(m, 0.0), 6.0) * 0.05);
