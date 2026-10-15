@@ -253,7 +253,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3d68b, metalness: 0.35, roughness: 0.4, toneMapped: false }));
       // Procedural clouds drift independently of the gallery camera.
       const skyMat = keep(new THREE.ShaderMaterial({
-        uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uMoon: { value: new THREE.Vector3(-42, 65, -15) } },
+        uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uMoon: { value: new THREE.Vector3(0.96, 0.24, -0.14) } }, // low, straight down the great hall, so it shows
         vertexShader: gallerySkyVertex,
         fragmentShader: gallerySkyFragment,
         fog: false,
@@ -877,16 +877,17 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         group.add(shade);
         // the night picture light: a slim brass lamp over the frame, its bulb glow, and the warm pools it casts
         const lampY = height / 2 + 0.2;
-        const bar = new THREE.Mesh(keep(new THREE.BoxGeometry(Math.min(width * 0.6, 1.1), 0.045, 0.06)), brassMat);
+        const bar = new THREE.Mesh(keep(new THREE.BoxGeometry(Math.min(width * 0.6, 1.1), 0.07, 0.08)), brassMat);
         bar.position.set(0, lampY, 0.3);
         group.add(bar);
         for (const side of [-1, 1]) {
-          const arm = new THREE.Mesh(keep(new THREE.BoxGeometry(0.025, 0.025, 0.3)), brassMat);
-          arm.position.set(side * Math.min(width * 0.2, 0.35), lampY + 0.02, 0.15);
+          const arm = new THREE.Mesh(keep(new THREE.BoxGeometry(0.045, 0.045, 0.26)), brassMat);
+          arm.position.set(side * Math.min(width * 0.2, 0.35), lampY + 0.01, 0.13);
           group.add(arm);
         }
         const bulb = new THREE.Mesh(keep(new THREE.PlaneGeometry(Math.min(width * 0.75, 1.3), 0.3)), bulbMat);
-        bulb.position.set(0, lampY - 0.06, 0.33);
+        // in front of the bar (its face is at 0.34): the two must never share a depth, or they flicker
+        bulb.position.set(0, lampY - 0.07, 0.4);
         bulb.renderOrder = 3;
         group.add(bulb);
         const glow = new THREE.Mesh(keep(new THREE.PlaneGeometry(width * 2.6 + 1.2, height * 2.6 + 1.2)), wallGlowMat);
@@ -991,7 +992,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const lerp = THREE.MathUtils.lerp;
       const tone = hex => new THREE.Color(hex);
       const DAY = { ambient: tone(0xfffcf5), sky: tone(0xf5f9ff), ground: tone(0xfff8ed), sun: tone(0xfff8eb), fog: tone(FOG), lamp: tone(0xffffff), face: tone(0xffffff) };
-      const NIGHT = { ambient: tone(0x5a74b8), sky: tone(0x2a4280), ground: tone(0x0c1324), sun: tone(0x9fb6ff), fog: tone(0x070d1a), lamp: tone(0xffd9a0), face: tone(0xfff1de) };
+      const NIGHT = { ambient: tone(0x5a74b8), sky: tone(0x2a4280), ground: tone(0x0c1324), sun: tone(0xc4d3ff), fog: tone(0x070d1a), lamp: tone(0xffd9a0), face: tone(0xfff1de) };
+      const SUN_AT = sun.position.clone();
+      const MOON_AT = skyMat.uniforms.uMoon.value.clone().normalize().multiplyScalar(80).add(sun.target.position);
       const applyNight = k => {
         skyMat.uniforms.uNight.value = k;
         ambient.color.lerpColors(DAY.ambient, NIGHT.ambient, k);
@@ -999,8 +1002,10 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         hemisphere.color.lerpColors(DAY.sky, NIGHT.sky, k);
         hemisphere.groundColor.lerpColors(DAY.ground, NIGHT.ground, k);
         hemisphere.intensity = lerp(1.15, 0.05, k);
+        // the sun swings round to the moon's place, so moonbeams fall from where the moon shows in the sky
         sun.color.lerpColors(DAY.sun, NIGHT.sun, k);
-        sun.intensity = lerp(2.6, 0.32, k);
+        sun.intensity = lerp(2.6, 0.85, k);
+        sun.position.lerpVectors(SUN_AT, MOON_AT, k);
         scene.background.lerpColors(DAY.fog, NIGHT.fog, k);
         scene.fog.color.copy(scene.background);
         scene.environmentIntensity = lerp(0.4, 0.012, k);
