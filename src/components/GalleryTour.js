@@ -263,8 +263,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       }));
       const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
       const canvasEdgeMat = keep(new THREE.MeshBasicMaterial({ color: 0xf2ece2, toneMapped: false }));
-      // Night: each painting has a brass picture lamp and a warm pool of light on the wall and floor. They're
-      // painted glows (additive), not real-time lights, so phones keep their frame rate. Hidden by day.
+      // Each painting has a brass picture lamp, switched off by day; at night it lights, with a warm pool of
+      // light on the wall and floor. The light is painted glows (additive), not real-time lights, so phones
+      // keep their frame rate; the glows are hidden by day.
       const glowTexture = (cx, cy, stops) => {
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = 256;
@@ -279,8 +280,8 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const wallGlowMat = nightGlow(glowTexture(128, 118, [[0, 0.9], [0.3, 0.6], [0.62, 0.2], [0.9, 0]]), 0.9);
       const floorPoolMat = nightGlow(glowTexture(128, 128, [[0, 0.65], [0.45, 0.25], [0.95, 0]]), 0.5);
       const bulbMat = nightGlow(glowTexture(128, 128, [[0, 1], [0.25, 0.75], [0.95, 0]]), 1);
-      const brassMat = keep(new THREE.MeshBasicMaterial({ color: 0xb8924f, transparent: true, opacity: 0, toneMapped: false, userData: { night: 1 } }));
-      const nightMats = [wallGlowMat, floorPoolMat, bulbMat, brassMat];
+      const brassMat = keep(new THREE.MeshStandardMaterial({ color: 0xb8924f, metalness: 0.6, roughness: 0.35 }));
+      const nightMats = [wallGlowMat, floorPoolMat, bulbMat];
       const nightMeshes = []; // hidden outright by day, so they cost nothing
       const faceMats = [];
 
@@ -899,7 +900,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         pool.position.set(0, (slot >= 18 ? UPPER : 0) - place.pos[1] + 0.02, 1.15);
         pool.renderOrder = 2;
         group.add(pool);
-        for (const mesh of [bar, bulb, glow, pool, ...group.children.filter(child => child.material === brassMat)]) {
+        for (const mesh of [bulb, glow, pool]) {
           mesh.visible = false;
           nightMeshes.push(mesh);
         }

@@ -229,7 +229,12 @@ export default function HomeMistTransition() {
         const envelope = gardenIntro ? handoff ? 0.66*THREE.MathUtils.smoothstep(introProgress,0.68,0.90) : opening ? 0 : THREE.MathUtils.lerp(0.66,1.15,departure)*descentFade : opening ? 1 : arriving ? 1-THREE.MathUtils.smoothstep(heroArrival,0,0.9) : descentEnvelope;
         stirringUniforms.uCloudLighten.value = gardenIntro ? THREE.MathUtils.lerp(0.3,0.85,THREE.MathUtils.smoothstep((Math.max(0,progress)+descent)/2,0,0.9)) : opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0, 1) * 0.3 :
           THREE.MathUtils.lerp(0.3, 1, THREE.MathUtils.smoothstep((Math.max(0, Math.min(1, progress)) + descent) / 2, 0, 0.8));
-        stirringUniforms.uCloudEnvelope.value = envelope;
+        // The mist belongs to the banner's later stages: hidden on its first stage, it slides up from below
+        // and fades in as the visitor moves on to the second stage, and stays from there.
+        const stageSpan = Math.max(1, (hero.offsetHeight - window.innerHeight) / 3);
+        const rise = gardenIntro ? THREE.MathUtils.smoothstep(-hero.getBoundingClientRect().top / stageSpan, 0.15, 1) : 1;
+        canvas.style.transform = rise < 1 ? `translateY(${((1 - rise) * 65).toFixed(2)}vh)` : '';
+        stirringUniforms.uCloudEnvelope.value = envelope * rise;
         stirringUniforms.uCloudSides.value = gardenIntro ? 0.60*(1-departure) : opening || arriving ? THREE.MathUtils.smoothstep(introProgress, 0.3, 1) :
           1 - THREE.MathUtils.smoothstep(progress, 0.1, 1);
         const seam = gardenIntro ? hero.getBoundingClientRect().bottom : opening || arriving ? hero.getBoundingClientRect().top : hero.getBoundingClientRect().bottom;
@@ -237,7 +242,7 @@ export default function HomeMistTransition() {
         // Let the shader's spatial feather carry the bridge offscreen. Switching
         // it off at the viewport edge made the upper cloud patch vanish at once.
         // Fade it with the same descent envelope as the surrounding vapor.
-        stirringUniforms.uCloudSeamStrength.value = gardenIntro ? departure*envelope : opening ? 1 : envelope;
+        stirringUniforms.uCloudSeamStrength.value = (gardenIntro ? departure*envelope : opening ? 1 : envelope) * rise;
         stirringUniforms.uCloudFlow.value = flightProgress * 0.65 + elapsed * 0.065;
         material.opacity = 1;
         renderer.render(scene, camera);
