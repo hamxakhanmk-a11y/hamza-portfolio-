@@ -934,7 +934,12 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       let frameId = 0;
       let lastTime = performance.now();
       let cameraRotation = null;
-      let paintingHoldUntil = 0;
+      let velocity = 0; // stops per second
+      let lastScrollAt = 0;
+      let inTour = false; // the gallery is pinned on screen, past the sky descent
+      let direction = 1; // which way the visitor last scrolled
+      let touching = false; // a finger is on the screen
+      let glidingUntil = 0; // while our own glide runs, its movement isn't the visitor's direction
 
       const readScroll = () => {
         const root = rootRef.current;
@@ -944,8 +949,12 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const p = travel > 0 ? Math.min(1, Math.max(0, -rect.top / travel)) : 0;
         const descentTravel = descendFromSky && !reducedMotion ? window.innerHeight * HOME_DESCENT_SVH / 100 : 0;
         const distance = Math.max(0, -rect.top);
+        const previous = target;
         target = distance < descentTravel ? -3 * (1 - distance / descentTravel) :
           scrollToStop(clamp01((distance - descentTravel) / Math.max(1, travel - descentTravel)));
+        if (target !== previous && performance.now() > glidingUntil) direction = Math.sign(target - previous);
+        lastScrollAt = performance.now();
+        inTour = distance >= descentTravel && p > 0 && p < 0.999;
         if (Math.abs(p - lastProgress) > 0.002) { lastProgress = p; setProgress(p); }
       };
 
@@ -956,6 +965,15 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         camera.aspect = w / h;
         camera.fov = camera.aspect < 1 ? 64 : 46;
         camera.updateProjectionMatrix();
+      };
+
+      // The page position that puts the camera exactly at stop k (the inverse of readScroll).
+      const stopScrollY = k => {
+        const root = rootRef.current;
+        const top = root.getBoundingClientRect().top + window.scrollY;
+        const travel = root.offsetHeight - hostRef.current.clientHeight;
+        const descentTravel = descendFromSky && !reducedMotion ? window.innerHeight * HOME_DESCENT_SVH / 100 : 0;
+        return top + descentTravel + (routeWeights[k] / routeWeights[routeWeights.length - 1]) * (travel - descentTravel);
       };
 
       const onPointer = event => {
@@ -975,18 +993,32 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         if (!reducedMotion) {
           skyMat.uniforms.uTime.value += elapsed;
         }
-        // critically damped glide towards the scroll position
-        const step=(target-current)*(reducedMotion?1:1-Math.exp(-delta*5));
-        const next = current + (reducedMotion ? step : THREE.MathUtils.clamp(step,-delta*1.4,delta*1.4));
-        const boundary = next > current ? Math.floor(current) + 1 : Math.ceil(current) - 1;
-        const crossed = next > current ? next >= boundary : next <= boundary;
-        // Fast scrolling still presents each painting before moving on. Hold
-        // until the turn catches up, then give the canvas a brief clear view.
-        if (!reducedMotion && crossed && tourStops[boundary]?.kind === 'bay') {
-          current = boundary;
-          paintingHoldUntil = now + 450;
-        } else if (reducedMotion || now >= paintingHoldUntil) current = next;
-        if (Math.abs(target - current) < 0.002) current = target; // settle fully: no long, barely-moving tail
+        // The camera follows the scroll position on a critically damped spring, like a car with good
+        // suspension: it eases in when scrolling starts and coasts to a soft stop when it ends (no
+        // overshoot, no sudden halt), never faster than 1.4 stops a second.
+        if (reducedMotion) { current = target; velocity = 0; } else {
+          const stiffness = 14, damping = 2 * Math.sqrt(stiffness);
+          for (let left = delta; left > 0; left -= 1 / 120) {
+            const h = Math.min(left, 1 / 120);
+            velocity = THREE.MathUtils.clamp(velocity + (stiffness * (target - current) - damping * velocity) * h, -1.4, 1.4);
+            current += velocity * h;
+          }
+          if (Math.abs(target - current) < 0.001 && Math.abs(velocity) < 0.01) { current = target; velocity = 0; }
+        }
+        // Once the visitor stops scrolling between two stops, glide the page to the nearest one, so a
+        // painting is never left half in view. Scrolling again takes over at once.
+        // It leans the way the visitor was going: a third of the way to the next stop carries on to it,
+        // while overshooting a stop by less than that drifts back to it.
+        if (!reducedMotion && inTour && !touching && now - lastScrollAt > 220 && Math.abs(target - current) < 0.2) {
+          const base = Math.floor(target), part = target - base;
+          const nearest = THREE.MathUtils.clamp(direction > 0 ? (part >= 0.35 ? base + 1 : base) : (part > 0.65 ? base + 1 : base), 0, stopCount - 1);
+          const away = Math.abs(target - nearest);
+          if (away > 0.01) {
+            lastScrollAt = now;
+            glidingUntil = now + (0.7 + away) * 1000 + 100;
+            window.dispatchEvent(new CustomEvent('gallery-glide', { detail: { y: stopScrollY(nearest), duration: 0.7 + away } }));
+          }
+        }
         // the pointer's gentle pull; it settles completely, so the picture is perfectly still at rest
         sway.x += (sway.tx - sway.x) * Math.min(1, delta * 2);
         sway.y += (sway.ty - sway.y) * Math.min(1, delta * 2);
@@ -997,7 +1029,6 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         // translation. Initialize at the restored position to avoid a return spin.
         if (!cameraRotation || reducedMotion) cameraRotation = camera.quaternion.clone();
         else cameraRotation.rotateTowards(camera.quaternion, delta * 1.8);
-        if (!reducedMotion && paintingHoldUntil > now && cameraRotation.angleTo(camera.quaternion) > 0.01) paintingHoldUntil = now + 450;
         camera.quaternion.copy(cameraRotation);
         if (descendFromSky) rootRef.current.dataset.descent = String(clamp01(1 + current / 3));
         floorReflections[0].visible = current >= 0 && camera.position.y < UPPER + 0.5;
@@ -1022,6 +1053,10 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         return hit && hit.distance < 14 ? hit.object : null;
       };
       const onMove = event => { onPointer(event); setHovering(Boolean(pick(event))); };
+      // no gliding under a finger; wait for the swipe's momentum after it lifts
+      const onTouchStart = () => { touching = true; glidingUntil = 0; };
+      const onWheel = () => { glidingUntil = 0; };
+      const onTouchEnd = () => { touching = false; lastScrollAt = performance.now(); };
       const onClick = event => {
         const hit = pick(event);
         if (hit) router.push(`/portfolio/${hit.userData.id}`);
@@ -1033,6 +1068,10 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       observer.observe(rootRef.current);
       window.addEventListener('scroll', readScroll, { passive: true });
       window.addEventListener('resize', resize);
+      window.addEventListener('touchstart', onTouchStart, { passive: true });
+      window.addEventListener('wheel', onWheel, { passive: true });
+      window.addEventListener('touchend', onTouchEnd, { passive: true });
+      window.addEventListener('touchcancel', onTouchEnd, { passive: true });
       resize();
       readScroll();
       current = target;
@@ -1044,6 +1083,10 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         observer.disconnect();
         window.removeEventListener('scroll', readScroll);
         window.removeEventListener('resize', resize);
+        window.removeEventListener('touchstart', onTouchStart);
+        window.removeEventListener('wheel', onWheel);
+        window.removeEventListener('touchend', onTouchEnd);
+        window.removeEventListener('touchcancel', onTouchEnd);
         renderer.domElement.removeEventListener('pointermove', onMove);
         renderer.domElement.removeEventListener('click', onClick);
         disposables.forEach(item => item.dispose?.());
