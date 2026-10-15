@@ -1008,19 +1008,18 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
           }
           if (Math.abs(target - current) < 0.001 && Math.abs(velocity) < 0.01) { current = target; velocity = 0; }
         }
-        // Landing: as soon as the visitor stops scrolling (the camera usually still moving), pick the stop
-        // it will come to rest on and steer straight onto it, slowing into place, never turning back.
-        // That's the stop nearest to where the scroll ended, unless the camera can no longer stop smoothly
-        // before it (it's already there or too close at its speed); then it carries on to the next one.
+        // Free scrolling with a soft magnet: the camera comes to rest wherever the scroll ended (a window,
+        // the glass ceiling, mid-hall), except when it ended close to a stop; then, as soon as the visitor
+        // stops scrolling (the camera usually still moving), it steers straight onto that stop and slows
+        // into place. It never turns back: if the camera can no longer stop smoothly before that stop
+        // (it's already there or too close at its speed), it just rests where the scroll ended.
         // The hidden page position is corrected to match, so the camera's target becomes that stop.
         if (!reducedMotion && inTour && !touching && !landing && now - lastScrollAt > 150) {
           const reach = current + velocity / Math.sqrt(stiffness); // as near as it can stop without overshooting
-          let stop = Math.round(target);
-          if (direction > 0 && stop < reach - 0.001) stop = Math.ceil(reach - 0.001);
-          if (direction < 0 && stop > reach + 0.001) stop = Math.floor(reach + 0.001);
-          stop = THREE.MathUtils.clamp(stop, 0, stopCount - 1);
+          const stop = THREE.MathUtils.clamp(Math.round(target), 0, stopCount - 1);
+          const reachable = direction > 0 ? stop >= reach - 0.001 : stop <= reach + 0.001;
           landing = true;
-          if (Math.abs(target - stop) > 0.003) {
+          if (reachable && Math.abs(target - stop) <= 0.22 && Math.abs(target - stop) > 0.003) {
             ownScrollUntil = now + 200;
             window.dispatchEvent(new CustomEvent('gallery-land', { detail: { y: stopScrollY(stop) } }));
           }
