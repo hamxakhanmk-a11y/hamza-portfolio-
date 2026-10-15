@@ -72,22 +72,14 @@ export default function HomeSmoothScroll() {
       const direction = ['ArrowDown', 'PageDown', ' '].includes(event.key) ? (event.shiftKey ? -1 : 1) : ['ArrowUp', 'PageUp'].includes(event.key) ? -1 : 0;
       if (direction) navigate(direction, event);
     };
-    // The gallery asks to glide to the nearest painting once scrolling stops (see GalleryTour).
-    let gliding = false;
-    const glide = event => {
-      if (!instance || busy || waitingForGallery) return;
-      gliding = true;
-      instance.scrollTo(event.detail.y, {
-        duration: event.detail.duration,
-        easing: t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2),
-        onComplete: () => { gliding = false; },
-      });
+    // Once scrolling stops the gallery picks the painting to land on and asks for the page position to
+    // match it; the camera then steers onto it smoothly (see GalleryTour).
+    const land = event => {
+      if (busy || waitingForGallery) return;
+      if (instance) instance.scrollTo(event.detail.y, { immediate: true, force: true });
+      else window.scrollTo({ top: event.detail.y, behavior: 'instant' });
     };
-    const touchStart = event => {
-      touchY = event.touches[0]?.clientY; touchHandled = false;
-      // a finger on the screen takes over from a glide straight away
-      if (gliding) { gliding = false; instance?.scrollTo(window.scrollY, { immediate: true, force: true }); }
-    };
+    const touchStart = event => { touchY = event.touches[0]?.clientY; touchHandled = false; };
     const touchMove = event => {
       if (splashing()) { consume(event); return; }
       const y = event.touches[0]?.clientY;
@@ -127,7 +119,7 @@ export default function HomeSmoothScroll() {
     window.addEventListener('touchstart', touchStart, { passive: true, capture: true });
     window.addEventListener('touchmove', touchMove, { passive: false, capture: true });
     window.addEventListener('click', enter, true);
-    window.addEventListener('gallery-glide', glide);
+    window.addEventListener('gallery-land', land);
     start();
     return () => {
       disposed = true; cancelAnimationFrame(frame); instance?.destroy();
@@ -136,7 +128,7 @@ export default function HomeSmoothScroll() {
       window.removeEventListener('touchstart', touchStart, true);
       window.removeEventListener('touchmove', touchMove, true);
       window.removeEventListener('click', enter, true);
-      window.removeEventListener('gallery-glide', glide);
+      window.removeEventListener('gallery-land', land);
     };
   }, []);
   return null;

@@ -939,7 +939,8 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       let inTour = false; // the gallery is pinned on screen, past the sky descent
       let direction = 1; // which way the visitor last scrolled
       let touching = false; // a finger is on the screen
-      let glidingUntil = 0; // while our own glide runs, its movement isn't the visitor's direction
+      let landing = false; // already steering onto a stop since the visitor last scrolled
+      let ownScrollUntil = 0; // our own page correction isn't the visitor's direction
 
       const readScroll = () => {
         const root = rootRef.current;
@@ -952,7 +953,8 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const previous = target;
         target = distance < descentTravel ? -3 * (1 - distance / descentTravel) :
           scrollToStop(clamp01((distance - descentTravel) / Math.max(1, travel - descentTravel)));
-        if (target !== previous && performance.now() > glidingUntil) direction = Math.sign(target - previous);
+        // any scrolling that isn't our own landing correction (wheel, finger, keys, scrollbar) starts over
+        if (target !== previous && performance.now() > ownScrollUntil) { direction = Math.sign(target - previous); landing = false; }
         lastScrollAt = performance.now();
         inTour = distance >= descentTravel && p > 0 && p < 0.999;
         if (Math.abs(p - lastProgress) > 0.002) { lastProgress = p; setProgress(p); }
@@ -996,8 +998,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         // The camera follows the scroll position on a critically damped spring, like a car with good
         // suspension: it eases in when scrolling starts and coasts to a soft stop when it ends (no
         // overshoot, no sudden halt), never faster than 1.4 stops a second.
+        const stiffness = 14;
         if (reducedMotion) { current = target; velocity = 0; } else {
-          const stiffness = 14, damping = 2 * Math.sqrt(stiffness);
+          const damping = 2 * Math.sqrt(stiffness);
           for (let left = delta; left > 0; left -= 1 / 120) {
             const h = Math.min(left, 1 / 120);
             velocity = THREE.MathUtils.clamp(velocity + (stiffness * (target - current) - damping * velocity) * h, -1.4, 1.4);
@@ -1005,18 +1008,21 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
           }
           if (Math.abs(target - current) < 0.001 && Math.abs(velocity) < 0.01) { current = target; velocity = 0; }
         }
-        // Once the visitor stops scrolling between two stops, glide the page to the nearest one, so a
-        // painting is never left half in view. Scrolling again takes over at once.
-        // It leans the way the visitor was going: a third of the way to the next stop carries on to it,
-        // while overshooting a stop by less than that drifts back to it.
-        if (!reducedMotion && inTour && !touching && now - lastScrollAt > 220 && Math.abs(target - current) < 0.2) {
-          const base = Math.floor(target), part = target - base;
-          const nearest = THREE.MathUtils.clamp(direction > 0 ? (part >= 0.35 ? base + 1 : base) : (part > 0.65 ? base + 1 : base), 0, stopCount - 1);
-          const away = Math.abs(target - nearest);
-          if (away > 0.01) {
-            lastScrollAt = now;
-            glidingUntil = now + (0.7 + away) * 1000 + 100;
-            window.dispatchEvent(new CustomEvent('gallery-glide', { detail: { y: stopScrollY(nearest), duration: 0.7 + away } }));
+        // Landing: as soon as the visitor stops scrolling (the camera usually still moving), pick the stop
+        // it will come to rest on and steer straight onto it, slowing into place, never turning back.
+        // That's the stop nearest to where the scroll ended, unless the camera can no longer stop smoothly
+        // before it (it's already there or too close at its speed); then it carries on to the next one.
+        // The hidden page position is corrected to match, so the camera's target becomes that stop.
+        if (!reducedMotion && inTour && !touching && !landing && now - lastScrollAt > 150) {
+          const reach = current + velocity / Math.sqrt(stiffness); // as near as it can stop without overshooting
+          let stop = Math.round(target);
+          if (direction > 0 && stop < reach - 0.001) stop = Math.ceil(reach - 0.001);
+          if (direction < 0 && stop > reach + 0.001) stop = Math.floor(reach + 0.001);
+          stop = THREE.MathUtils.clamp(stop, 0, stopCount - 1);
+          landing = true;
+          if (Math.abs(target - stop) > 0.003) {
+            ownScrollUntil = now + 200;
+            window.dispatchEvent(new CustomEvent('gallery-land', { detail: { y: stopScrollY(stop) } }));
           }
         }
         // the pointer's gentle pull; it settles completely, so the picture is perfectly still at rest
@@ -1054,9 +1060,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       };
       const onMove = event => { onPointer(event); setHovering(Boolean(pick(event))); };
       // no gliding under a finger; wait for the swipe's momentum after it lifts
-      const onTouchStart = () => { touching = true; glidingUntil = 0; };
-      const onWheel = () => { glidingUntil = 0; };
-      const onTouchEnd = () => { touching = false; lastScrollAt = performance.now(); };
+      const onTouchStart = () => { touching = true; landing = false; ownScrollUntil = 0; };
+      const onWheel = () => { landing = false; ownScrollUntil = 0; };
+      const onTouchEnd = () => { touching = false; landing = false; lastScrollAt = performance.now(); };
       const onClick = event => {
         const hit = pick(event);
         if (hit) router.push(`/portfolio/${hit.userData.id}`);
@@ -1070,6 +1076,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       window.addEventListener('resize', resize);
       window.addEventListener('touchstart', onTouchStart, { passive: true });
       window.addEventListener('wheel', onWheel, { passive: true });
+      window.addEventListener('keydown', onWheel);
       window.addEventListener('touchend', onTouchEnd, { passive: true });
       window.addEventListener('touchcancel', onTouchEnd, { passive: true });
       resize();
@@ -1085,6 +1092,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         window.removeEventListener('resize', resize);
         window.removeEventListener('touchstart', onTouchStart);
         window.removeEventListener('wheel', onWheel);
+        window.removeEventListener('keydown', onWheel);
         window.removeEventListener('touchend', onTouchEnd);
         window.removeEventListener('touchcancel', onTouchEnd);
         renderer.domElement.removeEventListener('pointermove', onMove);
