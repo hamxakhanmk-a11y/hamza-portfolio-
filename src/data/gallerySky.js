@@ -8,6 +8,8 @@ export const gallerySkyVertex = `
 
 export const gallerySkyFragment = `
   uniform float uTime;
+  uniform float uNight; // 0 day → 1 night
+  uniform vec3 uMoon;   // direction of the moon (the night light comes from it)
   varying vec3 vSkyDirection;
   float hash(vec3 p) {
     return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
@@ -40,6 +42,21 @@ export const gallerySkyFragment = `
     vec3 cloudColor = mix(vec3(0.32, 0.52, 0.72), vec3(0.98, 0.84, 0.86), clamp(0.55 + (density - light) * 5.0, 0.0, 1.0));
     sky = mix(sky, cloudColor, cloud);
     sky = mix(sky, vec3(0.86, 0.95, 0.96), pow(1.0 - height, 4.0) * 0.32);
+    if (uNight > 0.0) {
+      // night: deep navy, small twinkling stars, a soft moon with a halo, and faint silvery clouds
+      // (colours here are linear light; the screen brightens them, so they're kept very low)
+      vec3 night = mix(vec3(0.014, 0.024, 0.06), vec3(0.002, 0.004, 0.015), pow(height, 0.6));
+      vec3 grid = direction * 320.0, cell = floor(grid);
+      float star = step(0.9972, hash(cell)) * (1.0 - smoothstep(0.08, 0.32, length(fract(grid) - 0.5)));
+      float twinkle = 0.55 + 0.45 * sin(uTime * 1.7 + hash(cell + 3.1) * 40.0);
+      night += vec3(0.85, 0.9, 1.0) * star * twinkle * smoothstep(0.42, 0.62, height);
+      float m = dot(direction, normalize(uMoon));
+      night = mix(night, vec3(0.97, 0.95, 0.88), smoothstep(0.99905, 0.99935, m));
+      night += vec3(0.12, 0.15, 0.26) * (pow(max(m, 0.0), 160.0) * 0.6 + pow(max(m, 0.0), 12.0) * 0.1);
+      vec3 nightCloud = mix(vec3(0.006, 0.01, 0.026), vec3(0.05, 0.065, 0.1), clamp(0.5 + (density - light) * 5.0, 0.0, 1.0));
+      night = mix(night, nightCloud, cloud * 0.45);
+      sky = mix(sky, night, uNight);
+    }
     gl_FragColor = vec4(sky, 1.0);
     #include <colorspace_fragment>
   }

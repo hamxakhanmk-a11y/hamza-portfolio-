@@ -109,6 +109,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
   const [hovering, setHovering] = useState(false);
   const [progress, setProgress] = useState(0);
   const [descending, setDescending] = useState(descendFromSky);
+  const [night, setNight] = useState(false); // the visitor's Day / Night switch; every visit starts in daylight
+  const nightRef = useRef(false);
+  useEffect(() => { nightRef.current = night; }, [night]);
   // Divide usable walls into equal bays, with space at either end.
   const PLACES = Object.fromEntries(Object.entries(BASE_PLACES).map(([id, place]) => [id, { ...place, pos: [...place.pos] }]));
   const walls = [
@@ -250,7 +253,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3d68b, metalness: 0.35, roughness: 0.4, toneMapped: false }));
       // Procedural clouds drift independently of the gallery camera.
       const skyMat = keep(new THREE.ShaderMaterial({
-        uniforms: { uTime: { value: 0 } },
+        uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uMoon: { value: new THREE.Vector3(-42, 65, -15) } },
         vertexShader: gallerySkyVertex,
         fragmentShader: gallerySkyFragment,
         fog: false,
@@ -260,6 +263,26 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       }));
       const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
       const canvasEdgeMat = keep(new THREE.MeshBasicMaterial({ color: 0xf2ece2, toneMapped: false }));
+      // Night: each painting has a brass picture lamp and a warm pool of light on the wall and floor. They're
+      // painted glows (additive), not real-time lights, so phones keep their frame rate. Hidden by day.
+      const glowTexture = (cx, cy, stops) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 128); // fades out fully inside the square: no hard edges
+        stops.forEach(([at, a]) => grad.addColorStop(at, `rgba(255,206,146,${a})`));
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 256, 256);
+        return canvasTexture(canvas);
+      };
+      const nightGlow = (map, opacity) => keep(new THREE.MeshBasicMaterial({ map, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending, fog: false, userData: { night: opacity } }));
+      const wallGlowMat = nightGlow(glowTexture(128, 118, [[0, 0.9], [0.3, 0.6], [0.62, 0.2], [0.9, 0]]), 0.9);
+      const floorPoolMat = nightGlow(glowTexture(128, 128, [[0, 0.65], [0.45, 0.25], [0.95, 0]]), 0.5);
+      const bulbMat = nightGlow(glowTexture(128, 128, [[0, 1], [0.25, 0.75], [0.95, 0]]), 1);
+      const brassMat = keep(new THREE.MeshBasicMaterial({ color: 0xb8924f, transparent: true, opacity: 0, toneMapped: false, userData: { night: 1 } }));
+      const nightMats = [wallGlowMat, floorPoolMat, bulbMat, brassMat];
+      const nightMeshes = []; // hidden outright by day, so they cost nothing
+      const faceMats = [];
 
       const add = (geometry, material, position, options = {}) => {
         const mesh = new THREE.Mesh(keep(geometry), material);
@@ -648,6 +671,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
               gl_FragColor=vec4(glow,edge*focus*breakup*uStrength);
             }`,
         }));
+        material.userData.base = strength;
         shimmerMaterials.push(material);
         add(new THREE.PlaneGeometry(width, height), material, position, { rotation, cast: false, receive: false });
       };
@@ -668,9 +692,10 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       shimmer([74.4, UPPER + 0.023, -37], [-Math.PI / 2, 0, 0], 4.8, 6, 6.2, 0.18);
 
       // One sun casts a consistent pattern; open-sky and bounce light reach both walls.
-      scene.add(new THREE.AmbientLight(0xfffcf5, 0.45));
-      scene.add(new THREE.HemisphereLight(0xf5f9ff, 0xfff8ed, 1.15));
-      const sun = new THREE.DirectionalLight(0xfff8eb, 2.6);
+      const ambient = new THREE.AmbientLight(0xfffcf5, 0.45);
+      const hemisphere = new THREE.HemisphereLight(0xf5f9ff, 0xfff8ed, 1.15);
+      scene.add(ambient, hemisphere);
+      const sun = new THREE.DirectionalLight(0xfff8eb, 2.6); // by night it becomes the moon, so moonbeams fall where the sun patches do
       sun.position.set(-5, 65, -35);
       sun.target.position.set(37, 0, -20);
       sun.castShadow = true;
@@ -828,6 +853,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         if (width > 2.2) { width = 2.2; height = width / aspect; }
         const cutOut = artwork.round || hasTransparentCorners(image);
         const faceMat = keep(new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.02, toneMapped: false }));
+        faceMats.push(faceMat);
         const art = cutOut
           ? new THREE.Mesh(keep(artwork.round ? new THREE.CircleGeometry(height / 2, 72) : new THREE.PlaneGeometry(width, height)), faceMat)
           : new THREE.Mesh(keep(new THREE.BoxGeometry(width, height, 0.065)), [artworkEdgeMat, artworkEdgeMat, artworkEdgeMat, artworkEdgeMat, faceMat, canvasEdgeMat]);
@@ -849,6 +875,33 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         shade.position.set(0.03, -0.07, 0.014); // behind the canvas (which starts at 0.02), clear of the wall
         shade.renderOrder = 1;
         group.add(shade);
+        // the night picture light: a slim brass lamp over the frame, its bulb glow, and the warm pools it casts
+        const lampY = height / 2 + 0.2;
+        const bar = new THREE.Mesh(keep(new THREE.BoxGeometry(Math.min(width * 0.6, 1.1), 0.045, 0.06)), brassMat);
+        bar.position.set(0, lampY, 0.3);
+        group.add(bar);
+        for (const side of [-1, 1]) {
+          const arm = new THREE.Mesh(keep(new THREE.BoxGeometry(0.025, 0.025, 0.3)), brassMat);
+          arm.position.set(side * Math.min(width * 0.2, 0.35), lampY + 0.02, 0.15);
+          group.add(arm);
+        }
+        const bulb = new THREE.Mesh(keep(new THREE.PlaneGeometry(Math.min(width * 0.75, 1.3), 0.3)), bulbMat);
+        bulb.position.set(0, lampY - 0.06, 0.33);
+        bulb.renderOrder = 3;
+        group.add(bulb);
+        const glow = new THREE.Mesh(keep(new THREE.PlaneGeometry(width * 2.6 + 1.2, height * 2.6 + 1.2)), wallGlowMat);
+        glow.position.set(0, 0.3, 0.016);
+        glow.renderOrder = 2;
+        group.add(glow);
+        const pool = new THREE.Mesh(keep(new THREE.PlaneGeometry(width * 1.6 + 0.6, 2.2)), floorPoolMat);
+        pool.rotation.x = -Math.PI / 2;
+        pool.position.set(0, (slot >= 18 ? UPPER : 0) - place.pos[1] + 0.02, 1.15);
+        pool.renderOrder = 2;
+        group.add(pool);
+        for (const mesh of [bar, bulb, glow, pool, ...group.children.filter(child => child.material === brassMat)]) {
+          mesh.visible = false;
+          nightMeshes.push(mesh);
+        }
       }));
       if (disposed) return;
 
@@ -934,6 +987,31 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       let frameId = 0;
       let lastTime = performance.now();
       let cameraRotation = null;
+      let nightMix = 0;
+      const lerp = THREE.MathUtils.lerp;
+      const tone = hex => new THREE.Color(hex);
+      const DAY = { ambient: tone(0xfffcf5), sky: tone(0xf5f9ff), ground: tone(0xfff8ed), sun: tone(0xfff8eb), fog: tone(FOG), lamp: tone(0xffffff), face: tone(0xffffff) };
+      const NIGHT = { ambient: tone(0x5a74b8), sky: tone(0x2a4280), ground: tone(0x0c1324), sun: tone(0x9fb6ff), fog: tone(0x070d1a), lamp: tone(0xffd9a0), face: tone(0xfff1de) };
+      const applyNight = k => {
+        skyMat.uniforms.uNight.value = k;
+        ambient.color.lerpColors(DAY.ambient, NIGHT.ambient, k);
+        ambient.intensity = lerp(0.45, 0.012, k);
+        hemisphere.color.lerpColors(DAY.sky, NIGHT.sky, k);
+        hemisphere.groundColor.lerpColors(DAY.ground, NIGHT.ground, k);
+        hemisphere.intensity = lerp(1.15, 0.05, k);
+        sun.color.lerpColors(DAY.sun, NIGHT.sun, k);
+        sun.intensity = lerp(2.6, 0.32, k);
+        scene.background.lerpColors(DAY.fog, NIGHT.fog, k);
+        scene.fog.color.copy(scene.background);
+        scene.environmentIntensity = lerp(0.4, 0.012, k);
+        for (const material of [wallMat, floorMat, ceilingMat]) material.emissiveIntensity = lerp(0.045, 0.003, k);
+        spillMat.opacity = 1 - k; // the daylight spill beside the glass
+        lampMat.color.lerpColors(DAY.lamp, NIGHT.lamp, k);
+        for (const material of shimmerMaterials) material.uniforms.uStrength.value = material.userData.base * (1 - 0.85 * k);
+        for (const material of nightMats) material.opacity = material.userData.night * k;
+        for (const mesh of nightMeshes) mesh.visible = k > 0.001;
+        for (const material of faceMats) material.color.lerpColors(DAY.face, NIGHT.face, k);
+      };
       let velocity = 0; // stops per second
       let lastScrollAt = 0;
       let inTour = false; // the gallery is pinned on screen, past the sky descent
@@ -994,6 +1072,12 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         if (!visible) return;
         if (!reducedMotion) {
           skyMat.uniforms.uTime.value += elapsed;
+        }
+        // Day ↔ night: every light and colour fades across over about a second and a half.
+        const wantNight = nightRef.current ? 1 : 0;
+        if (nightMix !== wantNight) {
+          nightMix = reducedMotion ? wantNight : THREE.MathUtils.clamp(nightMix + Math.sign(wantNight - nightMix) * delta / 1.5, 0, 1);
+          applyNight(smootherstep(nightMix));
         }
         // The camera follows the scroll position on a critically damped spring, like a car with good
         // suspension: it eases in when scrolling starts and coasts to a soft stop when it ends (no
@@ -1136,13 +1220,29 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
 
         {/* Title card over the table courtyard, as the film opens */}
         <div className={`pointer-events-none absolute inset-x-0 top-[22%] flex flex-col items-center text-center transition-opacity duration-700 ${status === 'ready' && !descending && stop === 0 ? 'opacity-100' : 'opacity-0'}`}>
-          <p className="text-4xl font-light tracking-[0.2em] text-[#4a4a48] sm:text-6xl" style={{ fontFamily: 'var(--font-cormorant)' }}>{artistName.toUpperCase()}</p>
+          <p className={`text-4xl font-light tracking-[0.2em] transition-colors duration-1000 sm:text-6xl ${night ? 'text-white/85' : 'text-[#4a4a48]'}`} style={{ fontFamily: 'var(--font-cormorant)' }}>{artistName.toUpperCase()}</p>
           <p className="mt-3 text-[11px] uppercase tracking-[0.45em] text-[#ed7189]">Portfolio</p>
         </div>
 
         <div className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-[#f8f4ed] transition-opacity duration-1000 ${status === 'ready' ? 'opacity-0' : 'opacity-100'}`}>
           <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/60">Opening the gallery…</p>
         </div>
+
+        {/* Day / Night switch, styled like the site's tabs */}
+        {status === 'ready' && (
+          <div role="group" aria-label="Gallery lighting" className={`absolute left-4 top-24 grid grid-cols-2 rounded-full p-1 text-[10px] uppercase tracking-[0.2em] backdrop-blur transition-colors duration-700 sm:left-8 sm:top-32 ${night ? 'bg-[#0b1426]/55 text-white/75' : 'bg-white/60 text-[#075f8f]'}`}>
+            <span aria-hidden="true" className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-[linear-gradient(112deg,#063a5b_0%,#0879aa_38%,#1a9fc5_66%,#07547f_100%)] shadow-[0_5px_18px_rgba(6,79,119,.28)] transition-transform duration-500 ease-[cubic-bezier(.16,1,.3,1)] ${night ? 'translate-x-full' : ''}`} />
+            {[['day', '☀ Day'], ['night', '☾ Night']].map(([mode, label]) => {
+              const active = (mode === 'night') === night;
+              return (
+                <button key={mode} type="button" aria-pressed={active} onClick={() => setNight(mode === 'night')}
+                  className={`relative rounded-full px-3.5 py-1.5 transition-colors duration-500 ${active ? 'text-[#fffaf2]' : 'hover:opacity-70'}`}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <button
           type="button"
@@ -1153,10 +1253,10 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         </button>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-4 sm:bottom-10">
-          {descending && status === 'ready' && <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/70">Scroll through the clouds</p>}
+          {descending && status === 'ready' && <p className={`text-[10px] uppercase tracking-[0.35em] transition-colors duration-1000 ${night ? 'text-white/70' : 'text-[#075f8f]/70'}`}>Scroll through the clouds</p>}
           {!descending && currentStop.kind === 'entrance' && status === 'ready' && (
             <div className="flex flex-col items-center gap-3 text-center">
-              <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/70">Scroll to walk through the gallery</p>
+              <p className={`text-[10px] uppercase tracking-[0.35em] transition-colors duration-1000 ${night ? 'text-white/70' : 'text-[#075f8f]/70'}`}>Scroll to walk through the gallery</p>
               <span className="block h-9 w-5 rounded-full border border-[#075f8f]/40 p-1">
                 <span className="mx-auto block h-2 w-1 animate-bounce rounded-full bg-[#075f8f]/60" />
               </span>
@@ -1164,7 +1264,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
           )}
 
           {currentStop.kind === 'view' && (
-            <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/70">{currentStop.text}</p>
+            <p className={`text-[10px] uppercase tracking-[0.35em] transition-colors duration-1000 ${night ? 'text-white/70' : 'text-[#075f8f]/70'}`}>{currentStop.text}</p>
           )}
 
           {bay.length > 0 && (
