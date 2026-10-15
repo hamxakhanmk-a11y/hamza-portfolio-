@@ -997,13 +997,13 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         }
         // The camera follows the scroll position on a critically damped spring, like a car with good
         // suspension: it eases in when scrolling starts and coasts to a soft stop when it ends (no
-        // overshoot, no sudden halt), never faster than 1.4 stops a second.
-        const stiffness = 14;
+        // overshoot, no sudden halt), at a calm cinematic pace: never faster than 0.9 stops a second.
+        const stiffness = 8;
         if (reducedMotion) { current = target; velocity = 0; } else {
           const damping = 2 * Math.sqrt(stiffness);
           for (let left = delta; left > 0; left -= 1 / 120) {
             const h = Math.min(left, 1 / 120);
-            velocity = THREE.MathUtils.clamp(velocity + (stiffness * (target - current) - damping * velocity) * h, -1.4, 1.4);
+            velocity = THREE.MathUtils.clamp(velocity + (stiffness * (target - current) - damping * velocity) * h, -0.9, 0.9);
             current += velocity * h;
           }
           if (Math.abs(target - current) < 0.001 && Math.abs(velocity) < 0.01) { current = target; velocity = 0; }
@@ -1034,7 +1034,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         // Keep turns comfortable without extending the scroll route or slowing
         // translation. Initialize at the restored position to avoid a return spin.
         if (!cameraRotation || reducedMotion) cameraRotation = camera.quaternion.clone();
-        else cameraRotation.rotateTowards(camera.quaternion, delta * 1.8);
+        else cameraRotation.rotateTowards(camera.quaternion, delta * 1.3);
         camera.quaternion.copy(cameraRotation);
         if (descendFromSky) rootRef.current.dataset.descent = String(clamp01(1 + current / 3));
         floorReflections[0].visible = current >= 0 && camera.position.y < UPPER + 0.5;
