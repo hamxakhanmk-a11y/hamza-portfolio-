@@ -48,13 +48,13 @@ export default function FilmMode() {
 
     (async () => {
       await until(() => !root.dataset.splash);                     // the water intro plays by itself
-      await wait(2.5);                                             // the title settles
+      await wait(1.5);                                             // the title settles
       const hero = document.querySelector('[data-hero-stages]');
       if (hero) {
         const start = topOf(hero), end = start + hero.offsetHeight - window.innerHeight;
         for (let stage = 1; stage <= 3 && !signal.aborted; stage++) {
-          await glide(start + (end - start) * stage / 3, 2.6);
-          await wait(3);
+          await glide(start + (end - start) * stage / 3, 1.6);
+          await wait(1.6);
         }
       }
       const gallery = document.getElementById('gallery-tour');
