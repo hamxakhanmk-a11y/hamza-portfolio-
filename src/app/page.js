@@ -8,6 +8,7 @@ import CommissionInquiry from "@/components/CommissionInquiry";
 import HomeMistTransition from "@/components/HomeMistTransition";
 import HomeSmoothScroll from "@/components/HomeSmoothScroll";
 import SplashIntro from "@/components/SplashIntro";
+import FilmMode from "@/components/FilmMode";
 import mistStyles from "@/components/HomeMistTransition.module.css";
 
 export default function Home() {
@@ -23,6 +24,7 @@ export default function Home() {
         <CommissionInquiry compact />
         <Contact />
       </main>
+      <FilmMode />
     </>
   );
 }

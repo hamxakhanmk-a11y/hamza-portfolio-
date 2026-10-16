@@ -508,3 +508,9 @@ html[data-splash="text"] .intro-embedded .intro-eyebrow { transition: opacity .8
   10% { opacity: 1; }
   to { opacity: 1; transform: none; }
 }
+
+/* Film mode (test site): nothing but the page while it plays itself for screen recording */
+html[data-film], html[data-film] * { cursor: none !important; }
+html[data-film] { scrollbar-width: none; }
+html[data-film]::-webkit-scrollbar { display: none; }
+html[data-splash] .film-button, html[data-film] .film-button { display: none; }

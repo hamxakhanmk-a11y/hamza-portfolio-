@@ -4,6 +4,10 @@ const supabaseHostname = process.env.NEXT_PUBLIC_SUPABASE_URL
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    // the Film button (src/components/FilmMode.js) is for the test site and local work, never the live site
+    NEXT_PUBLIC_FILM_MODE: process.env.VERCEL_ENV === 'production' ? '' : '1',
+  },
   images: {
     remotePatterns: [
       {

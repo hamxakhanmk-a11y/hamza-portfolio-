@@ -1157,6 +1157,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         return top + descentTravel + (routeWeights[k] / routeWeights[routeWeights.length - 1]) * (travel - descentTravel);
       };
 
+      // Film mode (test site) glides from stop to stop on its own; it asks where each stop is.
+      rootRef.current.filmStops = () => tourStops.map((entry, k) => ({ y: stopScrollY(k), kind: entry.kind }));
+
       const onPointer = event => {
         if (reducedMotion || event.pointerType === 'touch') return;
         sway.tx = -((event.clientX / window.innerWidth) - 0.5) * 0.05;
@@ -1199,7 +1202,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         // into place. It never turns back: if the camera can no longer stop smoothly before that stop
         // (it's already there or too close at its speed), it just rests where the scroll ended.
         // The hidden page position is corrected to match, so the camera's target becomes that stop.
-        if (!reducedMotion && inTour && !touching && !landing && now - lastScrollAt > 150) {
+        if (!reducedMotion && inTour && !touching && !landing && !document.documentElement.dataset.film && now - lastScrollAt > 150) {
           const reach = current + velocity / Math.sqrt(stiffness); // as near as it can stop without overshooting
           const stop = THREE.MathUtils.clamp(Math.round(target), 0, stopCount - 1);
           const reachable = direction > 0 ? stop >= reach - 0.001 : stop <= reach + 0.001;
