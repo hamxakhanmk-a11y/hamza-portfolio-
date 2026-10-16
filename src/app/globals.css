@@ -333,6 +333,8 @@ body {
   box-shadow: 0 5px 18px rgba(6, 79, 119, .28);
 }
 
+.nav-flow-tabs--none .nav-flow-indicator { opacity: 0 !important; }
+
 .nav-flow-tabs--ready .nav-flow-indicator {
   opacity: 1;
   transition:

@@ -22,9 +22,10 @@ export default function Navbar() {
   const navRef = useRef(null);
   const flowTimer = useRef(null);
   const overlayHero = pathname === '/' && !scrolled;
+  // null on an address that isn't one of the tabs (the 404 page): then no tab is highlighted
   const currentHref = pendingHref || links.find(({ href }) => (
     href === '/' ? pathname === '/' : pathname.startsWith(href)
-  ))?.href || '/';
+  ))?.href || null;
 
   useEffect(() => {
     const onScroll = () => {
@@ -105,7 +106,7 @@ export default function Navbar() {
       {/* One row of tabs on every screen; on tablets and phones they shrink so all six fit. */}
       <nav
         ref={navRef}
-        className={`nav-flow-tabs flex justify-between gap-[3px] px-1.5 py-1.5 sm:justify-center sm:gap-2 sm:px-4 lg:gap-4 lg:px-6 ${flowReady ? 'nav-flow-tabs--ready' : ''} ${flowing ? 'is-flowing' : ''}`}
+        className={`nav-flow-tabs ${currentHref ? '' : 'nav-flow-tabs--none'} flex justify-between gap-[3px] px-1.5 py-1.5 sm:justify-center sm:gap-2 sm:px-4 lg:gap-4 lg:px-6 ${flowReady ? 'nav-flow-tabs--ready' : ''} ${flowing ? 'is-flowing' : ''}`}
       >
         <span className="nav-flow-indicator" aria-hidden="true" />
         {links.map(({ label, href }) => (
