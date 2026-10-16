@@ -110,6 +110,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
   const [progress, setProgress] = useState(0);
   const [descending, setDescending] = useState(descendFromSky);
   const [night, setNight] = useState(false); // the visitor's Day / Night switch; every visit starts in daylight
+  const [tiltAsk, setTiltAsk] = useState(false); // iPhones need a tap to allow tilt-to-look
   const nightRef = useRef(false);
   useEffect(() => { nightRef.current = night; }, [night]);
   // Divide usable walls into equal bays, with space at either end.
@@ -1049,7 +1050,8 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         return i+(distance-routeWeights[i])/(routeWeights[i+1]-routeWeights[i]);
       };
       const lookPoint = new THREE.Vector3();
-      const sway = { x: 0, y: 0, tx: 0, ty: 0 };
+      const sway = { x: 0, y: 0, tx: 0, ty: 0, mx: 0, my: 0 }; // mx/my: the first of two smoothing stages
+      const tilt = { x: 0, y: 0, tx: 0, ty: 0, mx: 0, my: 0, base: null }; // the phone's tilt, smoothed the same way
       const placeCamera = s => {
         if (s < 0) {
           // Land on the forecourt facing the table; the route then enters.
@@ -1069,8 +1071,8 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         targetCurve.getPoint(t, lookPoint);
         camera.lookAt(lookPoint);
         const swayBlend = smootherstep(clamp01(s / 0.35)) * lookWeight;
-        camera.rotateY(sway.x * swayBlend);
-        camera.rotateX(sway.y * swayBlend);
+        camera.rotateY((sway.x + tilt.x) * swayBlend);
+        camera.rotateX((sway.y + tilt.y) * swayBlend);
       };
 
       // ── Loop ──
@@ -1221,8 +1223,16 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const standing = document.documentElement.dataset.film ? 0 : 1 - Math.min(1, Math.abs(velocity) / 0.25);
         lookWeight += (standing - lookWeight) * Math.min(1, delta * 2.5);
         if (!drag?.sideways && Math.abs(velocity) > 0.05) { sway.tx -= sway.tx * Math.min(1, delta * 1.5); sway.ty -= sway.ty * Math.min(1, delta * 1.5); }
-        sway.x += (sway.tx - sway.x) * Math.min(1, delta * 2.5);
-        sway.y += (sway.ty - sway.y) * Math.min(1, delta * 2.5);
+        // two smoothing stages one after the other: the eyes ease into a movement and settle softly out of it
+        const follow = 1 - Math.exp(-delta * 2.6);
+        sway.mx += (sway.tx - sway.mx) * follow;
+        sway.my += (sway.ty - sway.my) * follow;
+        sway.x += (sway.mx - sway.x) * follow;
+        sway.y += (sway.my - sway.y) * follow;
+        tilt.mx += (tilt.tx - tilt.mx) * follow; tilt.my += (tilt.ty - tilt.my) * follow;
+        tilt.x += (tilt.mx - tilt.x) * follow; tilt.y += (tilt.my - tilt.y) * follow;
+        // while walking, the way the phone is held becomes the new "straight ahead"
+        if (Math.abs(velocity) > 0.05) tilt.base = null;
         if (Math.abs(sway.tx - sway.x) < 0.00005) sway.x = sway.tx;
         if (Math.abs(sway.ty - sway.y) < 0.00005) sway.y = sway.ty;
         placeCamera(current);
@@ -1271,6 +1281,18 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       };
       const onWheel = () => { landing = false; ownScrollUntil = 0; };
       const onTouchEnd = () => { touching = false; landing = false; drag = null; lastScrollAt = performance.now(); };
+      // Tilt to look (phones, like a driving game): tilt left and the view turns left, tip the top away and it
+      // looks down. Measured from how the phone is held on arriving at a spot, about 25° sideways and 15° up
+      // or down. iPhones only send these readings after the visitor allows motion access (the button below).
+      const onTilt = event => {
+        if (event.beta == null || event.gamma == null || reducedMotion) return;
+        const angle = (window.screen.orientation?.angle ?? window.orientation ?? 0) % 360;
+        const side = angle === 90 ? event.beta : angle === 270 || angle === -90 ? -event.beta : event.gamma;
+        const tip = angle === 90 ? -event.gamma : angle === 270 || angle === -90 ? event.gamma : event.beta;
+        if (!tilt.base) tilt.base = { side, tip };
+        tilt.tx = THREE.MathUtils.clamp(-(side - tilt.base.side) / 25, -1, 1) * 0.44;
+        tilt.ty = THREE.MathUtils.clamp((tip - tilt.base.tip) / 15, -1, 1) * 0.26;
+      };
       const onClick = event => {
         const hit = pick(event);
         if (hit) router.push(`/portfolio/${hit.userData.id}`);
@@ -1283,6 +1305,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       window.addEventListener('scroll', readScroll, { passive: true });
       window.addEventListener('resize', resize);
       window.addEventListener('touchstart', onTouchStart, { passive: true });
+      window.addEventListener('deviceorientation', onTilt);
       window.addEventListener('touchmove', onTouchMove, { passive: true });
       window.addEventListener('wheel', onWheel, { passive: true });
       window.addEventListener('keydown', onWheel);
@@ -1293,6 +1316,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       current = target;
       tick();
       setStatus('ready');
+      // iPhones and iPads (iOS 13+) ask before sharing motion: offer a button for it there (Android needs none)
+      const apple = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (apple && typeof window.DeviceOrientationEvent?.requestPermission === 'function' && !reducedMotion) setTiltAsk(true);
 
       cleanup = () => {
         cancelAnimationFrame(frameId);
@@ -1300,6 +1326,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         window.removeEventListener('scroll', readScroll);
         window.removeEventListener('resize', resize);
         window.removeEventListener('touchstart', onTouchStart);
+        window.removeEventListener('deviceorientation', onTilt);
         window.removeEventListener('touchmove', onTouchMove);
         window.removeEventListener('wheel', onWheel);
         window.removeEventListener('keydown', onWheel);
@@ -1354,6 +1381,18 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         <div className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-[#f8f4ed] transition-opacity duration-1000 ${status === 'ready' ? 'opacity-0' : 'opacity-100'}`}>
           <p className="text-[10px] uppercase tracking-[0.35em] text-[#075f8f]/60">Opening the gallery…</p>
         </div>
+
+        {status === 'ready' && tiltAsk && (
+          <button
+            type="button"
+            onClick={() => {
+              window.DeviceOrientationEvent.requestPermission().then(answer => { if (answer === 'granted') setTiltAsk(false); }).catch(() => {});
+            }}
+            className={`absolute left-4 top-[8.4rem] rounded-full px-3.5 py-1.5 text-[10px] uppercase tracking-[0.2em] backdrop-blur transition-colors duration-700 sm:left-8 sm:top-[10.4rem] ${night ? 'bg-[#0b1426]/55 text-white/80' : 'bg-white/60 text-[#075f8f]'}`}
+          >
+            ⟲ Tilt to look
+          </button>
+        )}
 
         {/* Day / Night switch, styled like the site's tabs */}
         {status === 'ready' && (
