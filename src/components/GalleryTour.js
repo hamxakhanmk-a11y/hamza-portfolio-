@@ -1068,7 +1068,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         positionCurve.getPoint(t, camera.position);
         targetCurve.getPoint(t, lookPoint);
         camera.lookAt(lookPoint);
-        const swayBlend = smootherstep(clamp01(s / 0.35));
+        const swayBlend = smootherstep(clamp01(s / 0.35)) * lookWeight;
         camera.rotateY(sway.x * swayBlend);
         camera.rotateX(sway.y * swayBlend);
       };
@@ -1160,10 +1160,15 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       // Film mode (test site) glides from stop to stop on its own; it asks where each stop is.
       rootRef.current.filmStops = () => tourStops.map((entry, k) => ({ y: stopScrollY(k), kind: entry.kind }));
 
+      // Looking around where you stand, like moving your eyes: on a computer the view follows the pointer
+      // (up to about 20° sideways and 10° up or down); on a phone a sideways drag turns it with the finger.
+      // It only applies while the camera stands still, and never while Film mode records.
+      let lookWeight = 0;
+      let drag = null;
       const onPointer = event => {
         if (reducedMotion || event.pointerType === 'touch') return;
-        sway.tx = -((event.clientX / window.innerWidth) - 0.5) * 0.05;
-        sway.ty = -((event.clientY / window.innerHeight) - 0.5) * 0.03;
+        sway.tx = -((event.clientX / window.innerWidth) - 0.5) * 0.7;
+        sway.ty = -((event.clientY / window.innerHeight) - 0.5) * 0.36;
       };
 
       const tick = () => {
@@ -1212,9 +1217,12 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
             window.dispatchEvent(new CustomEvent('gallery-land', { detail: { y: stopScrollY(stop) } }));
           }
         }
-        // the pointer's gentle pull; it settles completely, so the picture is perfectly still at rest
-        sway.x += (sway.tx - sway.x) * Math.min(1, delta * 2);
-        sway.y += (sway.ty - sway.y) * Math.min(1, delta * 2);
+        // the eyes ease towards where the pointer (or finger) points; while walking they look straight ahead
+        const standing = document.documentElement.dataset.film ? 0 : 1 - Math.min(1, Math.abs(velocity) / 0.25);
+        lookWeight += (standing - lookWeight) * Math.min(1, delta * 2.5);
+        if (!drag?.sideways && Math.abs(velocity) > 0.05) { sway.tx -= sway.tx * Math.min(1, delta * 1.5); sway.ty -= sway.ty * Math.min(1, delta * 1.5); }
+        sway.x += (sway.tx - sway.x) * Math.min(1, delta * 2.5);
+        sway.y += (sway.ty - sway.y) * Math.min(1, delta * 2.5);
         if (Math.abs(sway.tx - sway.x) < 0.00005) sway.x = sway.tx;
         if (Math.abs(sway.ty - sway.y) < 0.00005) sway.y = sway.ty;
         placeCamera(current);
@@ -1248,9 +1256,21 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       };
       const onMove = event => { onPointer(event); setHovering(Boolean(pick(event))); };
       // no gliding under a finger; wait for the swipe's momentum after it lifts
-      const onTouchStart = () => { touching = true; landing = false; ownScrollUntil = 0; };
+      const onTouchStart = event => {
+        touching = true; landing = false; ownScrollUntil = 0;
+        const touch = event.touches?.[0];
+        drag = touch && event.touches.length === 1 ? { x: touch.clientX, y: touch.clientY, yaw: sway.tx, sideways: null } : null;
+      };
+      const onTouchMove = event => {
+        const touch = event.touches?.[0];
+        if (!drag || !touch || event.touches.length !== 1 || !inTour || reducedMotion) return;
+        const dx = touch.clientX - drag.x, dy = touch.clientY - drag.y;
+        if (drag.sideways === null && Math.hypot(dx, dy) > 12) drag.sideways = Math.abs(dx) > Math.abs(dy) * 1.2;
+        // the scene follows the finger: drag right and the view turns left, so the picture moves right
+        if (drag.sideways) sway.tx = THREE.MathUtils.clamp(drag.yaw + (dx / window.innerWidth) * 1.3, -0.6, 0.6);
+      };
       const onWheel = () => { landing = false; ownScrollUntil = 0; };
-      const onTouchEnd = () => { touching = false; landing = false; lastScrollAt = performance.now(); };
+      const onTouchEnd = () => { touching = false; landing = false; drag = null; lastScrollAt = performance.now(); };
       const onClick = event => {
         const hit = pick(event);
         if (hit) router.push(`/portfolio/${hit.userData.id}`);
@@ -1263,6 +1283,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       window.addEventListener('scroll', readScroll, { passive: true });
       window.addEventListener('resize', resize);
       window.addEventListener('touchstart', onTouchStart, { passive: true });
+      window.addEventListener('touchmove', onTouchMove, { passive: true });
       window.addEventListener('wheel', onWheel, { passive: true });
       window.addEventListener('keydown', onWheel);
       window.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -1279,6 +1300,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         window.removeEventListener('scroll', readScroll);
         window.removeEventListener('resize', resize);
         window.removeEventListener('touchstart', onTouchStart);
+        window.removeEventListener('touchmove', onTouchMove);
         window.removeEventListener('wheel', onWheel);
         window.removeEventListener('keydown', onWheel);
         window.removeEventListener('touchend', onTouchEnd);

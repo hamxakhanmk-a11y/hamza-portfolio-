@@ -48,13 +48,13 @@ export default function FilmMode() {
 
     (async () => {
       await until(() => !root.dataset.splash);                     // the water intro plays by itself
-      await wait(1.5);                                             // the title settles
+      await wait(1);                                               // the title settles
       const hero = document.querySelector('[data-hero-stages]');
       if (hero) {
         const start = topOf(hero), end = start + hero.offsetHeight - window.innerHeight;
         for (let stage = 1; stage <= 3 && !signal.aborted; stage++) {
-          await glide(start + (end - start) * stage / 3, 1.6);
-          await wait(1.6);
+          await glide(start + (end - start) * stage / 3, 1.1);
+          await wait(1.2);
         }
       }
       const gallery = document.getElementById('gallery-tour');
@@ -71,10 +71,10 @@ export default function FilmMode() {
       }
       // on through the collection, the commission section and the footer
       const collection = document.getElementById('gallery');
-      if (collection && !signal.aborted) { await glide(topOf(collection) - 40, 2.4); await wait(1.6); }
+      if (collection && !signal.aborted) { await glide(topOf(collection) - 40, 1.6); await wait(1); }
       const commission = document.querySelector('.commission-inquiry-home');
-      if (commission && !signal.aborted) { await glide(topOf(commission) - 60, 2.2); await wait(1.6); }
-      if (!signal.aborted) { await glide(document.documentElement.scrollHeight - window.innerHeight, 2); await wait(1.5); }
+      if (commission && !signal.aborted) { await glide(topOf(commission) - 60, 1.5); await wait(1); }
+      if (!signal.aborted) { await glide(document.documentElement.scrollHeight - window.innerHeight, 1.5); await wait(1.2); }
       if (!signal.aborted) finish(); // a cancelled run (React re-running the effect) leaves the new one alone
     })();
 

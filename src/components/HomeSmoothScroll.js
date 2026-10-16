@@ -50,7 +50,7 @@ export default function HomeSmoothScroll() {
       if (direction > 0 && stage === 3) { descend(); return; }
       busy = true;
       instance.scrollTo(range.start + Math.min(3, Math.max(0, stage + direction)) * (range.end - range.start) / 3, {
-        duration: 1.15, lock: true, force: true,
+        duration: 0.8, lock: true, force: true,
         easing: t => t * t * (3 - 2 * t),
         onComplete: () => { busy = false; releaseAt = performance.now() + 180; },
       });
