@@ -6,7 +6,8 @@ import { HOME_DESCENT_SVH } from '@/data/galleryTour';
 // Film mode (test site only): a small button on Home that replays the page from the water intro to the end
 // of Home by itself, slowly and smoothly, so it can be screen-recorded. It reloads to "/?film=1" so the
 // intro plays from the start, then glides through the hero stages, the descent, every gallery stop and the
-// sections below. Any wheel, touch or key stops it. Hidden on the production site (see next.config.mjs).
+// sections below. Any wheel, touch or key stops it, except the gallery's Day / Night switch, which can be
+// used while it films. Hidden on the production site (see next.config.mjs).
 
 const ENABLED = process.env.NEXT_PUBLIC_FILM_MODE === '1';
 const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
@@ -61,30 +62,44 @@ export default function FilmMode() {
         await until(() => gallery.dataset.ready === 'true');
         const stops = gallery.filmStops?.() || [];
         // down through the clouds into the gallery
-        await glide(stops[0]?.y ?? topOf(gallery) + window.innerHeight * HOME_DESCENT_SVH / 100, 9);
-        await wait(2.5);
+        await glide(stops[0]?.y ?? topOf(gallery) + window.innerHeight * HOME_DESCENT_SVH / 100, 7);
+        await wait(1.5);
         for (let k = 1; k < stops.length && !signal.aborted; k++) {
-          await glide(stops[k].y, 3.2);
-          await wait(stops[k].kind === 'bay' ? 2 : stops[k].kind === 'end' ? 2.5 : 1.6);
+          await glide(stops[k].y, 2.6);
+          await wait(stops[k].kind === 'bay' ? 1 : stops[k].kind === 'end' ? 1.5 : 0.5);
         }
       }
       // on through the collection, the commission section and the footer
       const collection = document.getElementById('gallery');
-      if (collection && !signal.aborted) { await glide(topOf(collection) - 40, 4); await wait(3); }
+      if (collection && !signal.aborted) { await glide(topOf(collection) - 40, 2.4); await wait(1.6); }
       const commission = document.querySelector('.commission-inquiry-home');
-      if (commission && !signal.aborted) { await glide(topOf(commission) - 60, 3.5); await wait(3); }
-      if (!signal.aborted) { await glide(document.documentElement.scrollHeight - window.innerHeight, 3); await wait(2.5); }
+      if (commission && !signal.aborted) { await glide(topOf(commission) - 60, 2.2); await wait(1.6); }
+      if (!signal.aborted) { await glide(document.documentElement.scrollHeight - window.innerHeight, 2); await wait(1.5); }
       if (!signal.aborted) finish(); // a cancelled run (React re-running the effect) leaves the new one alone
     })();
 
     function finish(played = true) {
       if (played) filmRequested = false; // done, or the visitor took over
       delete root.dataset.film;
+      delete root.dataset.filmCursor;
+      clearTimeout(cursorTimer);
       ['wheel', 'touchstart', 'keydown'].forEach(type => window.removeEventListener(type, takeOver, true));
+      window.removeEventListener('mousemove', showCursor);
     }
-    // the visitor takes over: stop at once
-    function takeOver() { if (!signal.aborted) { stop.abort(); finish(); } }
+    // the visitor takes over: stop at once (but the gallery's Day / Night switch may be used while it films)
+    function takeOver(event) {
+      if (event.target?.closest?.('[aria-label="Gallery lighting"]')) return;
+      if (!signal.aborted) { stop.abort(); finish(); }
+    }
     ['wheel', 'touchstart', 'keydown'].forEach(type => window.addEventListener(type, takeOver, true));
+    // the cursor shows while the mouse moves (to reach the Day / Night switch) and hides again after a moment
+    let cursorTimer = 0;
+    function showCursor() {
+      root.dataset.filmCursor = 'on';
+      clearTimeout(cursorTimer);
+      cursorTimer = setTimeout(() => { delete root.dataset.filmCursor; }, 1500);
+    }
+    window.addEventListener('mousemove', showCursor);
     return () => { stop.abort(); finish(false); };
   }, []);
 

@@ -510,7 +510,8 @@ html[data-splash="text"] .intro-embedded .intro-eyebrow { transition: opacity .8
 }
 
 /* Film mode (test site): nothing but the page while it plays itself for screen recording */
-html[data-film], html[data-film] * { cursor: none !important; }
+/* the cursor hides unless the mouse is moving (to reach the Day / Night switch) */
+html[data-film]:not([data-film-cursor]), html[data-film]:not([data-film-cursor]) * { cursor: none !important; }
 html[data-film] { scrollbar-width: none; }
 html[data-film]::-webkit-scrollbar { display: none; }
 html[data-splash] .film-button, html[data-film] .film-button { display: none; }
