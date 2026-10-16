@@ -68,6 +68,8 @@ export default function FilmMode() {
           await glide(stops[k].y, 2.6);
           await wait(stops[k].kind === 'bay' ? 1 : stops[k].kind === 'end' ? 1.5 : 0.5);
         }
+        // the flight through the window into the moon, ending in white
+        if (!signal.aborted) { await glide(topOf(gallery) + gallery.offsetHeight - window.innerHeight, 3.6); await wait(0.4); }
       }
       // on through the collection, the commission section and the footer
       const collection = document.getElementById('gallery');

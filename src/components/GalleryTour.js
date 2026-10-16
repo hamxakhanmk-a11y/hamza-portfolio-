@@ -18,6 +18,7 @@ const UPPER = 4.2; // first-floor level
 const UPPER_EYE = UPPER + EYE;
 const HANG = 2.1; // painting centre height above its floor
 const STOP_SCREEN_SHARE = 90; // svh of scrolling per camera stop
+const EXIT_SVH = 120; // after the last stop: the flight through the window into the moon, ending in white
 const WALL_T = 0.3;
 
 // Bright off-white throughout; stable contact shadows define the architecture.
@@ -112,6 +113,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
   const [night, setNight] = useState(false); // the visitor's Day / Night switch; every visit starts in daylight
   const [tiltAsk, setTiltAsk] = useState(false); // iPhones need a tap to allow tilt-to-look
   const nightRef = useRef(false);
+  const whiteRef = useRef(null); // the moon's light filling the screen at the end
   useEffect(() => { nightRef.current = night; }, [night]);
   // Divide usable walls into equal bays, with space at either end.
   const PLACES = Object.fromEntries(Object.entries(BASE_PLACES).map(([id, place]) => [id, { ...place, pos: [...place.pos] }]));
@@ -1120,6 +1122,11 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       let touching = false; // a finger is on the screen
       let landing = false; // already steering onto a stop since the visitor last scrolled
       let ownScrollUntil = 0; // our own page correction isn't the visitor's direction
+      // The ending: past the last stop the camera turns to the moon and glides out through the window
+      // towards it, the view narrowing, until its light fills the screen with white; the next section
+      // then rises out of that white.
+      let exitTarget = 0, exitMix = 0, baseFov = 46;
+      const moonAhead = new THREE.Vector3(), turnFrom = new THREE.Quaternion();
 
       const readScroll = () => {
         const root = rootRef.current;
@@ -1129,13 +1136,16 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const p = travel > 0 ? Math.min(1, Math.max(0, -rect.top / travel)) : 0;
         const descentTravel = descendFromSky && !reducedMotion ? window.innerHeight * HOME_DESCENT_SVH / 100 : 0;
         const distance = Math.max(0, -rect.top);
+        const exitTravel = window.innerHeight * EXIT_SVH / 100;
+        const tourTravel = Math.max(1, travel - descentTravel - exitTravel);
         const previous = target;
         target = distance < descentTravel ? -3 * (1 - distance / descentTravel) :
-          scrollToStop(clamp01((distance - descentTravel) / Math.max(1, travel - descentTravel)));
+          scrollToStop(clamp01((distance - descentTravel) / tourTravel));
+        exitTarget = clamp01((distance - descentTravel - tourTravel) / exitTravel);
         // any scrolling that isn't our own landing correction (wheel, finger, keys, scrollbar) starts over
         if (target !== previous && performance.now() > ownScrollUntil) { direction = Math.sign(target - previous); landing = false; }
         lastScrollAt = performance.now();
-        inTour = distance >= descentTravel && p > 0 && p < 0.999;
+        inTour = distance >= descentTravel && p > 0 && distance - descentTravel < tourTravel - 1;
         if (Math.abs(p - lastProgress) > 0.002) { lastProgress = p; setProgress(p); }
       };
 
@@ -1144,7 +1154,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const h = host.clientHeight;
         renderer.setSize(w, h);
         camera.aspect = w / h;
-        camera.fov = camera.aspect < 1 ? 64 : 46;
+        camera.fov = baseFov = camera.aspect < 1 ? 64 : 46;
         camera.updateProjectionMatrix();
       };
 
@@ -1154,7 +1164,8 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const top = root.getBoundingClientRect().top + window.scrollY;
         const travel = root.offsetHeight - hostRef.current.clientHeight;
         const descentTravel = descendFromSky && !reducedMotion ? window.innerHeight * HOME_DESCENT_SVH / 100 : 0;
-        return top + descentTravel + (routeWeights[k] / routeWeights[routeWeights.length - 1]) * (travel - descentTravel);
+        const exitTravel = window.innerHeight * EXIT_SVH / 100;
+        return top + descentTravel + (routeWeights[k] / routeWeights[routeWeights.length - 1]) * (travel - descentTravel - exitTravel);
       };
 
       // Film mode (test site) glides from stop to stop on its own; it asks where each stop is.
@@ -1234,6 +1245,20 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         if (Math.abs(sway.tx - sway.x) < 0.00005) sway.x = sway.tx;
         if (Math.abs(sway.ty - sway.y) < 0.00005) sway.y = sway.ty;
         placeCamera(current);
+        exitMix = reducedMotion ? exitTarget : exitMix + (exitTarget - exitMix) * (1 - Math.exp(-delta * 4));
+        // the flight only steers once the camera has reached the last scene (a fast scroll past it just fades)
+        const atEnd = clamp01(1 - (stopCount - 1 - current) / 0.5);
+        if (exitMix > 0.0005 && !reducedMotion && atEnd > 0) {
+          const fly = exitMix * exitMix * (3 - 2 * exitMix) * atEnd;
+          const moon = skyMat.uniforms.uMoon.value.clone().normalize();
+          turnFrom.copy(camera.quaternion);
+          camera.lookAt(moonAhead.copy(camera.position).add(moon));
+          camera.quaternion.slerpQuaternions(turnFrom, camera.quaternion.clone(), Math.min(1, fly * 1.8));
+          camera.position.addScaledVector(moon, fly * fly * 16);
+          camera.fov = baseFov * (1 - 0.6 * fly);
+          camera.updateProjectionMatrix();
+        } else if (camera.fov !== baseFov) { camera.fov = baseFov; camera.updateProjectionMatrix(); }
+        if (whiteRef.current) whiteRef.current.style.opacity = String(THREE.MathUtils.smoothstep(exitMix, 0.35, 0.92));
         // Keep turns comfortable without extending the scroll route or slowing
         // translation. Initialize at the restored position to avoid a return spin.
         if (!cameraRotation || reducedMotion) cameraRotation = camera.quaternion.clone();
@@ -1364,7 +1389,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       data-ready={status === 'ready' ? 'true' : 'false'}
       data-sky-descent={descendFromSky ? 'true' : undefined}
       className={`relative bg-[#f8f4ed] ${descendFromSky ? 'sky-gallery-tour' : ''}`}
-      style={descendFromSky ? { '--tour-height': `${stopCount * STOP_SCREEN_SHARE}svh`, '--descent-height': `${HOME_DESCENT_SVH}svh` } : { height: `${stopCount * STOP_SCREEN_SHARE}svh` }}
+      style={descendFromSky ? { '--tour-height': `${stopCount * STOP_SCREEN_SHARE + EXIT_SVH}svh`, '--descent-height': `${HOME_DESCENT_SVH}svh` } : { height: `${stopCount * STOP_SCREEN_SHARE + EXIT_SVH}svh` }}
       aria-label="Walk-through gallery of portfolio paintings"
     >
       <div className="sticky top-0 h-[100svh] overflow-hidden">
@@ -1463,6 +1488,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
             </button>
           )}
         </div>
+
+        {/* the ending's white, matching the top of the next section so it rises straight out of it */}
+        <div ref={whiteRef} aria-hidden="true" className="pointer-events-none absolute inset-0 z-10" style={{ opacity: 0, mixBlendMode: 'screen', background: 'radial-gradient(circle at 50% 38%, #ffffff 0%, #f6fbfd 45%, #edf7fb 100%)' }} />
 
         <div className="absolute inset-x-0 bottom-0 h-0.5 bg-[#075f8f]/10" aria-hidden="true">
           <div className="h-full bg-[#075f8f]/50" style={{ width: `${progress * 100}%` }} />
