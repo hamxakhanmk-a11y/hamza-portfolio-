@@ -254,7 +254,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const artworkEdgeMat = keep(new THREE.MeshStandardMaterial({ color: 0xf3d68b, metalness: 0.35, roughness: 0.4, toneMapped: false }));
       // Procedural clouds drift independently of the gallery camera.
       const skyMat = keep(new THREE.ShaderMaterial({
-        uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uMoon: { value: new THREE.Vector3(-0.42, 0.74, -0.52) } }, // high, so moonlight falls through every roof and the end windows
+        uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uMoon: { value: new THREE.Vector3(0.067, 0.292, -0.954) } }, // the moon's disc: low, straight down both halls' view, so it shows through the first hall's roof and the last hall's window
         vertexShader: gallerySkyVertex,
         fragmentShader: gallerySkyFragment,
         fog: false,
@@ -262,7 +262,6 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         side: THREE.BackSide,
         depthWrite: false,
       }));
-      const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
       const canvasEdgeMat = keep(new THREE.MeshBasicMaterial({ color: 0xf2ece2, toneMapped: false }));
       // Each painting has a modern picture light (a slim black bar on a small round wall mount), switched off
       // by day; at night a warm line glows along its underside and its light fans down over the painting,
@@ -568,7 +567,6 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       wallZ(-10.1, 44, 62, 0, 7);
       wallZ(-18.1, 44, 62, 0, 7);
       ceiling(44, 62, -10.1, -18.1, 7);
-      for (const x of [47, 51, 55, 59]) block(x - 0.9, x + 0.9, 6.9, 6.96, -11.6, -11.3, lampMat, { cast: false, receive: false });
       // stair hall and landing share a taller volume
       const TOP = UPPER + 6;
       wallZ(-10.1, 62, 78.4, 0, TOP);
@@ -1088,10 +1086,11 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       let nightMix = 0;
       const lerp = THREE.MathUtils.lerp;
       const tone = hex => new THREE.Color(hex);
-      const DAY = { ambient: tone(0xfffcf5), sky: tone(0xf5f9ff), ground: tone(0xfff8ed), sun: tone(0xfff8eb), fog: tone(FOG), lamp: tone(0xffffff), face: tone(0xffffff) };
-      const NIGHT = { ambient: tone(0x5a74b8), sky: tone(0x2a4280), ground: tone(0x0c1324), sun: tone(0x8fa6ff), fog: tone(0x070d1a), lamp: tone(0xffd9a0), face: tone(0xfff1de) };
+      const DAY = { ambient: tone(0xfffcf5), sky: tone(0xf5f9ff), ground: tone(0xfff8ed), sun: tone(0xfff8eb), fog: tone(FOG), face: tone(0xffffff) };
+      const NIGHT = { ambient: tone(0x5a74b8), sky: tone(0x2a4280), ground: tone(0x0c1324), sun: tone(0x8fa6ff), fog: tone(0x070d1a), face: tone(0xfff1de) };
       const SUN_AT = sun.position.clone();
-      const MOON_AT = skyMat.uniforms.uMoon.value.clone().normalize().multiplyScalar(80).add(sun.target.position);
+      // the moonlight itself comes from high above, so it falls through every roof
+      const MOON_AT = new THREE.Vector3(-0.42, 0.74, -0.52).normalize().multiplyScalar(80).add(sun.target.position);
       const applyNight = k => {
         skyMat.uniforms.uNight.value = k;
         ambient.color.lerpColors(DAY.ambient, NIGHT.ambient, k);
@@ -1108,7 +1107,6 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         scene.environmentIntensity = lerp(0.4, 0.012, k);
         for (const material of [wallMat, floorMat, ceilingMat]) material.emissiveIntensity = lerp(0.045, 0.003, k);
         spillMat.opacity = 1 - k; // the daylight spill beside the glass
-        lampMat.color.lerpColors(DAY.lamp, NIGHT.lamp, k);
         for (const material of shimmerMaterials) material.uniforms.uStrength.value = material.userData.base * (1 - 0.85 * k);
         for (const material of nightMats) material.opacity = material.userData.night * k;
         for (const material of sparkleMats) material.uniforms.uNight.value = k;

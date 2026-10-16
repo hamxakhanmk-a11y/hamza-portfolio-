@@ -1,7 +1,9 @@
 export const gallerySkyVertex = `
   varying vec3 vSkyDirection;
+  varying vec3 vViewDirection; // from the camera: the moon is infinitely far away, the same from anywhere
   void main() {
     vSkyDirection = position;
+    vViewDirection = (modelMatrix * vec4(position, 1.0)).xyz - cameraPosition;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -9,8 +11,9 @@ export const gallerySkyVertex = `
 export const gallerySkyFragment = `
   uniform float uTime;
   uniform float uNight; // 0 day → 1 night
-  uniform vec3 uMoon;   // direction of the moon (the night light comes from it)
+  uniform vec3 uMoon;   // direction of the moon's disc, as seen from wherever the camera stands
   varying vec3 vSkyDirection;
+  varying vec3 vViewDirection;
   float hash(vec3 p) {
     return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
   }
@@ -61,9 +64,12 @@ export const gallerySkyFragment = `
         stars += step(rarity, hash(cell + float(layer) * 11.0)) * point * mix(0.55, 1.0, twinkle) * (layer == 0 ? 0.35 : layer == 1 ? 0.75 : 1.4);
       }
       night += vec3(0.8, 0.88, 1.0) * stars * smoothstep(0.38, 0.6, height);
-      float m = dot(direction, normalize(uMoon));
-      night = mix(night, vec3(0.97, 0.95, 0.88), smoothstep(0.99905, 0.99935, m));
-      night += vec3(0.16, 0.2, 0.34) * (pow(max(m, 0.0), 220.0) * 0.9 + pow(max(m, 0.0), 30.0) * 0.18 + pow(max(m, 0.0), 6.0) * 0.05);
+      float m = dot(normalize(vViewDirection), normalize(uMoon));
+      // the moon: a soft-edged disc with faint grey markings
+      float disc = smoothstep(0.99815, 0.99845, m);
+      float marks = fbm(direction * 160.0) * 0.35 + fbm(direction * 420.0) * 0.15;
+      night = mix(night, vec3(0.97, 0.95, 0.88) * (1.0 - marks * 0.55), disc);
+      night += vec3(0.16, 0.2, 0.34) * (1.0 - disc) * (pow(max(m, 0.0), 260.0) * 1.1 + pow(max(m, 0.0), 40.0) * 0.25 + pow(max(m, 0.0), 6.0) * 0.06);
       vec3 nightCloud = mix(vec3(0.006, 0.01, 0.026), vec3(0.05, 0.065, 0.1), clamp(0.5 + (density - light) * 5.0, 0.0, 1.0));
       night = mix(night, nightCloud, cloud * 0.45);
       sky = mix(sky, night, uNight);
