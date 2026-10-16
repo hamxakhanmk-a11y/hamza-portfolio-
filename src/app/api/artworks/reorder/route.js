@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
 function isAuthorized(req) {
-  return req.headers.get('authorization') === `Bearer ${process.env.ADMIN_SECRET}`;
+  // fail closed: a missing secret must never let "Bearer undefined" through
+  const secret = process.env.ADMIN_SECRET;
+  return Boolean(secret) && req.headers.get('authorization') === `Bearer ${secret}`;
 }
 
 export async function PUT(req) {
