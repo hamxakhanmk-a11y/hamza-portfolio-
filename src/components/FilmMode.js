@@ -68,12 +68,17 @@ export default function FilmMode() {
           await glide(stops[k].y, 2.6);
           await wait(stops[k].kind === 'bay' ? 1 : stops[k].kind === 'end' ? 1.5 : 0.5);
         }
-        // the flight through the window into the moon, ending in white
-        if (!signal.aborted) { await glide(topOf(gallery) + gallery.offsetHeight - window.innerHeight, 3.6); await wait(0.4); }
+        // a nudge past the last scene starts the gallery's own ending: into the moon, white, the collection
+        if (!signal.aborted && stops.length) {
+          await glide(stops[stops.length - 1].y + window.innerHeight * 0.08, 0.6);
+          await until(() => root.dataset.ending === 'reveal', 15);
+          await until(() => !root.dataset.ending, 6);
+          await wait(0.8);
+        }
       }
       // on through the collection, the commission section and the footer
       const collection = document.getElementById('gallery');
-      if (collection && !signal.aborted) { await glide(topOf(collection) - 40, 1.6); await wait(1); }
+      if (collection && !signal.aborted && Math.abs(topOf(collection) - window.scrollY) > 80) { await glide(topOf(collection) - 40, 1.6); await wait(1); }
       const commission = document.querySelector('.commission-inquiry-home');
       if (commission && !signal.aborted) { await glide(topOf(commission) - 60, 1.5); await wait(1); }
       if (!signal.aborted) { await glide(document.documentElement.scrollHeight - window.innerHeight, 1.5); await wait(1.2); }

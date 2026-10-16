@@ -28,7 +28,7 @@ export default async function Gallery() {
       <div className="max-w-6xl mx-auto px-6">
 
         {/* Section header */}
-        <div data-gsap-reveal className="flex items-end justify-between mb-16">
+        <div className="flex items-end justify-between mb-16">
           <div>
             <p className="text-xs tracking-[0.35em] uppercase mb-3" style={{ color: 'var(--color-coral)' }}>
               Latest Work
@@ -59,7 +59,6 @@ export default async function Gallery() {
               <Link
                 key={artwork.id}
                 href={`/portfolio/${artwork.id}`}
-                data-gsap-reveal
                 className="group flex h-full flex-col"
               >
                 {/* Image */}

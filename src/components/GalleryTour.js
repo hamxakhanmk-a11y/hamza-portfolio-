@@ -1142,6 +1142,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         target = distance < descentTravel ? -3 * (1 - distance / descentTravel) :
           scrollToStop(clamp01((distance - descentTravel) / tourTravel));
         exitTarget = clamp01((distance - descentTravel - tourTravel) / exitTravel);
+        // only when actually scrolling down into it (scrolling back up from the collection never starts it)
+        const goingDown = window.scrollY > lastPageY; lastPageY = window.scrollY;
+        if (goingDown && exitTarget > 0.02 && exitTarget < 0.9 && performance.now() > ownScrollUntil) startEnding();
         // any scrolling that isn't our own landing correction (wheel, finger, keys, scrollbar) starts over
         if (target !== previous && performance.now() > ownScrollUntil) { direction = Math.sign(target - previous); landing = false; }
         lastScrollAt = performance.now();
@@ -1171,6 +1174,49 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       // Film mode (test site) glides from stop to stop on its own; it asks where each stop is.
       rootRef.current.filmStops = () => tourStops.map((entry, k) => ({ y: stopScrollY(k), kind: entry.kind }));
 
+      // The ending plays by itself: once the visitor scrolls on past the last scene, the page glides on
+      // its own to the end of the gallery (the flight into the moon, the screen turning fully white); under
+      // the white the page slips to the collection, and the white then clears to show it in place, as part
+      // of the same journey rather than a new page sliding up. (No automatic glide for reduced motion.)
+      let ending = null, whiteHeld = 0, revealAt = 0, lastPageY = window.scrollY;
+      const html = document.documentElement;
+      const startEnding = (quick = false) => {
+        if (ending || reducedMotion || !descendFromSky) return false;
+        ending = 'auto';
+        html.dataset.ending = 'cover';
+        const root = rootRef.current;
+        const galleryEnd = root.getBoundingClientRect().top + window.scrollY + root.offsetHeight - window.innerHeight;
+        window.dispatchEvent(new CustomEvent('gallery-ending', { detail: { y: galleryEnd, duration: quick ? 1.8 : 3.6 } }));
+        return true;
+      };
+      rootRef.current.startEnding = startEnding;
+      let endingTimers = [];
+      const endingArrived = () => {
+        if (ending !== 'auto') return;
+        endingTimers.push(setTimeout(() => {
+          const collection = document.getElementById(collectionId);
+          if (collection) window.dispatchEvent(new CustomEvent('gallery-ending-jump', { detail: { y: collection.getBoundingClientRect().top + window.scrollY } }));
+          ending = 'reveal';
+          revealAt = performance.now();
+          html.dataset.ending = 'reveal';
+          endingTimers.push(setTimeout(() => { ending = null; delete html.dataset.ending; }, 2600));
+        }, 450)); // a moment of pure white first
+      };
+      // the white over everything (fixed, so it stays while the page moves beneath it)
+      const updateWhite = (delta, now) => {
+        if (!whiteRef.current) return;
+        const bottom = rootRef.current.getBoundingClientRect().bottom;
+        let white = THREE.MathUtils.smoothstep(exitMix, 0.35, 0.92) * clamp01(bottom / window.innerHeight);
+        if (ending === 'auto') {
+          whiteHeld = Math.max(whiteHeld, white);
+          if (exitTarget >= 0.999) whiteHeld = Math.min(1, whiteHeld + delta * 2.5);
+          white = whiteHeld;
+        } else if (ending === 'reveal') {
+          white = 1 - THREE.MathUtils.smoothstep((now - revealAt) / 1000, 0.1, 1.3);
+        } else whiteHeld = 0;
+        whiteRef.current.style.opacity = white.toFixed(3);
+      };
+
       // Looking around where you stand, like moving your eyes: on a computer the view follows the pointer
       // (up to about 20° sideways and 10° up or down); on a phone a sideways drag turns it with the finger.
       // It only applies while the camera stands still, and never while Film mode records.
@@ -1189,6 +1235,8 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         const elapsed = (now - lastTime) / 1000;
         const delta = Math.min(elapsed, 0.25);
         lastTime = now;
+        exitMix = reducedMotion ? exitTarget : exitMix + (exitTarget - exitMix) * (1 - Math.exp(-delta * 4));
+        updateWhite(delta, now);
         if (!visible) return;
         if (!reducedMotion) {
           skyMat.uniforms.uTime.value += elapsed;
@@ -1245,7 +1293,6 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         if (Math.abs(sway.tx - sway.x) < 0.00005) sway.x = sway.tx;
         if (Math.abs(sway.ty - sway.y) < 0.00005) sway.y = sway.ty;
         placeCamera(current);
-        exitMix = reducedMotion ? exitTarget : exitMix + (exitTarget - exitMix) * (1 - Math.exp(-delta * 4));
         // the flight only steers once the camera has reached the last scene (a fast scroll past it just fades)
         const atEnd = clamp01(1 - (stopCount - 1 - current) / 0.5);
         if (exitMix > 0.0005 && !reducedMotion && atEnd > 0) {
@@ -1258,7 +1305,6 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
           camera.fov = baseFov * (1 - 0.6 * fly);
           camera.updateProjectionMatrix();
         } else if (camera.fov !== baseFov) { camera.fov = baseFov; camera.updateProjectionMatrix(); }
-        if (whiteRef.current) whiteRef.current.style.opacity = String(THREE.MathUtils.smoothstep(exitMix, 0.35, 0.92));
         // Keep turns comfortable without extending the scroll route or slowing
         // translation. Initialize at the restored position to avoid a return spin.
         if (!cameraRotation || reducedMotion) cameraRotation = camera.quaternion.clone();
@@ -1326,6 +1372,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const observer = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; });
       observer.observe(rootRef.current);
       window.addEventListener('scroll', readScroll, { passive: true });
+      window.addEventListener('gallery-ending-done', endingArrived);
       window.addEventListener('resize', resize);
       window.addEventListener('touchstart', onTouchStart, { passive: true });
       window.addEventListener('deviceorientation', onTilt);
@@ -1347,6 +1394,9 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         cancelAnimationFrame(frameId);
         observer.disconnect();
         window.removeEventListener('scroll', readScroll);
+        window.removeEventListener('gallery-ending-done', endingArrived);
+        endingTimers.forEach(clearTimeout);
+        delete html.dataset.ending;
         window.removeEventListener('resize', resize);
         window.removeEventListener('touchstart', onTouchStart);
         window.removeEventListener('deviceorientation', onTilt);
@@ -1379,6 +1429,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
   const atEnd = stop >= stopCount - 1;
 
   function skipToCollection() {
+    if (rootRef.current?.startEnding?.(true)) return; // Home: the same white transition into the collection
     document.getElementById(collectionId)?.scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -1392,6 +1443,8 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       style={descendFromSky ? { '--tour-height': `${stopCount * STOP_SCREEN_SHARE + EXIT_SVH}svh`, '--descent-height': `${HOME_DESCENT_SVH}svh` } : { height: `${stopCount * STOP_SCREEN_SHARE + EXIT_SVH}svh` }}
       aria-label="Walk-through gallery of portfolio paintings"
     >
+      {/* the ending's white, matching the top of the next section; fixed, so it stays while the page moves under it */}
+      <div ref={whiteRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[45]" style={{ opacity: 0, mixBlendMode: 'screen', background: 'radial-gradient(circle at 50% 38%, #ffffff 0%, #f6fbfd 45%, #edf7fb 100%)' }} />
       <div className="sticky top-0 h-[100svh] overflow-hidden">
         <div ref={hostRef} className="gallery-tour-scene absolute inset-0" style={{ cursor: hovering ? 'pointer' : 'default' }} />
 
@@ -1489,8 +1542,6 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
           )}
         </div>
 
-        {/* the ending's white, matching the top of the next section so it rises straight out of it */}
-        <div ref={whiteRef} aria-hidden="true" className="pointer-events-none absolute inset-0 z-10" style={{ opacity: 0, mixBlendMode: 'screen', background: 'radial-gradient(circle at 50% 38%, #ffffff 0%, #f6fbfd 45%, #edf7fb 100%)' }} />
 
         <div className="absolute inset-x-0 bottom-0 h-0.5 bg-[#075f8f]/10" aria-hidden="true">
           <div className="h-full bg-[#075f8f]/50" style={{ width: `${progress * 100}%` }} />

@@ -79,6 +79,19 @@ export default function HomeSmoothScroll() {
       if (instance) instance.scrollTo(event.detail.y, { immediate: true, force: true });
       else window.scrollTo({ top: event.detail.y, behavior: 'instant' });
     };
+    // The gallery's ending glides to its end by itself, then slips the page to the collection under the white.
+    const ending = event => {
+      if (!instance) { window.dispatchEvent(new Event('gallery-ending-done')); return; }
+      instance.scrollTo(event.detail.y, {
+        duration: event.detail.duration, lock: true, force: true,
+        easing: t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2),
+        onComplete: () => window.dispatchEvent(new Event('gallery-ending-done')),
+      });
+    };
+    const endingJump = event => {
+      if (instance) instance.scrollTo(event.detail.y, { immediate: true, force: true });
+      else window.scrollTo({ top: event.detail.y, behavior: 'instant' });
+    };
     const touchStart = event => { touchY = event.touches[0]?.clientY; touchHandled = false; };
     const touchMove = event => {
       if (splashing()) { consume(event); return; }
@@ -120,6 +133,8 @@ export default function HomeSmoothScroll() {
     window.addEventListener('touchmove', touchMove, { passive: false, capture: true });
     window.addEventListener('click', enter, true);
     window.addEventListener('gallery-land', land);
+    window.addEventListener('gallery-ending', ending);
+    window.addEventListener('gallery-ending-jump', endingJump);
     start();
     return () => {
       disposed = true; cancelAnimationFrame(frame); instance?.destroy();
@@ -129,6 +144,8 @@ export default function HomeSmoothScroll() {
       window.removeEventListener('touchmove', touchMove, true);
       window.removeEventListener('click', enter, true);
       window.removeEventListener('gallery-land', land);
+      window.removeEventListener('gallery-ending', ending);
+      window.removeEventListener('gallery-ending-jump', endingJump);
     };
   }, []);
   return null;

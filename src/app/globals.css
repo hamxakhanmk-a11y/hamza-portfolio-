@@ -515,3 +515,13 @@ html[data-film]:not([data-film-cursor]), html[data-film]:not([data-film-cursor])
 html[data-film] { scrollbar-width: none; }
 html[data-film]::-webkit-scrollbar { display: none; }
 html[data-splash] .film-button, html[data-film] .film-button { display: none; }
+
+/* The gallery's ending: under the white the collection waits hidden, then its heading and paintings rise
+   into place as the white clears (GalleryTour sets data-ending). */
+html[data-ending="cover"] #gallery > div > *,
+html[data-ending="cover"] #gallery .grid > a { opacity: 0; transform: translateY(32px); }
+html[data-ending="reveal"] #gallery > div > *,
+html[data-ending="reveal"] #gallery .grid > a { transition: opacity 1s ease .35s, transform 1.3s cubic-bezier(.16, 1, .3, 1) .35s; }
+html[data-ending="reveal"] #gallery .grid > a:nth-child(2) { transition-delay: .5s; }
+html[data-ending="reveal"] #gallery .grid > a:nth-child(3) { transition-delay: .65s; }
+html[data-ending="reveal"] #gallery .grid > a:nth-child(4) { transition-delay: .8s; }
