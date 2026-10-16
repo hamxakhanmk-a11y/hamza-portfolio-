@@ -112,7 +112,7 @@ export default function HomeSmoothScroll() {
       const [{ default: Lenis }, module] = await Promise.all([import('lenis'), import('gsap/ScrollTrigger')]);
       if (disposed) return;
       const ScrollTrigger = module.ScrollTrigger || module.default;
-      instance = new Lenis({ lerp: 0.12, smoothWheel: !motion.matches, wheelMultiplier: 0.95, syncTouch: false, anchors: true,
+      instance = new Lenis({ lerp: 0.1, smoothWheel: !motion.matches, wheelMultiplier: 1.1, syncTouch: false, anchors: true,
         prevent: element => Boolean(element.closest('[role="dialog"], [data-lenis-prevent]')) });
       instance.on('scroll', ScrollTrigger.update);
       const tick = time => {

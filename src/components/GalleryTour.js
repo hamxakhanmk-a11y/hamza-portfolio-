@@ -1178,7 +1178,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       // its own to the end of the gallery (the flight into the moon, the screen turning fully white); under
       // the white the page slips to the collection, and the white then clears to show it in place, as part
       // of the same journey rather than a new page sliding up. (No automatic glide for reduced motion.)
-      let ending = null, whiteHeld = 0, revealAt = 0, lastPageY = window.scrollY;
+      let ending = null, whiteHeld = 0, revealAt = 0, lastPageY = window.scrollY, lastWhite = '';
       const html = document.documentElement;
       const startEnding = (quick = false) => {
         if (ending || reducedMotion || !descendFromSky) return false;
@@ -1214,7 +1214,15 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         } else if (ending === 'reveal') {
           white = 1 - THREE.MathUtils.smoothstep((now - revealAt) / 1000, 0.1, 1.3);
         } else whiteHeld = 0;
-        whiteRef.current.style.opacity = white.toFixed(3);
+        // only touch the layer when it changes; when invisible it leaves the page entirely, and its glow
+        // blending (which makes the browser redraw everything beneath it) is used only while it fades
+        const value = white.toFixed(3);
+        if (value === lastWhite) return;
+        lastWhite = value;
+        const style = whiteRef.current.style;
+        style.opacity = value;
+        style.visibility = white > 0.001 ? 'visible' : 'hidden';
+        style.mixBlendMode = white > 0.001 && white < 0.999 && ending !== 'reveal' ? 'screen' : 'normal';
       };
 
       // Looking around where you stand, like moving your eyes: on a computer the view follows the pointer
@@ -1444,7 +1452,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       aria-label="Walk-through gallery of portfolio paintings"
     >
       {/* the ending's white, matching the top of the next section; fixed, so it stays while the page moves under it */}
-      <div ref={whiteRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[45]" style={{ opacity: 0, mixBlendMode: 'screen', background: 'radial-gradient(circle at 50% 38%, #ffffff 0%, #f6fbfd 45%, #edf7fb 100%)' }} />
+      <div ref={whiteRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[45]" style={{ opacity: 0, visibility: 'hidden', background: 'radial-gradient(circle at 50% 38%, #ffffff 0%, #f6fbfd 45%, #edf7fb 100%)' }} />
       <div className="sticky top-0 h-[100svh] overflow-hidden">
         <div ref={hostRef} className="gallery-tour-scene absolute inset-0" style={{ cursor: hovering ? 'pointer' : 'default' }} />
 

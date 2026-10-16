@@ -3,6 +3,7 @@ import "./globals.css";
 import SiteMotion from "@/components/SiteMotion";
 import Navbar from "@/components/Navbar";
 import PageScrollReset from "@/components/PageScrollReset";
+import SiteSmoothScroll from "@/components/SiteSmoothScroll";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -36,6 +37,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className="bg-white text-neutral-900 antialiased">
         <PageScrollReset />
+        <SiteSmoothScroll />
         <Navbar />
         <SiteMotion />
         {children}
