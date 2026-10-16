@@ -98,7 +98,15 @@ export default function HomeSmoothScroll() {
       const y = event.touches[0]?.clientY;
       const range = bounds();
       if (touchHandled && range && window.scrollY <= range.end + 2) { consume(event); return; }
-      if (touchY == null || y == null || Math.abs(touchY - y) < 20) return;
+      if (touchY == null || y == null) return;
+      // Inside the banner, hold the browser's own scrolling back from the very first touch until the swipe's
+      // direction is clear; otherwise it starts scrolling first and the stage step adds to it (two stages at
+      // once on shorter phones). Pulling down at the very top is left alone (pull-to-refresh).
+      const inHero = range && !motion.matches && window.scrollY >= range.start - 2 && window.scrollY <= range.end + 2;
+      if (Math.abs(touchY - y) < 12) {
+        if (inHero && !(touchY - y < 0 && window.scrollY <= range.start + 2)) consume(event);
+        return;
+      }
       navigate(Math.sign(touchY - y), event);
       touchHandled = event.defaultPrevented;
       touchY = y;

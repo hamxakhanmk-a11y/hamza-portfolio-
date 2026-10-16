@@ -195,6 +195,8 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       if (disposed || !hostRef.current) return;
       const host = hostRef.current;
       const narrow = window.innerWidth < 768;
+      // phones and tablets (touch screens) get the lighter rendering: tablets choked on the desktop quality
+      const light = narrow || window.matchMedia('(pointer: coarse)').matches;
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       let renderer;
@@ -204,7 +206,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         setStatus('unsupported');
         return;
       }
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, narrow ? 1.5 : 2)); // finer sampling keeps thin edges steady while moving
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, narrow ? 1.5 : light ? 1.25 : 2)); // tablets: big screens, a little less sharpness for a steady frame rate // finer sampling keeps thin edges steady while moving
       // no filmic tone curve: it drags a lit white wall down to grey; colours render as painted
       renderer.toneMapping = THREE.NoToneMapping;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -697,7 +699,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       const floorReflections = [];
       for (const [width, depth, x, z, y] of [[82.4, 59, 37.2, -20.5, 0], [8, 39.9, 74.4, -30.05, UPPER]]) {
         const reflection = new Reflector(keep(new THREE.PlaneGeometry(width, depth)), {
-          color: 0xfff8eb, textureWidth: narrow ? 384 : 768, textureHeight: narrow ? 384 : 768,
+          color: 0xfff8eb, textureWidth: light ? 384 : 768, textureHeight: light ? 384 : 768,
           clipBias: 0.003, multisample: 0,
         });
         reflection.rotation.x = -Math.PI / 2;
@@ -705,7 +707,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         reflection.material.transparent = true;
         reflection.material.opacity = 0.16;
         reflection.material.depthWrite = false;
-        reflection.material.uniforms.uBlurStep = { value: new THREE.Vector2(1 / (narrow ? 384 : 768), 1 / (narrow ? 384 : 768)) };
+        reflection.material.uniforms.uBlurStep = { value: new THREE.Vector2(1 / (light ? 384 : 768), 1 / (light ? 384 : 768)) };
         reflection.material.fragmentShader = reflection.material.fragmentShader
           .replace('uniform sampler2D tDiffuse;', 'uniform sampler2D tDiffuse; uniform vec2 uBlurStep;')
           .replace('vec4 base = texture2DProj( tDiffuse, vUv );', `vec4 base = texture2DProj(tDiffuse, vUv) * 0.2;
@@ -779,7 +781,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       sun.position.set(-5, 65, -35);
       sun.target.position.set(37, 0, -20);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(narrow ? 2048 : 4096, narrow ? 2048 : 4096);
+      sun.shadow.mapSize.set(light ? 2048 : 4096, light ? 2048 : 4096);
       Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 50, bottom: -50, near: 0.5, far: 150 });
       sun.shadow.bias = -0.0004;
       sun.shadow.normalBias = 0.08;
@@ -984,7 +986,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         glow.renderOrder = 2;
         group.add(glow);
         // glitter drifting down the wall behind and around the painting (it passes behind the canvas)
-        group.add(sparkles(narrow ? 26 : 44, [-width / 2 - 0.55, width / 2 + 0.55, -height / 2 - 0.5, lampY, 0.02, 0.05], { fall: 0.12, size: 0.85, warm: 0.75 }));
+        group.add(sparkles(light ? 26 : 44, [-width / 2 - 0.55, width / 2 + 0.55, -height / 2 - 0.5, lampY, 0.02, 0.05], { fall: 0.12, size: 0.85, warm: 0.75 }));
         const pool = new THREE.Mesh(keep(new THREE.PlaneGeometry(width * 1.6 + 0.6, 2.2)), floorPoolMat);
         pool.rotation.x = -Math.PI / 2;
         pool.position.set(0, (slot >= 18 ? UPPER : 0) - place.pos[1] + 0.02, 1.15);
@@ -999,7 +1001,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
       // fairy dust floating through the halls at night
       for (const box of [[-3.6, 3.6, 0.4, 5.6, -15.6, -0.5], [10.5, 43.5, 0.4, 6.6, -18.7, -9.5], [44.5, 61.5, 0.4, 6.6, -17.7, -10.5], [62.5, 78, 0.4, TOP - 0.4, -17.7, -10.5], [70.8, 78, UPPER + 0.4, TOP - 0.4, -49.5, -18.5]]) {
         const volume = (box[1] - box[0]) * (box[3] - box[2]) * (box[5] - box[4]);
-        scene.add(sparkles(Math.round(volume * (narrow ? 0.18 : 0.3)), box, { size: 0.7, warm: 0.25 }));
+        scene.add(sparkles(Math.round(volume * (light ? 0.18 : 0.3)), box, { size: 0.7, warm: 0.25 }));
       }
 
       // ── Camera path ──
