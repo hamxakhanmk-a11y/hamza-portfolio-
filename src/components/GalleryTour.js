@@ -1455,7 +1455,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
     >
       {/* the ending's white, matching the top of the next section; fixed, so it stays while the page moves under it */}
       <div ref={whiteRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[45]" style={{ opacity: 0, visibility: 'hidden', background: 'radial-gradient(circle at 50% 38%, #ffffff 0%, #f6fbfd 45%, #edf7fb 100%)' }} />
-      <div className="sticky top-0 h-[100svh] overflow-hidden">
+      <div className="gallery-stage sticky top-0 overflow-hidden">
         <div ref={hostRef} className="gallery-tour-scene absolute inset-0" style={{ cursor: hovering ? 'pointer' : 'default' }} />
 
         {/* Title card over the table courtyard, as the film opens */}
@@ -1504,7 +1504,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
           Skip to collection ↓
         </button>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-4 sm:bottom-10">
+        <div className="gallery-stage-bottom pointer-events-none absolute inset-x-0 flex justify-center px-4">
           {descending && status === 'ready' && <p className={`text-[10px] uppercase tracking-[0.35em] transition-colors duration-1000 ${night ? 'text-white/70' : 'text-[#075f8f]/70'}`}>Scroll through the clouds</p>}
           {!descending && currentStop.kind === 'entrance' && status === 'ready' && (
             <div className="flex flex-col items-center gap-3 text-center">
@@ -1553,7 +1553,7 @@ export default function GalleryTour({ slots, artistName, descendFromSky = false,
         </div>
 
 
-        <div className="absolute inset-x-0 bottom-0 h-0.5 bg-[#075f8f]/10" aria-hidden="true">
+        <div className="gallery-stage-edge absolute inset-x-0 h-0.5 bg-[#075f8f]/10" aria-hidden="true">
           <div className="h-full bg-[#075f8f]/50" style={{ width: `${progress * 100}%` }} />
         </div>
       </div>

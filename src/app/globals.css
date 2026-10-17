@@ -525,3 +525,13 @@ html[data-ending="reveal"] #gallery .grid > a { transition: opacity 1s ease .35s
 html[data-ending="reveal"] #gallery .grid > a:nth-child(2) { transition-delay: .5s; }
 html[data-ending="reveal"] #gallery .grid > a:nth-child(3) { transition-delay: .65s; }
 html[data-ending="reveal"] #gallery .grid > a:nth-child(4) { transition-delay: .8s; }
+
+/* The gallery's 3D stage fills the tallest the screen gets (phones' browser bars shrink away while
+   scrolling; sized to the short screen it left a bare strip underneath). What sits at its bottom follows
+   the screen's actual visible edge, so it never hides behind a browser bar. Older browsers use 100vh. */
+.gallery-stage { height: 100vh; height: 100lvh; }
+.gallery-stage-bottom { bottom: 1.5rem; bottom: calc(100lvh - 100dvh + 1.5rem); }
+.gallery-stage-edge { bottom: 0; bottom: calc(100lvh - 100dvh); }
+@media (min-width: 640px) {
+  .gallery-stage-bottom { bottom: 2.5rem; bottom: calc(100lvh - 100dvh + 2.5rem); }
+}
