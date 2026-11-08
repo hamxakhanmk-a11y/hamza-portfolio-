@@ -6,6 +6,7 @@ import ImageCropper from '@/components/ImageCropper';
 import HeroStageEditor from '@/components/HeroStageEditor';
 import HeroMedia, { isVideoSource } from '@/components/HeroMedia';
 import { TOUR_SLOTS, TOUR_SETTING_KEY, DEFAULT_TOUR_MAP, parseTourMap, resolveTourSlots } from '@/data/galleryTour';
+import VisitorsDashboard from '@/components/VisitorsDashboard';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -151,7 +152,8 @@ const tourThumbFallback = original => event => {
 };
 
 export default function AdminPage() {
-  const [token, setToken] = useState(() => typeof window === 'undefined' ? null : localStorage.getItem('admin_token'));
+  const [token, setToken] = useState(null);
+  const [sessionChecked, setSessionChecked] = useState(false); // saved login read from this browser yet?
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
@@ -554,6 +556,14 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      try { setToken(localStorage.getItem('admin_token')); } catch {}
+      setSessionChecked(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
     if (token) void loadAll(token);
     // The data loaders are stable page functions and only need to run when the session changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -808,6 +818,8 @@ export default function AdminPage() {
   }
 
   // ── Login screen ───────────────────────────────────────────
+  if (!sessionChecked) return <div className="min-h-screen bg-white" />;
+
   if (!token) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white px-4 sm:px-6">
@@ -870,7 +882,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex gap-5 overflow-x-auto border-b border-neutral-200 bg-white px-4 sm:gap-8 sm:px-6">
-        {[['dashboard', 'Dashboard'], ['artworks', 'Artworks'], ['layout', 'Layout'], ['tour', '3D Gallery'], ['shows', 'Shows'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
+        {[['dashboard', 'Dashboard'], ['visitors', 'Visitors'], ['artworks', 'Artworks'], ['layout', 'Layout'], ['tour', '3D Gallery'], ['shows', 'Shows'], ['about', 'About'], ['contact', 'Contact'], ['photos', 'Site Photos']].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -916,6 +928,7 @@ export default function AdminPage() {
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {[
                   ['+ Add Artwork', 'artworks'],
+                  ['See Visitors', 'visitors'],
                   ['Arrange Paintings', 'layout'],
                   ['Change 3D Gallery Paintings', 'tour'],
                   ['Manage Shows', 'shows'],
@@ -934,6 +947,9 @@ export default function AdminPage() {
         )}
 
         {/* ═══════════════ LAYOUT MANAGER ═══════════════ */}
+        {/* ═══════════════ VISITORS ═══════════════ */}
+        {activeTab === 'visitors' && <VisitorsDashboard token={token} />}
+
         {activeTab === 'layout' && (
           <div className="flex flex-col gap-7">
             <div>

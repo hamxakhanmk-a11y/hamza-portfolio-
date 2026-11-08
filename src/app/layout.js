@@ -4,6 +4,7 @@ import SiteMotion from "@/components/SiteMotion";
 import Navbar from "@/components/Navbar";
 import PageScrollReset from "@/components/PageScrollReset";
 import SiteSmoothScroll from "@/components/SiteSmoothScroll";
+import VisitTracker from "@/components/VisitTracker";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -40,6 +41,7 @@ export default function RootLayout({ children }) {
         <SiteSmoothScroll />
         <Navbar />
         <SiteMotion />
+        <VisitTracker />
         {children}
       </body>
     </html>
